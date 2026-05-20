@@ -1,0 +1,16 @@
+{
+  "app": {
+    "name": "MathPad",
+    "tagline": "Practice math by hand"
+  },
+  "common": {
+    "start": "Start",
+    "cancel": "Cancel",
+    "close": "Close",
+    "clear": "Clear",
+    "next": "Next",
+    "back": "Back",
+    "done": "Done",
+    "retry": "Retry"
+  }
+}
