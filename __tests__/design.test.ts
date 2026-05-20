@@ -1,6 +1,7 @@
 import {
   colors,
   design,
+  motion,
   operationColors,
   radius,
   shadows,
@@ -55,6 +56,14 @@ describe('design tokens', () => {
     expect(shadows.md.elevation).toBeGreaterThan(0);
   });
 
+  it('exposes an ascending motion-duration scale', () => {
+    const { instant, fast, base, slow } = motion.duration;
+    expect(instant).toBeGreaterThan(0);
+    expect(fast).toBeGreaterThanOrEqual(instant);
+    expect(base).toBeGreaterThanOrEqual(fast);
+    expect(slow).toBeGreaterThanOrEqual(base);
+  });
+
   it('aggregates every token group under `design`', () => {
     expect(design.colors).toBe(colors);
     expect(design.operationColors).toBe(operationColors);
@@ -62,5 +71,6 @@ describe('design tokens', () => {
     expect(design.spacing).toBe(spacing);
     expect(design.radius).toBe(radius);
     expect(design.shadows).toBe(shadows);
+    expect(design.motion).toBe(motion);
   });
 });

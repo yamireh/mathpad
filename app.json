@@ -43,6 +43,13 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "80bb5400-6728-42e4-9ecd-7715a5b94333"
+      }
+    },
+    "owner": "yamireh"
   }
 }

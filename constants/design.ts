@@ -1,7 +1,8 @@
 /**
  * MathPad design tokens.
  *
- * Single source of truth for colours, typography, spacing, radii and shadows.
+ * Single source of truth for colours, typography, spacing, radii, shadows and
+ * motion.
  * UI code should import from here rather than hard-coding values, so the
  * design system stays consistent across screens.
  *
@@ -151,6 +152,27 @@ export const shadows = {
 } as const;
 
 /* -------------------------------------------------------------------------- */
+/* Motion                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Animation durations, in milliseconds. Motion is deliberately restrained —
+ * the app's style is calm and focused (SPEC § Visual & interaction design).
+ */
+export const motion = {
+  duration: {
+    /** Near-instant feedback, e.g. press states. */
+    instant: 100,
+    /** Quick transitions, e.g. highlights and toggles. */
+    fast: 150,
+    /** Standard transitions, e.g. screen-level fades. */
+    base: 250,
+    /** Deliberate transitions, e.g. layout changes between problem types. */
+    slow: 400,
+  },
+} as const;
+
+/* -------------------------------------------------------------------------- */
 /* Aggregate export                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -162,6 +184,7 @@ export const design = {
   spacing,
   radius,
   shadows,
+  motion,
 } as const;
 
 /** Keys of the per-operation colour map (`'addition' | 'subtraction' | ...`). */

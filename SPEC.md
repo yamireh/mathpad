@@ -91,4 +91,236 @@ Unlike worksheet apps that only check the final answer, MathPad preserves the ki
 - Kid leaves trailing decimal boxes blank if their answer has fewer decimal places
 - The pre-printed dot eliminates decimal-point recognition errors and avoids locale `.` vs `,` confusion in handwriting (the displayed separator follows locale)
 
-Example decimal layout for `15 ÷ 4 = ?`:
+Example decimal layout for `15 ÷ 4 = ?`:[ ] . [ ][ ][ ]
+
+**Scratch area:** Large free-form Skia canvas above or beside the problem. Kid can cross out digits, write small borrowed/carried numbers above the problem digits. Toolbar: eraser, undo, clear all. Used by the kid only — never recognized, never used for marking.
+
+**Toolbar:** Eraser (toggle), Undo, **Finish** (primary).
+
+### 4. Score
+
+**Top:**
+- Two scores displayed prominently:
+  - **First try:** X / Y
+  - **Final:** X / Y (updates after resubmissions)
+- Encouragement text varies by final score:
+  - 100%: "Perfect!"
+  - 70%+: "Great job!"
+  - 40–69%: "Nice work — keep practicing!"
+  - <40%: "Good effort — let's try again!"
+
+**Question list:** Scrollable. Correct (first try) shows green check. Wrong (not fixed) shows coral indicator with kid's wrong answer struck through next to correct. Wrong (fixed) shows green check + small "fixed" badge. Each question is tappable to reopen for editing.
+
+**Bottom:** Home / Again buttons.
+
+**On session completion, save to local history.**
+
+### 5. Question review/edit (from Score)
+
+- Reopens the original Practice layout for that single question
+- **Original ink fully preserved** — scratch work and answer boxes restored exactly as the kid left them
+- Kid can edit any answer box and modify scratch work
+- "Submit" re-runs recognition, updates the question's status, updates final score
+- Returns to Score screen
+
+### 6. History
+
+- Reverse chronological list of completed sessions
+- Each entry: date/time, operation icon, first-try score badge, final score badge, duration
+- Tap → detail view: list of questions, kid's final answer vs correct answer (no ink replay, just digits)
+- **"Clear all history"** button with confirmation dialog
+
+---
+
+## Question generation rules
+
+All generation is local, deterministic logic. No external calls. Implemented in `/lib/questionGenerator.ts` with full unit test coverage.
+
+**Digit range:** Each operand's digit count picked randomly within the user-selected range.
+
+**Mode constraints (must be enforced, not just statistically likely):**
+
+- **With carrying:** at least one column sum ≥ 10
+- **With borrowing:** at least one column where minuend digit < subtrahend digit
+- **With regrouping:** at least one partial product carries
+- **With remainders:** dividend not evenly divisible by divisor; remainder > 0
+- **With decimals:** dividend/divisor pair produces a terminating decimal answer with ≤ 3 decimal places. Generator filters out any combination that would produce a repeating decimal.
+- **Without [mode]:** problem guaranteed not to require it
+- **Random:** mix of both
+
+**Negative answers (subtraction, "Allow negative" on):** Smaller operand on top, larger on bottom, ensuring a negative result.
+
+**Other rules:**
+- No fractional answers in addition/subtraction/multiplication (always integers)
+- Multiplication: no negative answers in v1
+- Division: divisor ≥ 2
+- Mix mode: each question randomly picks an operation; respects digit range; uses default "off"/no-special-mode constraints (no negatives, no decimals — keeps mix accessible)
+
+---
+
+## Scoring rules
+
+- **First try score:** Locked at the moment of initial Finish (or timer expiry). Never changes.
+- **Final score:** Starts equal to first-try; increases as kid fixes wrong answers.
+- **Blank answer = wrong.**
+- **Timer expiry:** Auto-submits current state. Blank or incomplete answers count as wrong.
+- Per-question status: `correct_first_try`, `wrong`, `fixed`.
+
+**Marking edge cases:**
+- **Mathematical equivalence wins over form** for decimals: if correct answer is `3` but kid writes `3.00`, marked **correct**. Trailing decimal zeros = mathematically equal.
+- Missing decimal digits when expected → wrong (correct is `3.75`, kid writes only `3` → wrong).
+- Extra decimal digits when none expected → correct only if they're zeros (`3.00 = 3`); any non-zero decimal makes it wrong.
+- For negative-answer mode: sign and digits must both match. Correct `−3`, kid writes `3` → wrong. Correct `3`, kid writes `−3` → wrong.
+
+---
+
+## Recognition requirements
+
+The recognizer must classify the following inputs:
+- Digits 0–9 (10 classes)
+- Minus sign `−` (only used in the optional leftmost sign box, only when negative-answers mode is on)
+- **No decimal point recognition needed** — the decimal point is pre-printed in the UI, never handwritten
+
+**Recognition adapter** is the abstraction layer between the app and the chosen library. The app only calls `recognizeDigit(strokes)` and `recognizeSign(strokes)`. Library can be swapped without touching screens.
+
+If the recognition library doesn't natively support a `−` class, fall back to a small "+/−" toggle button next to the answer instead of handwritten sign — the kid taps it. This is uglier but reliable. Decide during Phase 2 implementation based on what the POC library supports.
+
+---
+
+## Visual & interaction design
+
+- **Style:** Clean Apple-style — minimal, calm, focused. Not babyish, not corporate.
+- **Typography:** System sans, two weights (regular + medium), sentence case throughout (in English; respect target-language conventions when localized).
+- **Color:** Mostly neutral. One accent color per operation (+ blue, − coral, × purple, ÷ teal, mix neutral). Green for correct, coral for wrong.
+- **Encouragement:** Text only ("Great job!"). No stars, streaks, characters, mascots, sound effects.
+- **Accessibility:** Large tap targets (≥44pt), VoiceOver labels on all interactive elements, scalable text size, high-contrast colors, Dynamic Type support.
+- **Responsive:** Tablet (iPad — primary) and phone, both portrait and landscape. iPad landscape gives scratch area a larger side panel.
+
+---
+
+## Architecture & code organization
+
+### Modular design principles
+
+The app is built as a layered system. Each layer has a clear responsibility and a stable interface. Changes within a layer should not propagate to other layers. Reusable UI lives in a shared library; feature screens compose from it.
+
+### Layers (top to bottom)
+
+1. **Feature screens** (`/app`) — compose primitives + domain components. Contain no business logic.
+2. **Domain components** (`/components/domain`) — math-specific reusable UI: `AnswerBox`, `ScratchCanvas`, `ProblemDisplay`, `QuestionResultRow`, `OperationCard`, `DigitRangeSelector`, `ModeRadioGroup`, `TimerDisplay`, `DecimalAnswerRow`, `SignedAnswerRow`.
+3. **Primitive UI components** (`/components/ui`) — generic reusable UI: `Button`, `Chip`, `RadioRow`, `Card`, `IconButton`, `Header`, `ScreenContainer`, `Pill`, `ConfirmDialog`, `EmptyState`. Pure presentation, no business logic.
+4. **Hooks** (`/hooks`) — `usePracticeSession`, `useSettings`, `useHistory`, `useTimer`, `useRecognition`. Encapsulate stateful logic and side effects.
+5. **Library code** (`/lib`):
+   - `questionGenerator/` — pure logic, fully tested
+   - `recognition/` — **adapter pattern**. Public API: `recognizeDigit(strokes)`, `recognizeSign(strokes)`. Internal implementation wraps the chosen library. Swappable without touching anything else.
+   - `storage/` — adapter over AsyncStorage / SQLite. Public API: `historyStore`, `settingsStore`. Implementation details hidden.
+   - `i18n/` — translation lookup, locale detection, RTL handling
+   - `scoring/` — pure scoring logic, including decimal equivalence checks
+6. **Design tokens** (`/constants/design.ts`) — single source of truth for colors, typography, spacing, radii, shadows, motion durations. Every component reads from this; no hard-coded values anywhere else.
+7. **Types** (`/types`) — shared TypeScript types: `Question`, `Operation`, `Settings`, `SessionResult`, `RecognitionResult`, etc.
+
+### Rules
+
+- No screen imports another screen's internals
+- No domain component imports a feature screen
+- Primitives never import domain components
+- All cross-cutting concerns (storage, recognition, i18n) go through their adapter — never called directly
+- Every component takes props; no global state read inside components except via well-defined hooks
+- Style values come from design tokens — never hard-coded
+- All user-facing strings come from i18n — never hard-coded in components
+
+### Testing
+
+- Pure logic (`questionGenerator`, `scoring`) has unit tests via Jest, including decimal equivalence and negative-answer cases
+- Domain components have render snapshot tests
+- Critical user flows (practice session end-to-end) have integration tests where practical
+- Recognition adapter has a mock implementation for tests so tests don't depend on the real library
+
+---
+
+## Internationalization (i18n)
+
+v1 ships **English only**, but the codebase is fully prepared for multi-language from day one.
+
+### Requirements
+
+- All user-facing strings live in translation files (`/lib/i18n/locales/en.json`, future: `ar.json`, `es.json`, etc.). No hard-coded strings anywhere in components.
+- Use `i18next` + `react-i18next` (or equivalent) — supports pluralization rules, interpolation, fallbacks.
+- Locale detection: read device locale on app launch; fall back to English if unsupported.
+- A settings option to manually override device locale.
+- RTL support via `I18nManager`. UI components must use logical layout properties (`start`/`end`) rather than `left`/`right` where possible.
+- Component layouts must flex with string length — no fixed-width buttons with text inside.
+- Math problems themselves always use Western Arabic numerals (0–9) and standard math symbols, regardless of UI language.
+- **Decimal separator follows locale:** displayed as `.` in en-US/en-GB/ja, `,` in most of Europe and Latin America. The pre-printed separator in the answer area reflects the active locale.
+
+### Locales to plan for (v1.x roadmap, not v1)
+
+- Arabic (RTL test case)
+- Spanish (Latin America focus)
+- French
+- German (long-string test case)
+- Mandarin Simplified
+- Portuguese (Brazil)
+
+### What's bundled vs runtime
+
+- All translation strings are bundled in the app — no remote fetch.
+- Each additional language adds ~50–100 KB to app size.
+
+---
+
+## Local data storage
+
+All data stays on the device. No cloud, no sync, no external calls.
+
+- **Settings:** last-used settings per operation
+- **History:** every completed session
+  - date/time, operation, settings used, first-try score, final score, duration, per-question details (problem, kid's final recognized answer, correct answer, status)
+  - Raw ink stroke data NOT persisted (too large, not useful long-term)
+- **In-memory only (cleared at session end):** Skia stroke data per question — held only during the active session to support the review/edit feature
+
+### History controls
+
+- "Clear all history" button in History screen with confirmation dialog
+- No size limits initially (data is small); revisit if size becomes an issue
+
+---
+
+## Privacy & offline guarantees
+
+- Zero external network calls at runtime
+- No analytics, no crash reporting (or strictly opt-in, off by default)
+- No ads, no third-party SDKs that phone home
+- No user accounts, no PII collected
+- Privacy policy reflects: data stays on device, nothing transmitted, user controls deletion
+
+---
+
+## Known technical risks (acknowledged, must be handled)
+
+1. **Ink persistence across edit/resubmit** — Skia strokes must be held in memory and restored. Implementation detail of `usePracticeSession` hook. Budget time.
+2. **Long division layout** — different UI, recognition zones, scratch zones from horizontal layouts. Larger build than other operation layouts.
+3. **Decimal division generator** — must filter out non-terminating decimals reliably. Implementation: compute the answer, check if it terminates within 3 decimal places, retry if not. Cap retries to avoid infinite loops.
+4. **Decimal answer marking** — mathematical equivalence required. `3 = 3.0 = 3.00 = 3.000`. Scoring logic compares numerical value, not string form.
+5. **Negative sign input** — verify recognition library supports `−` as a class. If not, fall back to a `+/−` toggle button instead of handwritten sign.
+6. **Timer + auto-submit mid-stroke** — handle gracefully: finalize active stroke, then submit.
+7. **Palm rejection on iPad** — Skia doesn't handle it natively like PencilKit. Custom logic needed to ignore palm touches when an Apple Pencil is in use.
+8. **Recognition adapter** — keep the abstraction clean so the library is swappable.
+9. **Mix mode transitions** — switching layouts mid-session needs smooth transitions, no layout jumps.
+10. **i18n + RTL** — flips need testing once Arabic or Hebrew is added. Build structure correctly now.
+
+---
+
+## Out of scope for v1 (explicit)
+
+- User accounts, login, multi-kid profiles
+- Cloud sync, backups, multi-device
+- Teacher dashboards, classroom features, sharing
+- Leaderboards, achievements, stars, streaks, characters, mascots
+- Word problems, fractions as input, negative answers in multiplication, decimals in operations other than division
+- Sound effects, music, haptics beyond default
+- Onboarding tutorial (defer to v1.1 based on user feedback)
+- Languages other than English (structure ready, content English-only)
+- Any external network call, analytics, crash reporting, ads
+- Long-term storage of raw ink stroke data
+- European-style long division
