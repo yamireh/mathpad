@@ -27,6 +27,7 @@ export default function ReviewScreen() {
     updateAnswerInk,
     updateScratchInk,
     setLayoutOverride,
+    toggleBorrowMark,
     reviewSubmit,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -77,6 +78,8 @@ export default function ReviewScreen() {
         onScratchInkChange={(strokes) =>
           updateScratchInk(question.id, strokes)
         }
+        borrowMarks={session.borrowMarks[question.id]}
+        onToggleBorrow={(column) => toggleBorrowMark(question.id, column)}
         tone={accent}
       />
 

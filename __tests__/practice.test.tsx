@@ -8,6 +8,7 @@ import type {
   AdditionSettings,
   DivisionSettings,
   Settings,
+  SubtractionSettings,
 } from '../types';
 
 const additionSettings: AdditionSettings = {
@@ -24,6 +25,15 @@ const divisionSettings: DivisionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   answerType: 'noRemainder',
+};
+
+const subtractionSettings: SubtractionSettings = {
+  operation: 'subtraction',
+  digitRange: { min: 2, max: 2 },
+  questionCount: 5,
+  timer: { enabled: false, durationMinutes: 5 },
+  borrowing: 'with',
+  allowNegative: 'off',
 };
 
 /** Starts a session, then renders the Practice screen. */
@@ -75,5 +85,17 @@ describe('Practice screen', () => {
     // Switching to the long-division layout renders without error.
     fireEvent.press(screen.getByText('Long division'));
     expect(screen.getByText('Long division')).toBeOnTheScreen();
+  });
+
+  it('lets you tap a top digit to borrow on a subtraction', async () => {
+    renderPractice(subtractionSettings);
+    await waitFor(() =>
+      expect(screen.getByText('Question 1 of 5')).toBeOnTheScreen(),
+    );
+    const borrowTargets = screen.getAllByLabelText(/^Borrow from/);
+    expect(borrowTargets.length).toBeGreaterThan(0);
+    // Tapping a borrow target re-renders without error.
+    fireEvent.press(borrowTargets[0]);
+    expect(screen.getByText('Question 1 of 5')).toBeOnTheScreen();
   });
 });

@@ -51,6 +51,8 @@ export interface SessionData {
   scratchInk: Record<string, InkStroke[]>;
   /** User-chosen layout overrides keyed by question id (division toggle). */
   layoutOverrides: Record<string, ProblemLayout>;
+  /** Tapped borrow-lender columns keyed by question id (subtraction). */
+  borrowMarks: Record<string, number[]>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -67,6 +69,8 @@ export interface PracticeSessionContextValue {
   updateScratchInk: (questionId: string, strokes: InkStroke[]) => void;
   /** Override the problem layout for one question (division toggle). */
   setLayoutOverride: (questionId: string, layout: ProblemLayout) => void;
+  /** Toggle a borrow on a top-operand digit column (subtraction). */
+  toggleBorrowMark: (questionId: string, column: number) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -125,6 +129,7 @@ export function PracticeSessionProvider({
         answerInk,
         scratchInk: {},
         layoutOverrides: {},
+        borrowMarks: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -164,6 +169,22 @@ export function PracticeSessionProvider({
       commit({
         ...data,
         layoutOverrides: { ...data.layoutOverrides, [questionId]: layout },
+      });
+    },
+    [commit],
+  );
+
+  const toggleBorrowMark = useCallback(
+    (questionId: string, column: number) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const current = data.borrowMarks[questionId] ?? [];
+      const next = current.includes(column)
+        ? current.filter((c) => c !== column)
+        : [...current, column];
+      commit({
+        ...data,
+        borrowMarks: { ...data.borrowMarks, [questionId]: next },
       });
     },
     [commit],
@@ -224,6 +245,7 @@ export function PracticeSessionProvider({
       updateAnswerInk,
       updateScratchInk,
       setLayoutOverride,
+      toggleBorrowMark,
       finish,
       reviewSubmit,
       reset,
@@ -234,6 +256,7 @@ export function PracticeSessionProvider({
       updateAnswerInk,
       updateScratchInk,
       setLayoutOverride,
+      toggleBorrowMark,
       finish,
       reviewSubmit,
       reset,

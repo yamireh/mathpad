@@ -34,6 +34,10 @@ export interface QuestionWorkspaceProps {
   onAnswerInkChange: (ink: AnswerInk) => void;
   scratchInk?: InkStroke[];
   onScratchInkChange: (strokes: InkStroke[]) => void;
+  /** Tapped borrow-lender columns for subtraction. */
+  borrowMarks?: number[];
+  /** Toggle a borrow on a top-operand digit (subtraction only). */
+  onToggleBorrow?: (column: number) => void;
   tone: string;
 }
 
@@ -52,6 +56,8 @@ export function QuestionWorkspace({
   onAnswerInkChange,
   scratchInk,
   onScratchInkChange,
+  borrowMarks,
+  onToggleBorrow,
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
@@ -152,6 +158,13 @@ export function QuestionWorkspace({
               question={question}
               layout={layout}
               answerSlot={answer}
+              borrowMarks={borrowMarks}
+              onToggleBorrow={
+                question.operation === 'subtraction'
+                  ? onToggleBorrow
+                  : undefined
+              }
+              tone={tone}
             />
           </ScrollView>
         </View>

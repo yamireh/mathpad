@@ -22,6 +22,7 @@ export default function PracticeScreen() {
     updateAnswerInk,
     updateScratchInk,
     setLayoutOverride,
+    toggleBorrowMark,
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -106,6 +107,8 @@ export default function PracticeScreen() {
         onScratchInkChange={(strokes) =>
           updateScratchInk(question.id, strokes)
         }
+        borrowMarks={session.borrowMarks[question.id]}
+        onToggleBorrow={(column) => toggleBorrowMark(question.id, column)}
         tone={accent}
       />
 
