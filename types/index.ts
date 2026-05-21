@@ -1,10 +1,13 @@
 /**
  * Shared, app-wide TypeScript types.
  *
- * Domain types that span multiple features live here. Feature-local types
- * (recognition results, storage shapes, etc.) stay co-located with their
- * adapters in /lib.
+ * Domain types that span multiple features live here (SPEC § Architecture →
+ * Types). Feature-local types stay co-located with their code.
  */
+
+/* -------------------------------------------------------------------------- */
+/* Operations                                                                   */
+/* -------------------------------------------------------------------------- */
 
 /**
  * A practice topic. The four arithmetic operations plus `mix`, which
@@ -18,8 +21,200 @@ export type Operation =
   | 'mix';
 
 /**
- * A single concrete operation — an `Operation` that can back one generated
- * question. Excludes `mix`, which is a session-level mode rather than a
- * per-question operation.
+ * A single concrete operation — one that can back an individual question.
+ * Excludes `mix`, which is a session-level mode.
  */
 export type ConcreteOperation = Exclude<Operation, 'mix'>;
+
+/* -------------------------------------------------------------------------- */
+/* Settings primitives                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Number of digits in an operand. SPEC: user picks from {1,2,3,4}. */
+export type DigitCount = 1 | 2 | 3 | 4;
+
+/** Inclusive digit-count range; each question randomises within it. */
+export interface DigitRange {
+  min: DigitCount;
+  max: DigitCount;
+}
+
+/** Number of questions in a session. SPEC: 5 / 10 / 15 / 20. */
+export type QuestionCount = 5 | 10 | 15 | 20;
+
+/** Total session timer duration in minutes. SPEC: 3 / 5 / 10 / 15. */
+export type TimerDuration = 3 | 5 | 10 | 15;
+
+/** Optional session timer. */
+export interface TimerSetting {
+  enabled: boolean;
+  durationMinutes: TimerDuration;
+}
+
+/** With / Without / Random — carrying, borrowing, regrouping. */
+export type ModeOption = 'with' | 'without' | 'random';
+
+/** Off / On / Random — subtraction "allow negative answers". */
+export type NegativeAnswerOption = 'off' | 'on' | 'random';
+
+/** Division answer type. */
+export type DivisionAnswerType =
+  | 'noRemainder'
+  | 'remainder'
+  | 'decimal'
+  | 'random';
+
+/* -------------------------------------------------------------------------- */
+/* Settings (per-operation, discriminated union on `operation`)                 */
+/* -------------------------------------------------------------------------- */
+
+/** Settings common to every operation. */
+export interface BaseSettings {
+  digitRange: DigitRange;
+  questionCount: QuestionCount;
+  timer: TimerSetting;
+}
+
+export interface AdditionSettings extends BaseSettings {
+  operation: 'addition';
+  carrying: ModeOption;
+}
+
+export interface SubtractionSettings extends BaseSettings {
+  operation: 'subtraction';
+  borrowing: ModeOption;
+  allowNegative: NegativeAnswerOption;
+}
+
+export interface MultiplicationSettings extends BaseSettings {
+  operation: 'multiplication';
+  regrouping: ModeOption;
+}
+
+export interface DivisionSettings extends BaseSettings {
+  operation: 'division';
+  answerType: DivisionAnswerType;
+}
+
+export interface MixSettings extends BaseSettings {
+  operation: 'mix';
+}
+
+/** Settings for any operation. */
+export type Settings =
+  | AdditionSettings
+  | SubtractionSettings
+  | MultiplicationSettings
+  | DivisionSettings
+  | MixSettings;
+
+/** Narrow `Settings` to one operation, e.g. `SettingsFor<'division'>`. */
+export type SettingsFor<O extends Operation> = Extract<
+  Settings,
+  { operation: O }
+>;
+
+/* -------------------------------------------------------------------------- */
+/* Questions                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * How a question is laid out on the Practice screen. Division picks its layout
+ * from digit count and answer type (SPEC § Practice → Problem display).
+ */
+export type ProblemLayout =
+  | 'vertical'
+  | 'divisionHorizontal'
+  | 'divisionLong'
+  | 'divisionDecimal';
+
+/** The canonical correct answer to a question. */
+export type QuestionAnswer =
+  | { kind: 'integer'; value: number }
+  | { kind: 'remainder'; quotient: number; remainder: number }
+  | { kind: 'decimal'; value: number; decimalPlaces: number };
+
+/** A single generated math problem. */
+export interface Question {
+  /** Stable id, unique within a session. */
+  id: string;
+  operation: ConcreteOperation;
+  /** `[top, bottom]` operands as displayed. */
+  operands: [number, number];
+  answer: QuestionAnswer;
+  layout: ProblemLayout;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Recognition results                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Outcome of recognising a single answer-box digit. */
+export interface DigitRecognitionResult {
+  /** Recognised digit 0–9, or null when no confident digit was found. */
+  digit: number | null;
+  /** Engine confidence in the 0–1 range when available, otherwise null. */
+  confidence: number | null;
+  /** Raw top-candidate text from the engine, kept for debugging. */
+  raw: string | null;
+}
+
+/** Outcome of recognising the optional leading minus sign. */
+export interface SignRecognitionResult {
+  /** 'minus' when a minus sign was recognised; null when blank or ambiguous. */
+  sign: 'minus' | null;
+  confidence: number | null;
+  raw: string | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Answers and results                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The kid's recognised answer to a question. Digits are left→right per column;
+ * `null` means that box was left blank.
+ */
+export interface SubmittedAnswer {
+  /** From the optional sign box (negative-answer mode). */
+  sign: 'minus' | null;
+  /** Integer-part digit columns. */
+  integerDigits: (number | null)[];
+  /** Decimal-part digit columns (decimal mode only). */
+  decimalDigits: (number | null)[];
+  /** Remainder digit columns (remainder mode only). */
+  remainderDigits: (number | null)[];
+}
+
+/** Per-question status within a session. */
+export type QuestionStatus = 'correct_first_try' | 'wrong' | 'fixed';
+
+/** A question paired with the kid's answer and its marking status. */
+export interface QuestionResult {
+  question: Question;
+  /** The kid's recognised answer; `null` if never attempted. */
+  submittedAnswer: SubmittedAnswer | null;
+  status: QuestionStatus;
+}
+
+/**
+ * A completed practice session, as persisted to local history.
+ * Raw ink stroke data is intentionally NOT part of this type (SPEC § storage).
+ */
+export interface SessionResult {
+  /** Stable id. */
+  id: string;
+  /** ISO 8601 completion timestamp. */
+  completedAt: string;
+  operation: Operation;
+  /** The settings the session was generated with. */
+  settings: Settings;
+  /** Correct count at first Finish — locked, never changes. */
+  firstTryScore: number;
+  /** Correct count after any fixes. */
+  finalScore: number;
+  totalQuestions: number;
+  /** Elapsed wall-clock seconds. */
+  durationSeconds: number;
+  questions: QuestionResult[];
+}

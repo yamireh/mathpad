@@ -1,9 +1,449 @@
 /**
- * Question generator — placeholder.
+ * Question generator.
  *
- * The real generator produces math problems from a Settings object: operation,
- * digit range, and the per-operation constraints in SPEC.md (carrying,
- * borrowing, regrouping, remainders/decimals, negative answers). It is not
- * implemented in the foundation phase.
+ * Pure, local, deterministic logic — no external calls. Produces a session of
+ * questions from a {@link Settings} object, enforcing every mode constraint in
+ * SPEC.md § Question generation rules (constraints are *guaranteed*, not just
+ * statistically likely).
  */
-export {};
+import type {
+  ConcreteOperation,
+  DigitCount,
+  DigitRange,
+  DivisionAnswerType,
+  ModeOption,
+  NegativeAnswerOption,
+  ProblemLayout,
+  Question,
+  QuestionAnswer,
+  Settings,
+} from '../../types';
+
+/** Random source — returns a float in [0, 1). Injectable for deterministic tests. */
+export type RNG = () => number;
+
+/** A question without its session-assigned id. */
+type QuestionCore = Omit<Question, 'id'>;
+
+/** Retry cap for rejection-sampled generators. */
+const MAX_ATTEMPTS = 12000;
+
+/* -------------------------------------------------------------------------- */
+/* Random helpers                                                               */
+/* -------------------------------------------------------------------------- */
+
+/** Inclusive random integer in [min, max]. */
+function randInt(min: number, max: number, rng: RNG): number {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+/** Pick a random element. */
+function pick<T>(items: readonly T[], rng: RNG): T {
+  return items[Math.floor(rng() * items.length)];
+}
+
+/** Random digit count within the (inclusive) range. */
+function digitCountInRange(range: DigitRange, rng: RNG): DigitCount {
+  return randInt(range.min, range.max, rng) as DigitCount;
+}
+
+/** Smallest value with `digits` digits (1 → 1, 2 → 10, 3 → 100). */
+function lowerBound(digits: DigitCount): number {
+  return digits === 1 ? 1 : Math.pow(10, digits - 1);
+}
+
+/** Largest value with `digits` digits (1 → 9, 2 → 99). */
+function upperBound(digits: DigitCount): number {
+  return Math.pow(10, digits) - 1;
+}
+
+/** Random operand with exactly `digits` digits (no leading zero). */
+function operandWithDigits(digits: DigitCount, rng: RNG): number {
+  return randInt(lowerBound(digits), upperBound(digits), rng);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Digit / column helpers                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** Digits of `n`, least-significant first. */
+function columnDigits(n: number): number[] {
+  const out: number[] = [];
+  let v = Math.abs(Math.trunc(n));
+  if (v === 0) return [0];
+  while (v > 0) {
+    out.push(v % 10);
+    v = Math.floor(v / 10);
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Constraint checkers (exported for tests)                                     */
+/* -------------------------------------------------------------------------- */
+
+/** True if adding `a + b` produces a carry in at least one column. */
+export function additionHasCarry(a: number, b: number): boolean {
+  const da = columnDigits(a);
+  const db = columnDigits(b);
+  const cols = Math.max(da.length, db.length);
+  let carry = 0;
+  let any = false;
+  for (let i = 0; i < cols; i++) {
+    const sum = (da[i] ?? 0) + (db[i] ?? 0) + carry;
+    if (sum >= 10) {
+      any = true;
+      carry = 1;
+    } else {
+      carry = 0;
+    }
+  }
+  return any;
+}
+
+/** True if `top - bottom` (with top ≥ bottom) needs a borrow in some column. */
+export function subtractionHasBorrow(top: number, bottom: number): boolean {
+  const dt = columnDigits(top);
+  const db = columnDigits(bottom);
+  let borrow = 0;
+  let any = false;
+  for (let i = 0; i < dt.length; i++) {
+    const diff = dt[i] - (db[i] ?? 0) - borrow;
+    if (diff < 0) {
+      any = true;
+      borrow = 1;
+    } else {
+      borrow = 0;
+    }
+  }
+  return any;
+}
+
+/** True if adding several numbers column-wise carries somewhere. */
+function multiAddHasCarry(numbers: number[]): boolean {
+  const cols = numbers.map(columnDigits);
+  const width = Math.max(...cols.map((c) => c.length));
+  let carry = 0;
+  let any = false;
+  for (let i = 0; i < width; i++) {
+    let sum = carry;
+    for (const c of cols) sum += c[i] ?? 0;
+    if (sum >= 10) {
+      any = true;
+      carry = Math.floor(sum / 10);
+    } else {
+      carry = 0;
+    }
+  }
+  return any;
+}
+
+/**
+ * True if `a × b` by the standard algorithm regroups — i.e. a single-digit
+ * product carries, or summing the partial products carries.
+ */
+export function multiplicationHasRegroup(a: number, b: number): boolean {
+  const bDigits = columnDigits(b);
+  const partials: number[] = [];
+  for (let idx = 0; idx < bDigits.length; idx++) {
+    const bd = bDigits[idx];
+    if (bd === 0) continue;
+    let carry = 0;
+    for (const ad of columnDigits(a)) {
+      const product = ad * bd + carry;
+      if (product >= 10) return true; // digit × digit carried
+      carry = Math.floor(product / 10);
+    }
+    partials.push(a * bd * Math.pow(10, idx));
+  }
+  return partials.length > 1 && multiAddHasCarry(partials);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Per-operation generators                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** Resolve a `random` mode to a concrete `with`/`without` for one question. */
+function resolveMode(mode: ModeOption, rng: RNG): 'with' | 'without' | 'any' {
+  if (mode === 'random') return 'any';
+  return mode;
+}
+
+function generateAddition(
+  range: DigitRange,
+  carrying: ModeOption,
+  rng: RNG,
+): QuestionCore {
+  const want = resolveMode(carrying, rng);
+  let last: [number, number] = [0, 0];
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const a = operandWithDigits(digitCountInRange(range, rng), rng);
+    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    last = [a, b];
+    const carry = additionHasCarry(a, b);
+    if (want === 'with' && !carry) continue;
+    if (want === 'without' && carry) continue;
+    return {
+      operation: 'addition',
+      operands: [a, b],
+      answer: { kind: 'integer', value: a + b },
+      layout: 'vertical',
+    };
+  }
+  return {
+    operation: 'addition',
+    operands: last,
+    answer: { kind: 'integer', value: last[0] + last[1] },
+    layout: 'vertical',
+  };
+}
+
+function generateSubtraction(
+  range: DigitRange,
+  borrowing: ModeOption,
+  allowNegative: NegativeAnswerOption,
+  rng: RNG,
+): QuestionCore {
+  const wantBorrow = resolveMode(borrowing, rng);
+  // Resolve whether this question has a negative answer.
+  const negative =
+    allowNegative === 'on'
+      ? true
+      : allowNegative === 'off'
+        ? false
+        : rng() < 0.5;
+
+  let fallback: QuestionCore | null = null;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const a = operandWithDigits(digitCountInRange(range, rng), rng);
+    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    if (a === b) continue; // avoid trivial zero / impossible negative
+    const larger = Math.max(a, b);
+    const smaller = Math.min(a, b);
+    // Top operand: smaller for a negative answer, larger otherwise.
+    const top = negative ? smaller : larger;
+    const bottom = negative ? larger : smaller;
+    const core: QuestionCore = {
+      operation: 'subtraction',
+      operands: [top, bottom],
+      answer: { kind: 'integer', value: top - bottom },
+      layout: 'vertical',
+    };
+    fallback ??= core;
+    // Borrowing is a property of computing larger − smaller.
+    const borrow = subtractionHasBorrow(larger, smaller);
+    if (wantBorrow === 'with' && !borrow) continue;
+    if (wantBorrow === 'without' && borrow) continue;
+    return core;
+  }
+  return fallback as QuestionCore;
+}
+
+function generateMultiplication(
+  range: DigitRange,
+  regrouping: ModeOption,
+  rng: RNG,
+): QuestionCore {
+  const want = resolveMode(regrouping, rng);
+  let last: [number, number] = [0, 0];
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const a = operandWithDigits(digitCountInRange(range, rng), rng);
+    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    last = [a, b];
+    const regroup = multiplicationHasRegroup(a, b);
+    if (want === 'with' && !regroup) continue;
+    if (want === 'without' && regroup) continue;
+    return {
+      operation: 'multiplication',
+      operands: [a, b],
+      answer: { kind: 'integer', value: a * b },
+      layout: 'vertical',
+    };
+  }
+  return {
+    operation: 'multiplication',
+    operands: last,
+    answer: { kind: 'integer', value: last[0] * last[1] },
+    layout: 'vertical',
+  };
+}
+
+/** Divisors of 1000 (≥ 2) by digit count — these always yield ≤3-place decimals. */
+const TERMINATING_DIVISORS: Record<DigitCount, number[]> = {
+  1: [2, 4, 5, 8],
+  2: [10, 20, 25, 40, 50],
+  3: [100, 125, 200, 250, 500],
+  4: [1000],
+};
+
+/** Decimal places of `dividend / divisor` where `divisor` divides 1000. */
+function decimalPlacesOf(dividend: number, divisor: number): number {
+  let scaled = (dividend * 1000) / divisor; // integer
+  let places = 3;
+  while (places > 0 && scaled % 10 === 0) {
+    scaled /= 10;
+    places -= 1;
+  }
+  return places;
+}
+
+function divisionLayout(
+  dividendDigits: number,
+  divisorDigits: number,
+  decimal: boolean,
+): ProblemLayout {
+  if (decimal) return 'divisionDecimal';
+  if (dividendDigits === 1 && divisorDigits === 1) return 'divisionHorizontal';
+  return 'divisionLong';
+}
+
+function generateDivision(
+  range: DigitRange,
+  answerType: DivisionAnswerType,
+  rng: RNG,
+): QuestionCore {
+  const resolved: Exclude<DivisionAnswerType, 'random'> =
+    answerType === 'random'
+      ? pick(['noRemainder', 'remainder', 'decimal'] as const, rng)
+      : answerType;
+
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const divisorDigits = digitCountInRange(range, rng);
+    const dividendDigits = digitCountInRange(range, rng);
+    const lo = lowerBound(dividendDigits);
+    const hi = upperBound(dividendDigits);
+
+    if (resolved === 'decimal') {
+      const candidates = TERMINATING_DIVISORS[divisorDigits];
+      if (candidates.length === 0) continue;
+      const divisor = pick(candidates, rng);
+      const dividend = randInt(lo, hi, rng);
+      if (dividend % divisor === 0) continue; // need a real decimal
+      return {
+        operation: 'division',
+        operands: [dividend, divisor],
+        answer: {
+          kind: 'decimal',
+          value: dividend / divisor,
+          decimalPlaces: decimalPlacesOf(dividend, divisor),
+        },
+        layout: divisionLayout(dividendDigits, divisorDigits, true),
+      };
+    }
+
+    // Integer-answer modes need a divisor ≥ 2.
+    const divisor = Math.max(2, operandWithDigits(divisorDigits, rng));
+
+    if (resolved === 'noRemainder') {
+      const kLo = Math.ceil(lo / divisor);
+      const kHi = Math.floor(hi / divisor);
+      if (kHi < 1 || kLo > kHi) continue;
+      const quotient = randInt(Math.max(1, kLo), kHi, rng);
+      const dividend = quotient * divisor;
+      return {
+        operation: 'division',
+        operands: [dividend, divisor],
+        answer: { kind: 'integer', value: quotient },
+        layout: divisionLayout(dividendDigits, divisorDigits, false),
+      };
+    }
+
+    // remainder
+    const kHi = Math.floor((hi - 1) / divisor);
+    const kLo = Math.max(1, Math.ceil((lo - (divisor - 1)) / divisor));
+    if (kHi < kLo) continue;
+    const quotient = randInt(kLo, kHi, rng);
+    const remainder = randInt(1, divisor - 1, rng);
+    const dividend = quotient * divisor + remainder;
+    if (dividend < lo || dividend > hi) continue;
+    return {
+      operation: 'division',
+      operands: [dividend, divisor],
+      answer: { kind: 'remainder', quotient, remainder },
+      layout: divisionLayout(dividendDigits, divisorDigits, false),
+    };
+  }
+
+  // Best-effort fallback: a simple clean division.
+  return {
+    operation: 'division',
+    operands: [12, 4],
+    answer: { kind: 'integer', value: 3 },
+    layout: 'divisionHorizontal',
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Session generation                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Generate one question for the given concrete operation + settings. */
+function generateForOperation(
+  operation: ConcreteOperation,
+  settings: Settings,
+  rng: RNG,
+): QuestionCore {
+  const { digitRange } = settings;
+  switch (operation) {
+    case 'addition':
+      return generateAddition(
+        digitRange,
+        settings.operation === 'addition' ? settings.carrying : 'random',
+        rng,
+      );
+    case 'subtraction':
+      return generateSubtraction(
+        digitRange,
+        settings.operation === 'subtraction' ? settings.borrowing : 'random',
+        settings.operation === 'subtraction' ? settings.allowNegative : 'off',
+        rng,
+      );
+    case 'multiplication':
+      return generateMultiplication(
+        digitRange,
+        settings.operation === 'multiplication'
+          ? settings.regrouping
+          : 'random',
+        rng,
+      );
+    case 'division':
+      return generateDivision(
+        digitRange,
+        // Mix mode keeps division simple: clean integer answers only.
+        settings.operation === 'division'
+          ? settings.answerType
+          : 'noRemainder',
+        rng,
+      );
+  }
+}
+
+const MIX_OPERATIONS: readonly ConcreteOperation[] = [
+  'addition',
+  'subtraction',
+  'multiplication',
+  'division',
+];
+
+/**
+ * Generate a full session of questions for the given settings.
+ *
+ * @param settings  Validated session settings.
+ * @param rng       Random source; defaults to `Math.random`. Inject for tests.
+ */
+export function generateSession(
+  settings: Settings,
+  rng: RNG = Math.random,
+): Question[] {
+  const count = settings.questionCount;
+  const questions: Question[] = [];
+  for (let i = 0; i < count; i++) {
+    const operation: ConcreteOperation =
+      settings.operation === 'mix'
+        ? pick(MIX_OPERATIONS, rng)
+        : settings.operation;
+    const core = generateForOperation(operation, settings, rng);
+    questions.push({ id: `q-${i + 1}`, ...core });
+  }
+  return questions;
+}

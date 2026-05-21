@@ -1,21 +1,29 @@
 /**
  * Storage adapter.
  *
- * Local-only persistence built on AsyncStorage. Exposes two stores:
+ * Local-only persistence over AsyncStorage (SPEC.md § Local data storage). All
+ * data stays on the device — no cloud, no sync. Raw ink stroke data is never
+ * persisted. Two stores:
  *
- *  - `settingsStore` — last-used Settings per operation (restored on re-entry).
+ *  - `settingsStore` — last-used Settings per operation.
  *  - `historyStore`  — completed practice sessions.
  *
- * The implementations below are functional stubs: they read/write real
- * AsyncStorage but use intentionally loose value types. Concrete settings and
- * history shapes are tightened once the Settings and Practice screens exist.
+ * Implementation details are hidden behind these objects; callers never touch
+ * AsyncStorage directly.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/** AsyncStorage keys, namespaced to avoid collisions. */
+import type {
+  BaseSettings,
+  Operation,
+  SessionResult,
+  Settings,
+} from '../../types';
+
+/** Versioned AsyncStorage keys (the `:v1` suffix allows future migrations). */
 const KEYS = {
-  settings: 'mathpad:settings',
-  history: 'mathpad:history',
+  settings: 'mathpad:settings:v1',
+  history: 'mathpad:history:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -33,56 +41,94 @@ async function writeJSON(key: string, value: unknown): Promise<void> {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 }
 
-/**
- * Persisted settings, keyed by operation name. The value shape is open for now
- * and tightened when the Settings screen lands.
- */
-export type StoredSettings = Record<string, unknown>;
+/* -------------------------------------------------------------------------- */
+/* Default settings                                                             */
+/* -------------------------------------------------------------------------- */
 
-/** A single persisted practice-session record. Shape tightened later. */
-export type HistoryEntry = Record<string, unknown>;
+/** Settings shared by every operation (SPEC defaults: digits 2–3, 10 Qs). */
+function baseSettings(): BaseSettings {
+  return {
+    digitRange: { min: 2, max: 3 },
+    questionCount: 10,
+    timer: { enabled: false, durationMinutes: 5 },
+  };
+}
+
+/** The default Settings for an operation when nothing has been saved yet. */
+export function defaultSettings(operation: Operation): Settings {
+  switch (operation) {
+    case 'addition':
+      return { operation, ...baseSettings(), carrying: 'random' };
+    case 'subtraction':
+      return {
+        operation,
+        ...baseSettings(),
+        borrowing: 'random',
+        allowNegative: 'off',
+      };
+    case 'multiplication':
+      return { operation, ...baseSettings(), regrouping: 'random' };
+    case 'division':
+      return { operation, ...baseSettings(), answerType: 'noRemainder' };
+    case 'mix':
+      return { operation, ...baseSettings() };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Settings store                                                               */
+/* -------------------------------------------------------------------------- */
+
+type SettingsMap = Partial<Record<Operation, Settings>>;
 
 /** Last-used Settings per operation. */
 export const settingsStore = {
-  /** Return the full per-operation settings map. */
-  async getAll(): Promise<StoredSettings> {
-    return readJSON<StoredSettings>(KEYS.settings, {});
+  /** Saved settings for an operation, or null if none. */
+  async get(operation: Operation): Promise<Settings | null> {
+    const all = await readJSON<SettingsMap>(KEYS.settings, {});
+    return all[operation] ?? null;
   },
 
-  /** Return the saved settings for one operation, or undefined if none. */
-  async get(operation: string): Promise<unknown> {
-    const all = await readJSON<StoredSettings>(KEYS.settings, {});
-    return all[operation];
+  /** Saved settings for an operation, or the defaults if none. */
+  async getOrDefault(operation: Operation): Promise<Settings> {
+    return (await settingsStore.get(operation)) ?? defaultSettings(operation);
   },
 
-  /** Save the settings for one operation. */
-  async set(operation: string, settings: unknown): Promise<void> {
-    const all = await readJSON<StoredSettings>(KEYS.settings, {});
-    all[operation] = settings;
+  /** Persist settings, keyed by their operation. */
+  async save(settings: Settings): Promise<void> {
+    const all = await readJSON<SettingsMap>(KEYS.settings, {});
+    all[settings.operation] = settings;
     await writeJSON(KEYS.settings, all);
   },
 
-  /** Remove all saved settings. */
+  /** Forget all saved settings. */
   async clear(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.settings);
   },
 };
 
+/* -------------------------------------------------------------------------- */
+/* History store                                                                */
+/* -------------------------------------------------------------------------- */
+
 /** Completed practice sessions. */
 export const historyStore = {
-  /** Return all history entries, oldest first. */
-  async list(): Promise<HistoryEntry[]> {
-    return readJSON<HistoryEntry[]>(KEYS.history, []);
+  /** All sessions, most recent first. */
+  async list(): Promise<SessionResult[]> {
+    const items = await readJSON<SessionResult[]>(KEYS.history, []);
+    return [...items].sort((a, b) =>
+      b.completedAt.localeCompare(a.completedAt),
+    );
   },
 
-  /** Append a completed-session entry. */
-  async append(entry: HistoryEntry): Promise<void> {
-    const entries = await readJSON<HistoryEntry[]>(KEYS.history, []);
-    entries.push(entry);
-    await writeJSON(KEYS.history, entries);
+  /** Append a completed session. */
+  async add(session: SessionResult): Promise<void> {
+    const items = await readJSON<SessionResult[]>(KEYS.history, []);
+    items.push(session);
+    await writeJSON(KEYS.history, items);
   },
 
-  /** Remove all history. */
+  /** Delete all history (SPEC: "Clear all history"). */
   async clear(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.history);
   },

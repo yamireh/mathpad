@@ -1,78 +1,103 @@
 /**
  * Recognition adapter.
  *
- * The public surface the app uses to turn handwritten ink into digits and the
- * optional leading minus sign. It wraps the local `digital-ink` native module,
- * which bridges to Google ML Kit Digital Ink Recognition — the engine
- * validated in the recognition POC.
+ * The abstraction layer between the app and the handwriting-recognition engine
+ * (SPEC.md § Recognition requirements). Screens only ever call
+ * `recognizeDigit` and `recognizeSign`; the engine could be swapped here
+ * without touching anything else.
  *
- * This phase establishes the API surface only: `recognizeDigit` and
- * `recognizeSign` are stubs. Wiring the real ML Kit calls (model
- * download/lifecycle, candidate decoding, digit post-filtering) lands in a
- * later phase.
+ * The engine is Google ML Kit Digital Ink Recognition, reached through the
+ * local `digital-ink` native module. ML Kit downloads its model once over the
+ * network — that is a one-time setup step (see `prepareModel`); recognition
+ * itself is fully offline, satisfying SPEC's "zero network calls at runtime".
  */
 import DigitalInk, { type Stroke } from '../../modules/digital-ink';
 
+import type {
+  DigitRecognitionResult,
+  SignRecognitionResult,
+} from '../../types';
+
 export type { Stroke } from '../../modules/digital-ink';
+export type {
+  DigitRecognitionResult,
+  SignRecognitionResult,
+} from '../../types';
 
 /**
- * The underlying handwriting-recognition engine (ML Kit Digital Ink, via the
- * local native module). Exposed so later phases — and tests — can call or
- * mock it directly.
- */
-export const engine = DigitalInk;
-
-/**
- * ML Kit language tag whose model backs digit/sign recognition. The POC
- * validated `en-US`; digits are language-independent, so this is unlikely to
- * vary per app locale.
+ * ML Kit language tag whose model backs recognition. Digits and the minus sign
+ * are language-independent, so a single model serves every app locale.
  */
 export const RECOGNITION_LANGUAGE = 'en-US';
 
-/** Outcome of recognising a single answer-box digit. */
-export interface DigitRecognitionResult {
-  /** Recognised digit 0–9, or null when no confident digit was found. */
-  digit: number | null;
-  /** Engine confidence in the 0–1 range when available, otherwise null. */
-  confidence: number | null;
-  /** Raw top-candidate text from the engine, kept for debugging. */
-  raw: string | null;
+/** Characters ML Kit may return for a hand-drawn minus stroke. */
+const MINUS_FORMS = new Set(['-', '−', '–', '—', '‐', '_']);
+
+/* -------------------------------------------------------------------------- */
+/* Model lifecycle                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** Whether the recognition model is already downloaded and ready. */
+export function isModelReady(): Promise<boolean> {
+  return DigitalInk.isModelDownloaded(RECOGNITION_LANGUAGE);
 }
 
-/** Outcome of recognising the optional leading minus sign. */
-export interface SignRecognitionResult {
-  /** 'minus' when a minus sign was recognised; null when blank or ambiguous. */
-  sign: 'minus' | null;
-  /** Engine confidence in the 0–1 range when available, otherwise null. */
-  confidence: number | null;
-  /** Raw top-candidate text from the engine, kept for debugging. */
-  raw: string | null;
+/**
+ * Ensure the recognition model is available, downloading it if needed.
+ * Call once at app startup (a one-time, online setup step) — never mid-session.
+ */
+export async function prepareModel(): Promise<void> {
+  if (await DigitalInk.isModelDownloaded(RECOGNITION_LANGUAGE)) return;
+  await DigitalInk.downloadModel(RECOGNITION_LANGUAGE);
 }
 
-const NOT_IMPLEMENTED =
-  'recognition adapter is not wired up yet — implemented in a later phase';
+/* -------------------------------------------------------------------------- */
+/* Recognition                                                                  */
+/* -------------------------------------------------------------------------- */
 
 /**
  * Recognise a single handwritten digit from one answer box.
  *
- * STUB — throws until the recognition phase. The real implementation will call
- * `engine.recognize(RECOGNITION_LANGUAGE, strokes)` and post-filter candidates
- * down to digits 0–9 (ML Kit has no digit-only model).
+ * ML Kit has no digit-only model, so candidates are post-filtered to the first
+ * one that is a single character 0–9.
  */
 export async function recognizeDigit(
-  _strokes: Stroke[],
+  strokes: Stroke[],
 ): Promise<DigitRecognitionResult> {
-  throw new Error(NOT_IMPLEMENTED);
+  if (strokes.length === 0) {
+    return { digit: null, confidence: null, raw: null };
+  }
+  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const raw = candidates[0]?.text ?? null;
+  for (const candidate of candidates) {
+    const text = candidate.text.trim();
+    if (/^[0-9]$/.test(text)) {
+      return { digit: Number(text), confidence: candidate.score ?? null, raw };
+    }
+  }
+  return { digit: null, confidence: null, raw };
 }
 
 /**
  * Recognise the optional leading minus sign (negative-answer mode).
  *
- * STUB — throws until the recognition phase. ML Kit has no native minus-sign
- * class, so the real implementation will need careful candidate handling.
+ * ML Kit has no dedicated minus class; a hand-drawn minus can come back in
+ * several dash-like forms, so all are accepted. If on-device testing shows
+ * this is unreliable, the SignedAnswerRow can fall back to a +/- toggle
+ * without changing this adapter's API (SPEC § Recognition requirements).
  */
 export async function recognizeSign(
-  _strokes: Stroke[],
+  strokes: Stroke[],
 ): Promise<SignRecognitionResult> {
-  throw new Error(NOT_IMPLEMENTED);
+  if (strokes.length === 0) {
+    return { sign: null, confidence: null, raw: null };
+  }
+  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const raw = candidates[0]?.text ?? null;
+  for (const candidate of candidates) {
+    if (MINUS_FORMS.has(candidate.text.trim())) {
+      return { sign: 'minus', confidence: candidate.score ?? null, raw };
+    }
+  }
+  return { sign: null, confidence: null, raw };
 }
