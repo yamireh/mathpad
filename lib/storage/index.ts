@@ -128,6 +128,15 @@ export const historyStore = {
     await writeJSON(KEYS.history, items);
   },
 
+  /** Insert a session, or replace the existing one with the same id. */
+  async upsert(session: SessionResult): Promise<void> {
+    const items = await readJSON<SessionResult[]>(KEYS.history, []);
+    const index = items.findIndex((s) => s.id === session.id);
+    if (index >= 0) items[index] = session;
+    else items.push(session);
+    await writeJSON(KEYS.history, items);
+  },
+
   /** Delete all history (SPEC: "Clear all history"). */
   async clear(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.history);

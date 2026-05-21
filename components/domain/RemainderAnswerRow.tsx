@@ -1,0 +1,87 @@
+import { useTranslation } from 'react-i18next';
+import { StyleSheet, Text, View } from 'react-native';
+
+import { colors, spacing, typography } from '../../constants/design';
+import { AnswerBox } from './AnswerBox';
+import { type AnswerInk } from './ink';
+import { ANSWER_BOX_HEIGHT, type AnswerShape } from './layout';
+
+export interface RemainderAnswerRowProps {
+  shape: AnswerShape;
+  ink: AnswerInk;
+  onChange: (ink: AnswerInk) => void;
+  selectedBox: string | null;
+  onSelectBox: (boxId: string) => void;
+  tone?: string;
+}
+
+/** The remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
+export function RemainderAnswerRow({
+  shape,
+  ink,
+  onChange,
+  selectedBox,
+  onSelectBox,
+  tone = colors.text,
+}: RemainderAnswerRowProps) {
+  const { t } = useTranslation();
+
+  return (
+    <View style={styles.row}>
+      {ink.integer.map((boxStrokes, i) => (
+        <AnswerBox
+          key={`int-${i}`}
+          accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
+          tone={tone}
+          selected={selectedBox === `int-${i}`}
+          onSelect={() => onSelectBox(`int-${i}`)}
+          initialStrokes={boxStrokes}
+          onStrokesChange={(strokes) =>
+            onChange({
+              ...ink,
+              integer: ink.integer.map((s, idx) => (idx === i ? strokes : s)),
+            })
+          }
+        />
+      ))}
+
+      <View style={styles.label}>
+        <Text style={styles.labelText}>{t('practice.remainderLabel')}</Text>
+      </View>
+
+      {ink.remainder.map((boxStrokes, i) => (
+        <AnswerBox
+          key={`rem-${i}`}
+          accessibilityLabel={t('a11y.remainderBox', { position: i + 1 })}
+          tone={tone}
+          selected={selectedBox === `rem-${i}`}
+          onSelect={() => onSelectBox(`rem-${i}`)}
+          initialStrokes={boxStrokes}
+          onStrokesChange={(strokes) =>
+            onChange({
+              ...ink,
+              remainder: ink.remainder.map((s, idx) =>
+                idx === i ? strokes : s,
+              ),
+            })
+          }
+        />
+      ))}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
+  label: {
+    height: ANSWER_BOX_HEIGHT + 22,
+    justifyContent: 'flex-end',
+    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  labelText: {
+    fontSize: typography.size.heading,
+    fontWeight: typography.weight.regular,
+    color: colors.textMuted,
+  },
+});

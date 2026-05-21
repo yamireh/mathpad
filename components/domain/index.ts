@@ -30,3 +30,31 @@ export {
   formatSubmittedAnswer,
   isBlankSubmission,
 } from './format';
+
+export { AnswerBox, type AnswerBoxProps } from './AnswerBox';
+export {
+  ScratchCanvas,
+  type ScratchCanvasHandle,
+  type ScratchCanvasProps,
+  type ScratchTool,
+} from './ScratchCanvas';
+export {
+  SignedAnswerRow,
+  type SignedAnswerRowProps,
+} from './SignedAnswerRow';
+export {
+  DecimalAnswerRow,
+  type DecimalAnswerRowProps,
+} from './DecimalAnswerRow';
+export {
+  RemainderAnswerRow,
+  type RemainderAnswerRowProps,
+} from './RemainderAnswerRow';
+export {
+  type AnswerInk,
+  type InkPoint,
+  type InkStroke,
+  emptyAnswerInk,
+  strokeToPath,
+  useInkCapture,
+} from './ink';

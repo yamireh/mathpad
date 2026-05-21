@@ -26,3 +26,16 @@ jest.mock('./modules/digital-ink', () => ({
     recognize: jest.fn().mockResolvedValue([]),
   },
 }));
+
+// Skia is a native binding with no JS runtime under Jest. A light mock lets ink
+// components render; actual drawing is verified on-device, not in Jest.
+jest.mock('@shopify/react-native-skia', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const makePath = () => ({ moveTo: jest.fn(), lineTo: jest.fn() });
+  return {
+    Skia: { Path: { Make: makePath } },
+    Canvas: ({ children }) => React.createElement(View, null, children),
+    Path: () => null,
+  };
+});
