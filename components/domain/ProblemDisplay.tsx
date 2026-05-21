@@ -336,5 +336,5 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.md,
   },
   longDividend: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  longWork: { flex: 1, minHeight: 200, marginRight: spacing.sm },
+  longWork: { flex: 1, minHeight: 300, marginRight: spacing.sm },
 });

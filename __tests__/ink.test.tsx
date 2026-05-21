@@ -125,27 +125,43 @@ describe('sequential fill order', () => {
   };
   const oneStroke: InkStroke[] = [[[1, 1, 0]]];
 
-  it('orders integer boxes right-to-left (units first)', () => {
-    expect(answerBoxOrder(shape)).toEqual(['int-2', 'int-1', 'int-0']);
+  it('orders integer boxes right-to-left for vertical (units first)', () => {
+    expect(answerBoxOrder(shape, 'vertical')).toEqual([
+      'int-2',
+      'int-1',
+      'int-0',
+    ]);
   });
 
-  it('locks a box until the previous one has ink', () => {
+  it('orders integer boxes left-to-right for long division', () => {
+    expect(answerBoxOrder(shape, 'divisionLong')).toEqual([
+      'int-0',
+      'int-1',
+      'int-2',
+    ]);
+  });
+
+  it('locks a box until the previous one has ink (vertical)', () => {
     const empty = emptyAnswerInk(shape);
-    expect(isBoxWritable(empty, shape, 'int-2')).toBe(true);
-    expect(isBoxWritable(empty, shape, 'int-1')).toBe(false);
-    expect(isBoxWritable(empty, shape, 'int-0')).toBe(false);
-    expect(frontierBox(empty, shape)).toBe('int-2');
+    expect(isBoxWritable(empty, shape, 'vertical', 'int-2')).toBe(true);
+    expect(isBoxWritable(empty, shape, 'vertical', 'int-1')).toBe(false);
+    expect(frontierBox(empty, shape, 'vertical')).toBe('int-2');
 
     const filled = setBoxStrokes(empty, 'int-2', oneStroke);
-    expect(isBoxWritable(filled, shape, 'int-1')).toBe(true);
-    expect(isBoxWritable(filled, shape, 'int-0')).toBe(false);
-    expect(frontierBox(filled, shape)).toBe('int-1');
+    expect(isBoxWritable(filled, shape, 'vertical', 'int-1')).toBe(true);
+    expect(frontierBox(filled, shape, 'vertical')).toBe('int-1');
+  });
+
+  it('long division focus starts at the leftmost box', () => {
+    expect(frontierBox(emptyAnswerInk(shape), shape, 'divisionLong')).toBe(
+      'int-0',
+    );
   });
 
   it('always allows the sign box', () => {
     const signShape = { ...shape, hasSign: true };
     expect(
-      isBoxWritable(emptyAnswerInk(signShape), signShape, 'sign'),
+      isBoxWritable(emptyAnswerInk(signShape), signShape, 'vertical', 'sign'),
     ).toBe(true);
   });
 });

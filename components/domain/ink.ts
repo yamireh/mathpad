@@ -8,6 +8,7 @@
 import { useCallback, useReducer, useRef } from 'react';
 import { Skia, type SkPath } from '@shopify/react-native-skia';
 
+import type { ProblemLayout } from '../../types';
 import type { AnswerShape } from './layout';
 
 /** A captured point: x, y (surface-local px) and t (ms since stroke start). */
@@ -230,13 +231,22 @@ export function setBoxStrokes(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Box ids in fill order: integer digits right-to-left (units first — the way
- * column arithmetic works), then decimal digits and remainder digits
- * left-to-right. The sign box is excluded — it is always writable.
+ * Box ids in fill order. Integer digits fill right-to-left (units first) for
+ * vertical +/−/× — the way column arithmetic works — but left-to-right for
+ * division, where the quotient is written most-significant digit first.
+ * Decimal and remainder digits always fill left-to-right. The sign box is
+ * excluded — it is always writable.
  */
-export function answerBoxOrder(shape: AnswerShape): string[] {
+export function answerBoxOrder(
+  shape: AnswerShape,
+  layout: ProblemLayout,
+): string[] {
   const order: string[] = [];
-  for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
+  if (layout === 'vertical') {
+    for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
+  } else {
+    for (let i = 0; i < shape.integerBoxes; i += 1) order.push(`int-${i}`);
+  }
   for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
   for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
   return order;
@@ -250,11 +260,12 @@ export function answerBoxOrder(shape: AnswerShape): string[] {
 export function isBoxWritable(
   ink: AnswerInk,
   shape: AnswerShape,
+  layout: ProblemLayout,
   boxId: string,
 ): boolean {
   if (boxId === 'sign') return true;
   if (getBoxStrokes(ink, boxId).length > 0) return true;
-  const order = answerBoxOrder(shape);
+  const order = answerBoxOrder(shape, layout);
   const index = order.indexOf(boxId);
   if (index < 0) return true;
   for (let i = 0; i < index; i += 1) {
@@ -264,8 +275,12 @@ export function isBoxWritable(
 }
 
 /** The first unfilled box in fill order — where focus should default. */
-export function frontierBox(ink: AnswerInk, shape: AnswerShape): string {
-  const order = answerBoxOrder(shape);
+export function frontierBox(
+  ink: AnswerInk,
+  shape: AnswerShape,
+  layout: ProblemLayout,
+): string {
+  const order = answerBoxOrder(shape, layout);
   for (const id of order) {
     if (getBoxStrokes(ink, id).length === 0) return id;
   }

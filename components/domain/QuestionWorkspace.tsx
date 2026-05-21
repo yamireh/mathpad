@@ -65,7 +65,7 @@ export function QuestionWorkspace({
   // The answer box bound to the writing pad; null = scratch mode. Focus
   // defaults to the first box to fill (rightmost digit — units first).
   const [activeBox, setActiveBox] = useState<string | null>(() =>
-    frontierBox(answerInk, shape),
+    frontierBox(answerInk, shape, layout),
   );
   const [tool, setTool] = useState<ScratchTool>('pen');
   // Bumped to force the answer pad to remount (e.g. after Clear all).
@@ -75,9 +75,9 @@ export function QuestionWorkspace({
   // Sequential fill: tapping a still-locked box snaps to the next box to fill.
   const selectBox = (boxId: string) => {
     setActiveBox(
-      isBoxWritable(answerInk, shape, boxId)
+      isBoxWritable(answerInk, shape, layout, boxId)
         ? boxId
-        : frontierBox(answerInk, shape),
+        : frontierBox(answerInk, shape, layout),
     );
   };
 
@@ -85,7 +85,7 @@ export function QuestionWorkspace({
   const clearAllAnswers = () => {
     const empty = emptyAnswerInk(shape);
     onAnswerInkChange(empty);
-    setActiveBox(frontierBox(empty, shape));
+    setActiveBox(frontierBox(empty, shape, layout));
     setPadNonce((n) => n + 1);
   };
 
@@ -104,7 +104,9 @@ export function QuestionWorkspace({
       selectedBox={activeBox}
       onSelectBox={selectBox}
       tone={tone}
-      isBoxWritable={(boxId) => isBoxWritable(answerInk, shape, boxId)}
+      isBoxWritable={(boxId) =>
+        isBoxWritable(answerInk, shape, layout, boxId)
+      }
     />
   );
 
@@ -171,7 +173,13 @@ export function QuestionWorkspace({
       )}
 
       {activeBox ? (
-        <View style={styles.bottomRegion}>
+        <View
+          style={[
+            styles.bottomRegion,
+            // Long division keeps the work area tall — the pad stays compact.
+            isLongDivision && styles.bottomRegionCompact,
+          ]}
+        >
           <AnswerPad
             key={`${activeBox}:${padNonce}`}
             strokes={getBoxStrokes(answerInk, activeBox)}
@@ -236,6 +244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
+  bottomRegionCompact: { flex: 0, height: 260 },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
