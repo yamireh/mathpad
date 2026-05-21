@@ -3,6 +3,7 @@ import {
   isModelReady,
   prepareModel,
   recognizeDigit,
+  recognizeNumber,
   recognizeSign,
 } from '../lib/recognition';
 
@@ -78,6 +79,44 @@ describe('recognizeSign', () => {
   it('returns null for a non-minus candidate', async () => {
     recognize.mockResolvedValueOnce([{ text: '1', score: 0.9 }]);
     expect((await recognizeSign(strokes)).sign).toBeNull();
+  });
+});
+
+describe('recognizeNumber', () => {
+  it('recognises a whole multi-digit number', async () => {
+    recognize.mockResolvedValueOnce([{ text: '34', score: 0.9 }]);
+    expect(await recognizeNumber(strokes)).toEqual({
+      integerDigits: [3, 4],
+      decimalDigits: [],
+      raw: '34',
+    });
+  });
+
+  it('parses a decimal point', async () => {
+    recognize.mockResolvedValueOnce([{ text: '3.75', score: 0.9 }]);
+    const result = await recognizeNumber(strokes);
+    expect(result.integerDigits).toEqual([3]);
+    expect(result.decimalDigits).toEqual([7, 5]);
+  });
+
+  it('accepts a comma as the decimal separator', async () => {
+    recognize.mockResolvedValueOnce([{ text: '3,5', score: 0.9 }]);
+    const result = await recognizeNumber(strokes);
+    expect(result.integerDigits).toEqual([3]);
+    expect(result.decimalDigits).toEqual([5]);
+  });
+
+  it('returns empty digits for a non-number', async () => {
+    recognize.mockResolvedValueOnce([{ text: 'hello', score: 0.5 }]);
+    expect((await recognizeNumber(strokes)).integerDigits).toEqual([]);
+  });
+
+  it('returns empty for empty strokes', async () => {
+    expect(await recognizeNumber([])).toEqual({
+      integerDigits: [],
+      decimalDigits: [],
+      raw: null,
+    });
   });
 });
 

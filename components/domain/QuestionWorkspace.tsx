@@ -63,7 +63,7 @@ export function QuestionWorkspace({
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
-  const shape = answerShape(question);
+  const shape = answerShape(question, layout);
   const [activeBox, setActiveBox] = useState<string | null>(() =>
     frontierBox(answerInk, shape, layout),
   );
@@ -178,6 +178,7 @@ export function QuestionWorkspace({
   const answer = (
     <AnswerArea
       question={question}
+      layout={layout}
       ink={answerInk}
       onChange={onAnswerInkChange}
       selectedBox={activeBox}

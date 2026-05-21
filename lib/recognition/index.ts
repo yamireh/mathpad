@@ -101,3 +101,37 @@ export async function recognizeSign(
   }
   return { sign: null, confidence: null, raw };
 }
+
+/** A whole handwritten number, split into integer and decimal digits. */
+export interface NumberRecognitionResult {
+  integerDigits: number[];
+  decimalDigits: number[];
+  raw: string | null;
+}
+
+/**
+ * Recognise a whole multi-digit number from one wide writing area — used for
+ * the long-division answer. Accepts a `.` or `,` decimal separator.
+ */
+export async function recognizeNumber(
+  strokes: Stroke[],
+): Promise<NumberRecognitionResult> {
+  if (strokes.length === 0) {
+    return { integerDigits: [], decimalDigits: [], raw: null };
+  }
+  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const raw = candidates[0]?.text ?? null;
+  const toDigits = (s: string) => s.split('').map(Number);
+  for (const candidate of candidates) {
+    const cleaned = candidate.text.trim().replace(/\s+/g, '');
+    const match = cleaned.match(/^(\d+)(?:[.,](\d+))?$/);
+    if (match) {
+      return {
+        integerDigits: toDigits(match[1]),
+        decimalDigits: match[2] ? toDigits(match[2]) : [],
+        raw,
+      };
+    }
+  }
+  return { integerDigits: [], decimalDigits: [], raw };
+}

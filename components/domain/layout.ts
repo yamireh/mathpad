@@ -4,7 +4,11 @@
  * The problem digits and the handwriting answer boxes use the same column
  * width so they line up vertically.
  */
-import type { ConcreteOperation, Question } from '../../types';
+import type {
+  ConcreteOperation,
+  ProblemLayout,
+  Question,
+} from '../../types';
 
 /**
  * Width of one digit column — problem digits and answer boxes alike. Sized
@@ -46,8 +50,24 @@ export interface AnswerShape {
   remainderBoxes: number;
 }
 
-/** Derive the answer-area shape from a question's correct answer. */
-export function answerShape(question: Question): AnswerShape {
+/**
+ * Derive the answer-area shape from a question.
+ *
+ * Long division uses one wide strip for the whole quotient (and a second for
+ * the remainder); every other layout uses one box per digit column.
+ */
+export function answerShape(
+  question: Question,
+  layout: ProblemLayout = question.layout,
+): AnswerShape {
+  if (layout === 'divisionLong') {
+    return {
+      hasSign: false,
+      integerBoxes: 1,
+      decimalBoxes: 0,
+      remainderBoxes: question.answer.kind === 'remainder' ? 1 : 0,
+    };
+  }
   const { answer } = question;
   switch (answer.kind) {
     case 'integer':

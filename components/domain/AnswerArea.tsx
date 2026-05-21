@@ -1,4 +1,4 @@
-import type { Question } from '../../types';
+import type { ProblemLayout, Question } from '../../types';
 import { DecimalAnswerRow } from './DecimalAnswerRow';
 import { RemainderAnswerRow } from './RemainderAnswerRow';
 import { SignedAnswerRow } from './SignedAnswerRow';
@@ -7,6 +7,8 @@ import { answerShape } from './layout';
 
 export interface AnswerAreaProps {
   question: Question;
+  /** Effective layout (after any override) — affects the answer-area shape. */
+  layout?: ProblemLayout;
   ink: AnswerInk;
   onChange: (ink: AnswerInk) => void;
   selectedBox: string | null;
@@ -19,6 +21,7 @@ export interface AnswerAreaProps {
 /** Picks and renders the answer area matching a question's answer kind. */
 export function AnswerArea({
   question,
+  layout,
   ink,
   onChange,
   selectedBox,
@@ -27,7 +30,7 @@ export function AnswerArea({
   isBoxWritable,
 }: AnswerAreaProps) {
   const shared = {
-    shape: answerShape(question),
+    shape: answerShape(question, layout),
     ink,
     onChange,
     selectedBox,
