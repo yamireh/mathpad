@@ -4,16 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import {
-  type AnswerInk,
-  DecimalAnswerRow,
+  AnswerArea,
   ProblemDisplay,
-  RemainderAnswerRow,
   ScratchCanvas,
   type ScratchCanvasHandle,
   type ScratchTool,
-  SignedAnswerRow,
   TimerDisplay,
-  answerShape,
 } from '../components/domain';
 import {
   Button,
@@ -29,34 +25,6 @@ import {
   typography,
 } from '../constants/design';
 import { usePracticeSession, useRecognition, useTimer } from '../hooks';
-import type { Question } from '../types';
-
-/** Picks the answer-area component for a question's answer kind. */
-function AnswerArea(props: {
-  question: Question;
-  ink: AnswerInk;
-  onChange: (ink: AnswerInk) => void;
-  selectedBox: string | null;
-  onSelectBox: (boxId: string) => void;
-  tone: string;
-}) {
-  const shape = answerShape(props.question);
-  const shared = {
-    shape,
-    ink: props.ink,
-    onChange: props.onChange,
-    selectedBox: props.selectedBox,
-    onSelectBox: props.onSelectBox,
-    tone: props.tone,
-  };
-  if (props.question.answer.kind === 'decimal') {
-    return <DecimalAnswerRow {...shared} />;
-  }
-  if (props.question.answer.kind === 'remainder') {
-    return <RemainderAnswerRow {...shared} />;
-  }
-  return <SignedAnswerRow {...shared} />;
-}
 
 /** Practice — solve the session's questions one at a time. */
 export default function PracticeScreen() {

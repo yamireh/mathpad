@@ -31,6 +31,7 @@ export {
   isBlankSubmission,
 } from './format';
 
+export { AnswerArea, type AnswerAreaProps } from './AnswerArea';
 export { AnswerBox, type AnswerBoxProps } from './AnswerBox';
 export {
   ScratchCanvas,
