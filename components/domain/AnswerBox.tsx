@@ -16,6 +16,8 @@ export interface AnswerBoxProps {
   strokes: InkStroke[];
   /** Highlighted as the box the answer pad is currently writing into. */
   selected: boolean;
+  /** Dimmed — an earlier box must be filled first (sequential fill order). */
+  locked?: boolean;
   /** Tap to make this the active box. */
   onSelect: () => void;
   /** Clear this box's ink. */
@@ -56,6 +58,7 @@ function fitTransform(strokes: InkStroke[]): PathTransform {
 export function AnswerBox({
   strokes,
   selected,
+  locked = false,
   onSelect,
   onClear,
   accessibilityLabel,
@@ -84,12 +87,13 @@ export function AnswerBox({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        accessibilityState={{ selected }}
+        accessibilityState={{ selected, disabled: locked }}
         onPress={onSelect}
         style={[
           styles.box,
           { borderColor: selected ? tone : colors.border },
           selected && styles.boxSelected,
+          locked && styles.boxLocked,
         ]}
       >
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -130,4 +134,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   boxSelected: { borderWidth: 2.5 },
+  boxLocked: { opacity: 0.4, backgroundColor: colors.surfaceAlt },
 });

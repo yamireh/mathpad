@@ -224,3 +224,50 @@ export function setBoxStrokes(
   if (kind === 'rem') return { ...ink, remainder: replace(ink.remainder) };
   return ink;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Sequential fill order                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Box ids in fill order: integer digits right-to-left (units first — the way
+ * column arithmetic works), then decimal digits and remainder digits
+ * left-to-right. The sign box is excluded — it is always writable.
+ */
+export function answerBoxOrder(shape: AnswerShape): string[] {
+  const order: string[] = [];
+  for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
+  for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
+  for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
+  return order;
+}
+
+/**
+ * Whether a box may currently be written into: the sign box always; a digit
+ * box once every box before it in fill order has ink. Already-filled boxes
+ * stay writable so they can be corrected.
+ */
+export function isBoxWritable(
+  ink: AnswerInk,
+  shape: AnswerShape,
+  boxId: string,
+): boolean {
+  if (boxId === 'sign') return true;
+  if (getBoxStrokes(ink, boxId).length > 0) return true;
+  const order = answerBoxOrder(shape);
+  const index = order.indexOf(boxId);
+  if (index < 0) return true;
+  for (let i = 0; i < index; i += 1) {
+    if (getBoxStrokes(ink, order[i]).length === 0) return false;
+  }
+  return true;
+}
+
+/** The first unfilled box in fill order — where focus should default. */
+export function frontierBox(ink: AnswerInk, shape: AnswerShape): string {
+  const order = answerBoxOrder(shape);
+  for (const id of order) {
+    if (getBoxStrokes(ink, id).length === 0) return id;
+  }
+  return order[order.length - 1] ?? 'int-0';
+}

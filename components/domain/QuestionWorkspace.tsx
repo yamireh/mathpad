@@ -15,10 +15,13 @@ import {
 } from './ScratchCanvas';
 import {
   type AnswerInk,
+  frontierBox,
   getBoxStrokes,
   type InkStroke,
+  isBoxWritable,
   setBoxStrokes,
 } from './ink';
+import { answerShape } from './layout';
 
 export interface QuestionWorkspaceProps {
   question: Question;
@@ -51,10 +54,23 @@ export function QuestionWorkspace({
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
-  // The answer box bound to the writing pad; null = scratch mode.
-  const [activeBox, setActiveBox] = useState<string | null>('int-0');
+  const shape = answerShape(question);
+  // The answer box bound to the writing pad; null = scratch mode. Focus
+  // defaults to the first box to fill (rightmost digit — units first).
+  const [activeBox, setActiveBox] = useState<string | null>(() =>
+    frontierBox(answerInk, shape),
+  );
   const [tool, setTool] = useState<ScratchTool>('pen');
   const scratchRef = useRef<ScratchCanvasHandle>(null);
+
+  // Sequential fill: tapping a still-locked box snaps to the next box to fill.
+  const selectBox = (boxId: string) => {
+    setActiveBox(
+      isBoxWritable(answerInk, shape, boxId)
+        ? boxId
+        : frontierBox(answerInk, shape),
+    );
+  };
 
   const isLongDivision = layout === 'divisionLong';
   const isDivision = question.operation === 'division';
@@ -69,8 +85,9 @@ export function QuestionWorkspace({
       ink={answerInk}
       onChange={onAnswerInkChange}
       selectedBox={activeBox}
-      onSelectBox={setActiveBox}
+      onSelectBox={selectBox}
       tone={tone}
+      isBoxWritable={(boxId) => isBoxWritable(answerInk, shape, boxId)}
     />
   );
 

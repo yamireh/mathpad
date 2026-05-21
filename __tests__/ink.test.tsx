@@ -3,10 +3,17 @@ import { act, render, renderHook, screen } from '@testing-library/react-native';
 import '../lib/i18n';
 import {
   AnswerBox,
+  type InkStroke,
   SignedAnswerRow,
   emptyAnswerInk,
   useInkCapture,
 } from '../components/domain';
+import {
+  answerBoxOrder,
+  frontierBox,
+  isBoxWritable,
+  setBoxStrokes,
+} from '../components/domain/ink';
 import { answerShape } from '../components/domain/layout';
 import type { Question } from '../types';
 
@@ -106,5 +113,39 @@ describe('ink components render', () => {
       />,
     );
     expect(screen.getByLabelText('Negative sign box')).toBeOnTheScreen();
+  });
+});
+
+describe('sequential fill order', () => {
+  const shape = {
+    hasSign: false,
+    integerBoxes: 3,
+    decimalBoxes: 0,
+    remainderBoxes: 0,
+  };
+  const oneStroke: InkStroke[] = [[[1, 1, 0]]];
+
+  it('orders integer boxes right-to-left (units first)', () => {
+    expect(answerBoxOrder(shape)).toEqual(['int-2', 'int-1', 'int-0']);
+  });
+
+  it('locks a box until the previous one has ink', () => {
+    const empty = emptyAnswerInk(shape);
+    expect(isBoxWritable(empty, shape, 'int-2')).toBe(true);
+    expect(isBoxWritable(empty, shape, 'int-1')).toBe(false);
+    expect(isBoxWritable(empty, shape, 'int-0')).toBe(false);
+    expect(frontierBox(empty, shape)).toBe('int-2');
+
+    const filled = setBoxStrokes(empty, 'int-2', oneStroke);
+    expect(isBoxWritable(filled, shape, 'int-1')).toBe(true);
+    expect(isBoxWritable(filled, shape, 'int-0')).toBe(false);
+    expect(frontierBox(filled, shape)).toBe('int-1');
+  });
+
+  it('always allows the sign box', () => {
+    const signShape = { ...shape, hasSign: true };
+    expect(
+      isBoxWritable(emptyAnswerInk(signShape), signShape, 'sign'),
+    ).toBe(true);
   });
 });

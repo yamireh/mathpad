@@ -13,6 +13,7 @@ export interface RemainderAnswerRowProps {
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
+  isBoxWritable?: (boxId: string) => boolean;
 }
 
 /** Remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
@@ -22,48 +23,60 @@ export function RemainderAnswerRow({
   selectedBox,
   onSelectBox,
   tone = colors.text,
+  isBoxWritable,
 }: RemainderAnswerRowProps) {
   const { t } = useTranslation();
+  const writable = isBoxWritable ?? (() => true);
 
   return (
     <View style={styles.row}>
-      {ink.integer.map((boxStrokes, i) => (
-        <AnswerBox
-          key={`int-${i}`}
-          accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
-          tone={tone}
-          selected={selectedBox === `int-${i}`}
-          onSelect={() => onSelectBox(`int-${i}`)}
-          strokes={boxStrokes}
-          onClear={() =>
-            onChange({
-              ...ink,
-              integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
-            })
-          }
-        />
-      ))}
+      {ink.integer.map((boxStrokes, i) => {
+        const id = `int-${i}`;
+        return (
+          <AnswerBox
+            key={id}
+            accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
+            tone={tone}
+            selected={selectedBox === id}
+            locked={!writable(id)}
+            onSelect={() => onSelectBox(id)}
+            strokes={boxStrokes}
+            onClear={() =>
+              onChange({
+                ...ink,
+                integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
+              })
+            }
+          />
+        );
+      })}
 
       <View style={styles.label}>
         <Text style={styles.labelText}>{t('practice.remainderLabel')}</Text>
       </View>
 
-      {ink.remainder.map((boxStrokes, i) => (
-        <AnswerBox
-          key={`rem-${i}`}
-          accessibilityLabel={t('a11y.remainderBox', { position: i + 1 })}
-          tone={tone}
-          selected={selectedBox === `rem-${i}`}
-          onSelect={() => onSelectBox(`rem-${i}`)}
-          strokes={boxStrokes}
-          onClear={() =>
-            onChange({
-              ...ink,
-              remainder: ink.remainder.map((s, idx) => (idx === i ? [] : s)),
-            })
-          }
-        />
-      ))}
+      {ink.remainder.map((boxStrokes, i) => {
+        const id = `rem-${i}`;
+        return (
+          <AnswerBox
+            key={id}
+            accessibilityLabel={t('a11y.remainderBox', { position: i + 1 })}
+            tone={tone}
+            selected={selectedBox === id}
+            locked={!writable(id)}
+            onSelect={() => onSelectBox(id)}
+            strokes={boxStrokes}
+            onClear={() =>
+              onChange({
+                ...ink,
+                remainder: ink.remainder.map((s, idx) =>
+                  idx === i ? [] : s,
+                ),
+              })
+            }
+          />
+        );
+      })}
     </View>
   );
 }

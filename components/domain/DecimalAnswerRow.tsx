@@ -14,6 +14,7 @@ export interface DecimalAnswerRowProps {
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
+  isBoxWritable?: (boxId: string) => boolean;
 }
 
 /**
@@ -29,48 +30,58 @@ export function DecimalAnswerRow({
   selectedBox,
   onSelectBox,
   tone = colors.text,
+  isBoxWritable,
 }: DecimalAnswerRowProps) {
   const { t } = useTranslation();
+  const writable = isBoxWritable ?? (() => true);
 
   return (
     <View style={styles.row}>
-      {ink.integer.map((boxStrokes, i) => (
-        <AnswerBox
-          key={`int-${i}`}
-          accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
-          tone={tone}
-          selected={selectedBox === `int-${i}`}
-          onSelect={() => onSelectBox(`int-${i}`)}
-          strokes={boxStrokes}
-          onClear={() =>
-            onChange({
-              ...ink,
-              integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
-            })
-          }
-        />
-      ))}
+      {ink.integer.map((boxStrokes, i) => {
+        const id = `int-${i}`;
+        return (
+          <AnswerBox
+            key={id}
+            accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
+            tone={tone}
+            selected={selectedBox === id}
+            locked={!writable(id)}
+            onSelect={() => onSelectBox(id)}
+            strokes={boxStrokes}
+            onClear={() =>
+              onChange({
+                ...ink,
+                integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
+              })
+            }
+          />
+        );
+      })}
 
       <View style={styles.separator}>
         <Text style={styles.separatorText}>{DECIMAL_SEPARATOR}</Text>
       </View>
 
-      {ink.decimal.map((boxStrokes, i) => (
-        <AnswerBox
-          key={`dec-${i}`}
-          accessibilityLabel={t('a11y.decimalBox', { position: i + 1 })}
-          tone={tone}
-          selected={selectedBox === `dec-${i}`}
-          onSelect={() => onSelectBox(`dec-${i}`)}
-          strokes={boxStrokes}
-          onClear={() =>
-            onChange({
-              ...ink,
-              decimal: ink.decimal.map((s, idx) => (idx === i ? [] : s)),
-            })
-          }
-        />
-      ))}
+      {ink.decimal.map((boxStrokes, i) => {
+        const id = `dec-${i}`;
+        return (
+          <AnswerBox
+            key={id}
+            accessibilityLabel={t('a11y.decimalBox', { position: i + 1 })}
+            tone={tone}
+            selected={selectedBox === id}
+            locked={!writable(id)}
+            onSelect={() => onSelectBox(id)}
+            strokes={boxStrokes}
+            onClear={() =>
+              onChange({
+                ...ink,
+                decimal: ink.decimal.map((s, idx) => (idx === i ? [] : s)),
+              })
+            }
+          />
+        );
+      })}
     </View>
   );
 }
