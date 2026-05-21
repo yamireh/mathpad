@@ -39,3 +39,32 @@ jest.mock('@shopify/react-native-skia', () => {
     Path: () => null,
   };
 });
+
+// expo-router — light mock so screens render in isolation. Route params are
+// read from globalThis.__expoRouterParams (tests set it as needed).
+jest.mock('expo-router', () => {
+  const mockRouter = {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    dismissAll: jest.fn(),
+    dismiss: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    useRouter: () => mockRouter,
+    router: mockRouter,
+    useLocalSearchParams: () => globalThis.__expoRouterParams ?? {},
+    usePathname: () => '/',
+    useFocusEffect: (cb) => {
+      const { useEffect } = require('react');
+      useEffect(() => cb(), []);
+    },
+    Link: ({ children }) => children,
+    Stack: Object.assign(
+      ({ children }) => children ?? null,
+      { Screen: () => null },
+    ),
+    Redirect: () => null,
+  };
+});

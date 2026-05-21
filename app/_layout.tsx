@@ -1,19 +1,23 @@
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { PracticeSessionProvider } from '../hooks';
 // Side-effect import: initialises i18next before any screen renders.
 import '../lib/i18n';
 
 /**
- * Root layout for the expo-router app.
+ * Root layout.
  *
- * Wraps every route in a SafeAreaProvider and hosts the navigation Stack.
- * Feature screens are added under /app in later phases.
+ * Wraps every route in the safe-area provider and the practice-session
+ * provider (so the session survives Practice → Score → Review navigation),
+ * and hosts the navigation Stack.
  */
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <PracticeSessionProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </PracticeSessionProvider>
     </SafeAreaProvider>
   );
 }
