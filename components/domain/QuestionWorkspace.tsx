@@ -7,6 +7,7 @@ import { colors, spacing, typography } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
 import { AnswerArea } from './AnswerArea';
 import { AnswerPad } from './AnswerPad';
+import { DirectAnswerRow } from './DirectAnswerRow';
 import { ProblemDisplay } from './ProblemDisplay';
 import {
   ScratchCanvas,
@@ -44,9 +45,10 @@ export interface QuestionWorkspaceProps {
 /**
  * The shared "solve a question" surface used by Practice and Review.
  *
- * The answer boxes are small and column-aligned; tapping one focuses the large
- * writing pad below on it (the pad replaces the scratch area until "Done").
- * Strokes drawn in the pad mirror — scaled — into the box.
+ * Standard layouts (+/−/×, horizontal & decimal division) use small,
+ * column-aligned answer boxes plus a pop-up writing pad. Long division uses
+ * its own layout: large write-directly quotient boxes on top and the whole
+ * area below the bracket as the working space.
  */
 export function QuestionWorkspace({
   question,
@@ -62,15 +64,19 @@ export function QuestionWorkspace({
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
   const shape = answerShape(question);
-  // The answer box bound to the writing pad; null = scratch mode. Focus
-  // defaults to the first box to fill (rightmost digit — units first).
   const [activeBox, setActiveBox] = useState<string | null>(() =>
     frontierBox(answerInk, shape, layout),
   );
   const [tool, setTool] = useState<ScratchTool>('pen');
-  // Bumped to force the answer pad to remount (e.g. after Clear all).
   const [padNonce, setPadNonce] = useState(0);
   const scratchRef = useRef<ScratchCanvasHandle>(null);
+
+  const isLongDivision = layout === 'divisionLong';
+  const isDivision = question.operation === 'division';
+  const inlineLayout: ProblemLayout =
+    question.answer.kind === 'decimal'
+      ? 'divisionDecimal'
+      : 'divisionHorizontal';
 
   // Sequential fill: tapping a still-locked box snaps to the next box to fill.
   const selectBox = (boxId: string) => {
@@ -89,13 +95,86 @@ export function QuestionWorkspace({
     setPadNonce((n) => n + 1);
   };
 
-  const isLongDivision = layout === 'divisionLong';
-  const isDivision = question.operation === 'division';
-  const inlineLayout: ProblemLayout =
-    question.answer.kind === 'decimal'
-      ? 'divisionDecimal'
-      : 'divisionHorizontal';
+  const scratch = (
+    <ScratchCanvas
+      ref={scratchRef}
+      tool={tool}
+      bordered={!isLongDivision}
+      initialStrokes={scratchInk}
+      onStrokesChange={onScratchInkChange}
+      accessibilityLabel={t('a11y.scratchCanvas')}
+    />
+  );
 
+  const toolbar = (
+    <View style={styles.toolbar}>
+      <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
+      <View style={styles.tools}>
+        <Button
+          label={t('practice.eraser')}
+          variant={tool === 'eraser' ? 'primary' : 'secondary'}
+          tone={tone}
+          fullWidth={false}
+          onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
+        />
+        <IconButton
+          name="arrow-undo-outline"
+          accessibilityLabel={t('practice.undo')}
+          onPress={() => scratchRef.current?.undo()}
+        />
+        <IconButton
+          name="trash-outline"
+          accessibilityLabel={t('practice.clearScratch')}
+          onPress={() => scratchRef.current?.clear()}
+        />
+      </View>
+    </View>
+  );
+
+  const layoutToggle =
+    isDivision && onLayoutChange ? (
+      <View style={styles.layoutToggle}>
+        <Chip
+          label={t('practice.layoutLong')}
+          selected={isLongDivision}
+          tone={tone}
+          onPress={() => onLayoutChange('divisionLong')}
+        />
+        <Chip
+          label={t('practice.layoutInline')}
+          selected={!isLongDivision}
+          tone={tone}
+          onPress={() => onLayoutChange(inlineLayout)}
+        />
+      </View>
+    ) : null;
+
+  // Long division: write-directly quotient boxes; the whole area below the
+  // bracket is the working space; no pop-up answer pad.
+  if (isLongDivision) {
+    return (
+      <View style={styles.container}>
+        {layoutToggle}
+        <View style={styles.longBody}>
+          <ProblemDisplay
+            question={question}
+            layout={layout}
+            answerSlot={
+              <DirectAnswerRow
+                shape={shape}
+                ink={answerInk}
+                onChange={onAnswerInkChange}
+              />
+            }
+            workSlot={scratch}
+          />
+        </View>
+        {toolbar}
+      </View>
+    );
+  }
+
+  // Standard layout: small answer boxes + pop-up writing pad.
   const answer = (
     <AnswerArea
       question={question}
@@ -110,76 +189,33 @@ export function QuestionWorkspace({
     />
   );
 
-  const scratch = (
-    <ScratchCanvas
-      ref={scratchRef}
-      tool={tool}
-      bordered={!isLongDivision}
-      initialStrokes={scratchInk}
-      onStrokesChange={onScratchInkChange}
-      accessibilityLabel={t('a11y.scratchCanvas')}
-    />
-  );
-
   return (
     <View style={styles.container}>
-      {isDivision && onLayoutChange ? (
-        <View style={styles.layoutToggle}>
-          <Chip
-            label={t('practice.layoutLong')}
-            selected={isLongDivision}
-            tone={tone}
-            onPress={() => onLayoutChange('divisionLong')}
-          />
-          <Chip
-            label={t('practice.layoutInline')}
-            selected={!isLongDivision}
-            tone={tone}
-            onPress={() => onLayoutChange(inlineLayout)}
-          />
-        </View>
-      ) : null}
+      {layoutToggle}
 
-      {isLongDivision ? (
-        <View style={styles.longBody}>
+      <View style={styles.problemArea}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.problemScroll}
+        >
           <ProblemDisplay
             question={question}
             layout={layout}
             answerSlot={answer}
-            workSlot={scratch}
+            borrowMarks={borrowMarks}
+            onToggleBorrow={
+              question.operation === 'subtraction'
+                ? onToggleBorrow
+                : undefined
+            }
+            tone={tone}
           />
-        </View>
-      ) : (
-        <View style={styles.problemArea}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.problemScroll}
-          >
-            <ProblemDisplay
-              question={question}
-              layout={layout}
-              answerSlot={answer}
-              borrowMarks={borrowMarks}
-              onToggleBorrow={
-                question.operation === 'subtraction'
-                  ? onToggleBorrow
-                  : undefined
-              }
-              tone={tone}
-            />
-          </ScrollView>
-        </View>
-      )}
+        </ScrollView>
+      </View>
 
       {activeBox ? (
-        <View
-          style={[
-            styles.bottomRegion,
-            // Long division keeps the work area tall — the pad stays compact.
-            isLongDivision && styles.bottomRegionCompact,
-          ]}
-        >
+        <View style={styles.bottomRegion}>
           <AnswerPad
             key={`${activeBox}:${padNonce}`}
             strokes={getBoxStrokes(answerInk, activeBox)}
@@ -191,34 +227,11 @@ export function QuestionWorkspace({
             tone={tone}
           />
         </View>
-      ) : isLongDivision ? null : (
+      ) : (
         <View style={styles.bottomRegion}>{scratch}</View>
       )}
 
-      {activeBox ? null : (
-        <View style={styles.toolbar}>
-          <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
-          <View style={styles.tools}>
-            <Button
-              label={t('practice.eraser')}
-              variant={tool === 'eraser' ? 'primary' : 'secondary'}
-              tone={tone}
-              fullWidth={false}
-              onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-            />
-            <IconButton
-              name="arrow-undo-outline"
-              accessibilityLabel={t('practice.undo')}
-              onPress={() => scratchRef.current?.undo()}
-            />
-            <IconButton
-              name="trash-outline"
-              accessibilityLabel={t('practice.clearScratch')}
-              onPress={() => scratchRef.current?.clear()}
-            />
-          </View>
-        </View>
-      )}
+      {activeBox ? null : toolbar}
     </View>
   );
 }
@@ -244,7 +257,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
-  bottomRegionCompact: { flex: 0, height: 260 },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

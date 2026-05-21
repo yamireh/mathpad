@@ -38,6 +38,8 @@ export {
 export { AnswerArea, type AnswerAreaProps } from './AnswerArea';
 export { AnswerBox, type AnswerBoxProps } from './AnswerBox';
 export { AnswerPad, type AnswerPadProps } from './AnswerPad';
+export { DirectAnswerRow, type DirectAnswerRowProps } from './DirectAnswerRow';
+export { DirectInkBox, type DirectInkBoxProps } from './DirectInkBox';
 export {
   ScratchCanvas,
   type ScratchCanvasHandle,
