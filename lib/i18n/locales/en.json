@@ -4,13 +4,132 @@
     "tagline": "Practice math by hand"
   },
   "common": {
-    "start": "Start",
     "cancel": "Cancel",
     "close": "Close",
     "clear": "Clear",
-    "next": "Next",
     "back": "Back",
     "done": "Done",
-    "retry": "Retry"
+    "retry": "Retry",
+    "submit": "Submit",
+    "delete": "Delete"
+  },
+  "operations": {
+    "addition": "Addition",
+    "subtraction": "Subtraction",
+    "multiplication": "Multiplication",
+    "division": "Division",
+    "mix": "Mix"
+  },
+  "home": {
+    "greeting": "Hi! What shall we practice?",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "{{operation}} settings",
+    "digits": "Number of digits",
+    "digitsFrom": "From",
+    "digitsTo": "To",
+    "questionCount": "Number of questions",
+    "timer": "Timer",
+    "timerHint": "One countdown for the whole session",
+    "timerDuration": "{{minutes}} min",
+    "carrying": "Carrying",
+    "borrowing": "Borrowing",
+    "allowNegative": "Allow negative answers",
+    "regrouping": "Regrouping",
+    "answerType": "Answer type",
+    "mode": {
+      "with": "With",
+      "without": "Without",
+      "random": "Random"
+    },
+    "negative": {
+      "off": "Off",
+      "on": "On",
+      "random": "Random"
+    },
+    "divisionAnswer": {
+      "noRemainder": "Without remainders",
+      "remainder": "With remainders",
+      "decimal": "With decimals",
+      "random": "Random"
+    },
+    "summaryDigits": "{{min}}–{{max}} digit numbers",
+    "summaryQuestions_one": "{{count}} question",
+    "summaryQuestions_other": "{{count}} questions",
+    "summaryTimed": "{{minutes}} min timer",
+    "summaryUntimed": "no timer",
+    "start": "Start practicing"
+  },
+  "practice": {
+    "progress": "Question {{current}} of {{total}}",
+    "help": "Help",
+    "finish": "Finish",
+    "eraser": "Eraser",
+    "undo": "Undo",
+    "clearScratch": "Clear all",
+    "clearBox": "Clear box",
+    "scratchHint": "Scratch area — your working out",
+    "remainderLabel": "R",
+    "leaveTitle": "Leave practice?",
+    "leaveMessage": "Your progress on this session will be lost.",
+    "leaveConfirm": "Leave",
+    "helpTitle": "How to answer",
+    "helpMessage": "Write each digit in its own box. Use the scratch area for your working out — it is just for you. Tap Finish when you are done.",
+    "timeUpTitle": "Time's up!",
+    "timeUpMessage": "Let's see how you did."
+  },
+  "score": {
+    "title": "Results",
+    "firstTry": "First try",
+    "final": "Final",
+    "value": "{{score}} / {{total}}",
+    "encouragement": {
+      "perfect": "Perfect!",
+      "great": "Great job!",
+      "nice": "Nice work — keep practicing!",
+      "effort": "Good effort — let's try again!"
+    },
+    "answersTitle": "Your answers",
+    "fixedBadge": "Fixed",
+    "blankAnswer": "(blank)",
+    "questionLabel": "Question {{number}}",
+    "home": "Home",
+    "again": "Again"
+  },
+  "review": {
+    "title": "Question {{number}}",
+    "submit": "Submit"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No sessions yet",
+    "emptyHint": "Finish a practice session and it will appear here.",
+    "clearAll": "Clear all history",
+    "clearTitle": "Clear all history?",
+    "clearMessage": "This permanently deletes every saved session. This cannot be undone.",
+    "clearConfirm": "Clear all",
+    "firstTry": "First try {{score}}/{{total}}",
+    "final": "Final {{score}}/{{total}}",
+    "duration": "{{minutes}} min",
+    "sessionCount_one": "{{count}} question",
+    "sessionCount_other": "{{count}} questions",
+    "detailTitle": "Session details",
+    "yourAnswer": "Your answer",
+    "correctAnswer": "Correct answer"
+  },
+  "a11y": {
+    "operationCard": "Practice {{operation}}",
+    "answerBox": "Answer digit {{position}}",
+    "decimalBox": "Decimal digit {{position}}",
+    "remainderBox": "Remainder digit {{position}}",
+    "signBox": "Negative sign box",
+    "clearBox": "Clear this box",
+    "scratchCanvas": "Scratch area for working out",
+    "progressBar": "{{current}} of {{total}} questions",
+    "closeButton": "Close",
+    "decrease": "Decrease",
+    "increase": "Increase"
   }
 }

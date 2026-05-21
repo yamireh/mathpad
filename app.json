@@ -42,7 +42,9 @@
             "deploymentTarget": "15.5"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-asset"
     ],
     "extra": {
       "router": {},
