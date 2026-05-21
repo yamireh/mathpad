@@ -17,14 +17,13 @@ export interface DecimalAnswerRowProps {
 }
 
 /**
- * The decimal-mode answer area: integer boxes, a PRE-PRINTED decimal
- * separator (never handwritten — eliminates a class of recognition errors),
- * then up to three decimal boxes. The separator follows the device locale.
+ * Decimal-mode answer area: integer boxes, a PRE-PRINTED decimal separator
+ * (never handwritten), then up to three decimal boxes. The separator follows
+ * the device locale.
  */
 const DECIMAL_SEPARATOR = getLocales()[0]?.decimalSeparator ?? '.';
 
 export function DecimalAnswerRow({
-  shape,
   ink,
   onChange,
   selectedBox,
@@ -42,11 +41,11 @@ export function DecimalAnswerRow({
           tone={tone}
           selected={selectedBox === `int-${i}`}
           onSelect={() => onSelectBox(`int-${i}`)}
-          initialStrokes={boxStrokes}
-          onStrokesChange={(strokes) =>
+          strokes={boxStrokes}
+          onClear={() =>
             onChange({
               ...ink,
-              integer: ink.integer.map((s, idx) => (idx === i ? strokes : s)),
+              integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
             })
           }
         />
@@ -63,11 +62,11 @@ export function DecimalAnswerRow({
           tone={tone}
           selected={selectedBox === `dec-${i}`}
           onSelect={() => onSelectBox(`dec-${i}`)}
-          initialStrokes={boxStrokes}
-          onStrokesChange={(strokes) =>
+          strokes={boxStrokes}
+          onClear={() =>
             onChange({
               ...ink,
-              decimal: ink.decimal.map((s, idx) => (idx === i ? strokes : s)),
+              decimal: ink.decimal.map((s, idx) => (idx === i ? [] : s)),
             })
           }
         />

@@ -75,7 +75,15 @@ describe('emptyAnswerInk', () => {
 
 describe('ink components render', () => {
   it('renders an AnswerBox', () => {
-    render(<AnswerBox accessibilityLabel="Answer digit 1" />);
+    render(
+      <AnswerBox
+        strokes={[]}
+        selected={false}
+        onSelect={jest.fn()}
+        onClear={jest.fn()}
+        accessibilityLabel="Answer digit 1"
+      />,
+    );
     expect(screen.getByLabelText('Answer digit 1')).toBeOnTheScreen();
   });
 

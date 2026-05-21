@@ -52,13 +52,17 @@ describe('Practice screen', () => {
     expect(screen.getByText('Next')).toBeOnTheScreen();
   });
 
-  it('offers the scratch area and its tools', async () => {
+  it('opens the answer pad, with Done returning to the scratch area', async () => {
     renderPractice(additionSettings);
+    // The pad is focused on the first answer box on entry.
     await waitFor(() =>
-      expect(
-        screen.getByText('Scratch area — your working out'),
-      ).toBeOnTheScreen(),
+      expect(screen.getByText('Write the digit here')).toBeOnTheScreen(),
     );
+    // Done switches back to the scratch area and its tools.
+    fireEvent.press(screen.getByText('Done'));
+    expect(
+      screen.getByText('Scratch area — your working out'),
+    ).toBeOnTheScreen();
     expect(screen.getByText('Eraser')).toBeOnTheScreen();
   });
 

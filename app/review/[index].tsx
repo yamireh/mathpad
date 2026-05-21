@@ -67,6 +67,7 @@ export default function ReviewScreen() {
       </View>
 
       <QuestionWorkspace
+        key={question.id}
         question={question}
         layout={layout}
         onLayoutChange={(next) => setLayoutOverride(question.id, next)}

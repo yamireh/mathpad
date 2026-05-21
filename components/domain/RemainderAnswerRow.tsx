@@ -15,9 +15,8 @@ export interface RemainderAnswerRowProps {
   tone?: string;
 }
 
-/** The remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
+/** Remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
 export function RemainderAnswerRow({
-  shape,
   ink,
   onChange,
   selectedBox,
@@ -35,11 +34,11 @@ export function RemainderAnswerRow({
           tone={tone}
           selected={selectedBox === `int-${i}`}
           onSelect={() => onSelectBox(`int-${i}`)}
-          initialStrokes={boxStrokes}
-          onStrokesChange={(strokes) =>
+          strokes={boxStrokes}
+          onClear={() =>
             onChange({
               ...ink,
-              integer: ink.integer.map((s, idx) => (idx === i ? strokes : s)),
+              integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
             })
           }
         />
@@ -56,13 +55,11 @@ export function RemainderAnswerRow({
           tone={tone}
           selected={selectedBox === `rem-${i}`}
           onSelect={() => onSelectBox(`rem-${i}`)}
-          initialStrokes={boxStrokes}
-          onStrokesChange={(strokes) =>
+          strokes={boxStrokes}
+          onClear={() =>
             onChange({
               ...ink,
-              remainder: ink.remainder.map((s, idx) =>
-                idx === i ? strokes : s,
-              ),
+              remainder: ink.remainder.map((s, idx) => (idx === i ? [] : s)),
             })
           }
         />

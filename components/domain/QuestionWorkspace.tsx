@@ -6,13 +6,19 @@ import { Button, Chip, IconButton } from '../ui';
 import { colors, spacing, typography } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
 import { AnswerArea } from './AnswerArea';
+import { AnswerPad } from './AnswerPad';
 import { ProblemDisplay } from './ProblemDisplay';
 import {
   ScratchCanvas,
   type ScratchCanvasHandle,
   type ScratchTool,
 } from './ScratchCanvas';
-import { type AnswerInk, type InkStroke } from './ink';
+import {
+  type AnswerInk,
+  getBoxStrokes,
+  type InkStroke,
+  setBoxStrokes,
+} from './ink';
 
 export interface QuestionWorkspaceProps {
   question: Question;
@@ -28,9 +34,11 @@ export interface QuestionWorkspaceProps {
 }
 
 /**
- * The shared "solve a question" surface used by Practice and Review:
- * the problem with its answer boxes, plus a scratch/working area and its
- * tools. For long division the working area is embedded inside the bracket.
+ * The shared "solve a question" surface used by Practice and Review.
+ *
+ * The answer boxes are small and column-aligned; tapping one focuses the large
+ * writing pad below on it (the pad replaces the scratch area until "Done").
+ * Strokes drawn in the pad mirror — scaled — into the box.
  */
 export function QuestionWorkspace({
   question,
@@ -43,8 +51,9 @@ export function QuestionWorkspace({
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
+  // The answer box bound to the writing pad; null = scratch mode.
+  const [activeBox, setActiveBox] = useState<string | null>('int-0');
   const [tool, setTool] = useState<ScratchTool>('pen');
-  const [selectedBox, setSelectedBox] = useState<string | null>(null);
   const scratchRef = useRef<ScratchCanvasHandle>(null);
 
   const isLongDivision = layout === 'divisionLong';
@@ -59,8 +68,8 @@ export function QuestionWorkspace({
       question={question}
       ink={answerInk}
       onChange={onAnswerInkChange}
-      selectedBox={selectedBox}
-      onSelectBox={setSelectedBox}
+      selectedBox={activeBox}
+      onSelectBox={setActiveBox}
       tone={tone}
     />
   );
@@ -105,46 +114,61 @@ export function QuestionWorkspace({
           />
         </View>
       ) : (
-        <>
-          <View style={styles.problemArea}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.problemScroll}
-            >
-              <ProblemDisplay
-                question={question}
-                layout={layout}
-                answerSlot={answer}
-              />
-            </ScrollView>
-          </View>
-          <View style={styles.scratchArea}>{scratch}</View>
-        </>
+        <View style={styles.problemArea}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.problemScroll}
+          >
+            <ProblemDisplay
+              question={question}
+              layout={layout}
+              answerSlot={answer}
+            />
+          </ScrollView>
+        </View>
       )}
 
-      <View style={styles.toolbar}>
-        <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
-        <View style={styles.tools}>
-          <Button
-            label={t('practice.eraser')}
-            variant={tool === 'eraser' ? 'primary' : 'secondary'}
+      {activeBox ? (
+        <View style={styles.bottomRegion}>
+          <AnswerPad
+            key={activeBox}
+            strokes={getBoxStrokes(answerInk, activeBox)}
+            onStrokesChange={(strokes) =>
+              onAnswerInkChange(setBoxStrokes(answerInk, activeBox, strokes))
+            }
+            onDone={() => setActiveBox(null)}
             tone={tone}
-            fullWidth={false}
-            onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-          />
-          <IconButton
-            name="arrow-undo-outline"
-            accessibilityLabel={t('practice.undo')}
-            onPress={() => scratchRef.current?.undo()}
-          />
-          <IconButton
-            name="trash-outline"
-            accessibilityLabel={t('practice.clearScratch')}
-            onPress={() => scratchRef.current?.clear()}
           />
         </View>
-      </View>
+      ) : isLongDivision ? null : (
+        <View style={styles.bottomRegion}>{scratch}</View>
+      )}
+
+      {activeBox ? null : (
+        <View style={styles.toolbar}>
+          <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
+          <View style={styles.tools}>
+            <Button
+              label={t('practice.eraser')}
+              variant={tool === 'eraser' ? 'primary' : 'secondary'}
+              tone={tone}
+              fullWidth={false}
+              onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
+            />
+            <IconButton
+              name="arrow-undo-outline"
+              accessibilityLabel={t('practice.undo')}
+              onPress={() => scratchRef.current?.undo()}
+            />
+            <IconButton
+              name="trash-outline"
+              accessibilityLabel={t('practice.clearScratch')}
+              onPress={() => scratchRef.current?.clear()}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -164,8 +188,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
-  scratchArea: { flex: 1, paddingHorizontal: spacing.lg },
   longBody: { flex: 1, padding: spacing.lg },
+  bottomRegion: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',

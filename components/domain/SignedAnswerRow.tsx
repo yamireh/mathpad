@@ -16,7 +16,7 @@ export interface SignedAnswerRowProps {
 }
 
 /**
- * The answer area for an integer answer: an optional leading minus-sign box
+ * Answer area for an integer answer: an optional leading minus-sign box
  * (negative-answer mode) followed by one box per digit column.
  */
 export function SignedAnswerRow({
@@ -38,8 +38,8 @@ export function SignedAnswerRow({
           tone={tone}
           selected={selectedBox === 'sign'}
           onSelect={() => onSelectBox('sign')}
-          initialStrokes={ink.sign}
-          onStrokesChange={(strokes) => onChange({ ...ink, sign: strokes })}
+          strokes={ink.sign}
+          onClear={() => onChange({ ...ink, sign: [] })}
         />
       ) : null}
 
@@ -50,11 +50,11 @@ export function SignedAnswerRow({
           tone={tone}
           selected={selectedBox === `int-${i}`}
           onSelect={() => onSelectBox(`int-${i}`)}
-          initialStrokes={boxStrokes}
-          onStrokesChange={(strokes) =>
+          strokes={boxStrokes}
+          onClear={() =>
             onChange({
               ...ink,
-              integer: ink.integer.map((s, idx) => (idx === i ? strokes : s)),
+              integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
             })
           }
         />
