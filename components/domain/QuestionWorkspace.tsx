@@ -15,6 +15,7 @@ import {
 } from './ScratchCanvas';
 import {
   type AnswerInk,
+  emptyAnswerInk,
   frontierBox,
   getBoxStrokes,
   type InkStroke,
@@ -61,6 +62,8 @@ export function QuestionWorkspace({
     frontierBox(answerInk, shape),
   );
   const [tool, setTool] = useState<ScratchTool>('pen');
+  // Bumped to force the answer pad to remount (e.g. after Clear all).
+  const [padNonce, setPadNonce] = useState(0);
   const scratchRef = useRef<ScratchCanvasHandle>(null);
 
   // Sequential fill: tapping a still-locked box snaps to the next box to fill.
@@ -70,6 +73,14 @@ export function QuestionWorkspace({
         ? boxId
         : frontierBox(answerInk, shape),
     );
+  };
+
+  // Clear every answer box and return focus to the first box.
+  const clearAllAnswers = () => {
+    const empty = emptyAnswerInk(shape);
+    onAnswerInkChange(empty);
+    setActiveBox(frontierBox(empty, shape));
+    setPadNonce((n) => n + 1);
   };
 
   const isLongDivision = layout === 'divisionLong';
@@ -149,11 +160,12 @@ export function QuestionWorkspace({
       {activeBox ? (
         <View style={styles.bottomRegion}>
           <AnswerPad
-            key={activeBox}
+            key={`${activeBox}:${padNonce}`}
             strokes={getBoxStrokes(answerInk, activeBox)}
             onStrokesChange={(strokes) =>
               onAnswerInkChange(setBoxStrokes(answerInk, activeBox, strokes))
             }
+            onClearAll={clearAllAnswers}
             onDone={() => setActiveBox(null)}
             tone={tone}
           />

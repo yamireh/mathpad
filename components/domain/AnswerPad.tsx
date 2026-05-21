@@ -16,6 +16,8 @@ export interface AnswerPadProps {
   strokes: InkStroke[];
   /** Reports the box's full stroke list after each completed stroke. */
   onStrokesChange: (strokes: InkStroke[]) => void;
+  /** Clear every answer box (per-box clears live on the boxes themselves). */
+  onClearAll: () => void;
   /** Return to the scratch area. */
   onDone: () => void;
   tone: string;
@@ -32,6 +34,7 @@ const STROKE_WIDTH = 4;
 export function AnswerPad({
   strokes,
   onStrokesChange,
+  onClearAll,
   onDone,
   tone,
 }: AnswerPadProps) {
@@ -42,10 +45,10 @@ export function AnswerPad({
     <View style={styles.container}>
       <View style={styles.header}>
         <Button
-          label={t('common.clear')}
+          label={t('common.clearAll')}
           variant="secondary"
           fullWidth={false}
-          onPress={ink.clear}
+          onPress={onClearAll}
         />
         <Text style={styles.hint}>{t('practice.answerPadHint')}</Text>
         <Button
