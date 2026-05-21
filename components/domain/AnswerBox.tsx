@@ -92,7 +92,7 @@ export function AnswerBox({
           selected && styles.boxSelected,
         ]}
       >
-        <Canvas style={StyleSheet.absoluteFill}>
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
           {strokes.map((stroke, i) => (
             <Path
               key={i}
