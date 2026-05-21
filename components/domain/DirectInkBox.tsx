@@ -16,21 +16,21 @@ export interface DirectInkBoxProps {
   /** Reports the full stroke list after each completed stroke or clear. */
   onStrokesChange: (strokes: InkStroke[]) => void;
   accessibilityLabel: string;
-  width: number;
+  /** Box height; width flexes to fill the row. */
   height: number;
 }
 
 const STROKE_WIDTH = 3.5;
 
 /**
- * A handwriting box written into directly — no pop-up pad. Used where the box
- * itself is large enough to write in comfortably (the long-division quotient).
+ * A handwriting box written into directly — no pop-up pad. Its width flexes to
+ * fill the available row, so it is generously sized (the long-division
+ * quotient).
  */
 export function DirectInkBox({
   strokes,
   onStrokesChange,
   accessibilityLabel,
-  width,
   height,
 }: DirectInkBoxProps) {
   const ink = useInkCapture(strokes, onStrokesChange);
@@ -52,7 +52,7 @@ export function DirectInkBox({
       </View>
 
       <View
-        style={[styles.box, { width, height }]}
+        style={[styles.box, { height }]}
         accessibilityLabel={accessibilityLabel}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
@@ -95,8 +95,14 @@ export function DirectInkBox({
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center' },
-  clearSlot: { height: 22, justifyContent: 'center' },
+  /** Flexes to take an equal share of the row's width. */
+  wrap: { flex: 1 },
+  clearSlot: {
+    height: 22,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingRight: 4,
+  },
   clearButton: {
     width: 18,
     height: 18,
@@ -106,6 +112,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   box: {
+    alignSelf: 'stretch',
     borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.border,

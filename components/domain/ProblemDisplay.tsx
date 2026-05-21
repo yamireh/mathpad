@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   longContainer: { flex: 1, alignSelf: 'stretch' },
   longTopRow: { flexDirection: 'row', alignItems: 'flex-end' },
   hidden: { opacity: 0 },
-  longQuotient: { paddingLeft: spacing.md, paddingBottom: spacing.xs },
+  longQuotient: { flex: 1, paddingLeft: spacing.md, paddingBottom: spacing.xs },
   longMainRow: { flexDirection: 'row', flex: 1, alignItems: 'stretch' },
   longDivisor: { paddingRight: spacing.sm, paddingTop: spacing.md },
   longBracket: {

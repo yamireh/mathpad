@@ -12,12 +12,9 @@ export interface DirectAnswerRowProps {
   onChange: (ink: AnswerInk) => void;
 }
 
-/** Generous box size — the long-division quotient has few digits and room. */
-const QUOTIENT_BOX = { width: 92, height: ANSWER_BOX_HEIGHT };
-
 /**
  * The long-division answer area: large, write-directly quotient boxes (and a
- * remainder, if any). No pop-up pad — the boxes are big enough on their own.
+ * remainder, if any) that flex to fill the full width. No pop-up pad.
  */
 export function DirectAnswerRow({ shape, ink, onChange }: DirectAnswerRowProps) {
   const { t } = useTranslation();
@@ -29,8 +26,7 @@ export function DirectAnswerRow({ shape, ink, onChange }: DirectAnswerRowProps) 
           key={`int-${i}`}
           accessibilityLabel={t('a11y.answerBox', { position: i + 1 })}
           strokes={boxStrokes}
-          width={QUOTIENT_BOX.width}
-          height={QUOTIENT_BOX.height}
+          height={ANSWER_BOX_HEIGHT}
           onStrokesChange={(next) =>
             onChange({
               ...ink,
@@ -52,8 +48,7 @@ export function DirectAnswerRow({ shape, ink, onChange }: DirectAnswerRowProps) 
               key={`rem-${i}`}
               accessibilityLabel={t('a11y.remainderBox', { position: i + 1 })}
               strokes={boxStrokes}
-              width={QUOTIENT_BOX.width}
-              height={QUOTIENT_BOX.height}
+              height={ANSWER_BOX_HEIGHT}
               onStrokesChange={(next) =>
                 onChange({
                   ...ink,
@@ -71,7 +66,12 @@ export function DirectAnswerRow({ shape, ink, onChange }: DirectAnswerRowProps) 
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+    gap: spacing.sm,
+  },
   remainderLabel: {
     height: ANSWER_BOX_HEIGHT + 22,
     justifyContent: 'center',
