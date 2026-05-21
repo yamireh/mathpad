@@ -6,17 +6,20 @@
  */
 import type { ConcreteOperation, Question } from '../../types';
 
-/** Width of one digit column — problem digits and answer boxes alike. */
-export const DIGIT_COLUMN_WIDTH = 54;
+/**
+ * Width of one digit column — problem digits and answer boxes alike. Sized
+ * generously so finger handwriting has room (tuned from on-device testing).
+ */
+export const DIGIT_COLUMN_WIDTH = 76;
 
 /** Height of a handwriting answer box. */
-export const ANSWER_BOX_HEIGHT = 70;
+export const ANSWER_BOX_HEIGHT = 100;
 
 /** Font size for printed problem digits. */
-export const PROBLEM_DIGIT_SIZE = 34;
+export const PROBLEM_DIGIT_SIZE = 38;
 
 /** Width reserved for the operator to the left of the second operand. */
-export const OPERATOR_COLUMN_WIDTH = 38;
+export const OPERATOR_COLUMN_WIDTH = 44;
 
 /** Printed operator symbol per operation. */
 export const operatorSymbol: Record<ConcreteOperation, string> = {

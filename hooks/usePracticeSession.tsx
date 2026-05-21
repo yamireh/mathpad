@@ -32,6 +32,7 @@ import {
 } from '../lib/scoring';
 import { historyStore } from '../lib/storage';
 import type {
+  ProblemLayout,
   Question,
   QuestionResult,
   SessionResult,
@@ -48,6 +49,8 @@ export interface SessionData {
   answerInk: Record<string, AnswerInk>;
   /** Scratch-canvas ink keyed by question id. */
   scratchInk: Record<string, InkStroke[]>;
+  /** User-chosen layout overrides keyed by question id (division toggle). */
+  layoutOverrides: Record<string, ProblemLayout>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -62,6 +65,8 @@ export interface PracticeSessionContextValue {
   updateAnswerInk: (questionId: string, ink: AnswerInk) => void;
   /** Replace the scratch ink for one question. */
   updateScratchInk: (questionId: string, strokes: InkStroke[]) => void;
+  /** Override the problem layout for one question (division toggle). */
+  setLayoutOverride: (questionId: string, layout: ProblemLayout) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -119,6 +124,7 @@ export function PracticeSessionProvider({
         questions,
         answerInk,
         scratchInk: {},
+        layoutOverrides: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -146,6 +152,18 @@ export function PracticeSessionProvider({
       commit({
         ...data,
         scratchInk: { ...data.scratchInk, [questionId]: strokes },
+      });
+    },
+    [commit],
+  );
+
+  const setLayoutOverride = useCallback(
+    (questionId: string, layout: ProblemLayout) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      commit({
+        ...data,
+        layoutOverrides: { ...data.layoutOverrides, [questionId]: layout },
       });
     },
     [commit],
@@ -205,11 +223,21 @@ export function PracticeSessionProvider({
       start,
       updateAnswerInk,
       updateScratchInk,
+      setLayoutOverride,
       finish,
       reviewSubmit,
       reset,
     }),
-    [session, start, updateAnswerInk, updateScratchInk, finish, reviewSubmit, reset],
+    [
+      session,
+      start,
+      updateAnswerInk,
+      updateScratchInk,
+      setLayoutOverride,
+      finish,
+      reviewSubmit,
+      reset,
+    ],
   );
 
   return (

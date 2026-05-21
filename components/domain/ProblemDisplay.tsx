@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../constants/design';
-import type { Question } from '../../types';
+import type { ProblemLayout, Question } from '../../types';
 import {
   DIGIT_COLUMN_WIDTH,
   OPERATOR_COLUMN_WIDTH,
@@ -16,19 +16,38 @@ export interface ProblemDisplayProps {
   question: Question;
   /** The answer area (handwriting boxes), positioned by the chosen layout. */
   answerSlot: ReactNode;
+  /** Overrides the question's own layout (e.g. a user layout toggle). */
+  layout?: ProblemLayout;
+  /** Intermediate-work surface, placed inside the long-division bracket. */
+  workSlot?: ReactNode;
 }
 
 /** Renders a math problem and places its answer area, per question layout. */
-export function ProblemDisplay({ question, answerSlot }: ProblemDisplayProps) {
-  switch (question.layout) {
+export function ProblemDisplay({
+  question,
+  answerSlot,
+  layout,
+  workSlot,
+}: ProblemDisplayProps) {
+  const effective = layout ?? question.layout;
+  switch (effective) {
     case 'vertical':
       return <VerticalProblem question={question} answerSlot={answerSlot} />;
     case 'divisionLong':
-      return <LongDivisionProblem question={question} answerSlot={answerSlot} />;
+      return (
+        <LongDivisionProblem
+          question={question}
+          answerSlot={answerSlot}
+          workSlot={workSlot}
+        />
+      );
     case 'divisionHorizontal':
     case 'divisionDecimal':
       return (
-        <HorizontalDivisionProblem question={question} answerSlot={answerSlot} />
+        <HorizontalDivisionProblem
+          question={question}
+          answerSlot={answerSlot}
+        />
       );
   }
 }
@@ -47,15 +66,14 @@ function DigitCells({ value }: { value: number }) {
   );
 }
 
-function VerticalProblem({ question, answerSlot }: ProblemDisplayProps) {
+function VerticalProblem({
+  question,
+  answerSlot,
+}: Pick<ProblemDisplayProps, 'question' | 'answerSlot'>) {
   const [op1, op2] = question.operands;
   const shape = answerShape(question);
   const answerColumns = shape.integerBoxes + (shape.hasSign ? 1 : 0);
-  const columns = Math.max(
-    digitCount(op1),
-    digitCount(op2),
-    answerColumns,
-  );
+  const columns = Math.max(digitCount(op1), digitCount(op2), answerColumns);
   const columnAreaWidth = columns * DIGIT_COLUMN_WIDTH;
 
   return (
@@ -97,7 +115,7 @@ function VerticalProblem({ question, answerSlot }: ProblemDisplayProps) {
 function HorizontalDivisionProblem({
   question,
   answerSlot,
-}: ProblemDisplayProps) {
+}: Pick<ProblemDisplayProps, 'question' | 'answerSlot'>) {
   const [dividend, divisor] = question.operands;
   return (
     <View style={styles.horizontalRow}>
@@ -110,22 +128,34 @@ function HorizontalDivisionProblem({
   );
 }
 
-function LongDivisionProblem({ question, answerSlot }: ProblemDisplayProps) {
+/**
+ * Long-division ("bracket") layout. The bracket is drawn as connected lines —
+ * a left vertical rule and a top overline meeting at the corner — with the
+ * quotient above, the divisor to the left, and a tall intermediate-work
+ * surface filling the space below the dividend.
+ */
+function LongDivisionProblem({
+  question,
+  answerSlot,
+  workSlot,
+}: Pick<ProblemDisplayProps, 'question' | 'answerSlot' | 'workSlot'>) {
   const [dividend, divisor] = question.operands;
   return (
-    <View>
-      {/* Quotient sits above the dividend; hidden copies of the divisor and
-          bracket act as spacers so it lines up. */}
-      <View style={styles.longRow}>
+    <View style={styles.longContainer}>
+      {/* Quotient — above the overline, nudged right past the divisor. */}
+      <View style={styles.longTopRow}>
         <Text style={[styles.problemText, styles.hidden]}>{divisor}</Text>
-        <Text style={[styles.bracket, styles.hidden]}>)</Text>
         <View style={styles.longQuotient}>{answerSlot}</View>
       </View>
-      <View style={styles.longRow}>
-        <Text style={styles.problemText}>{divisor}</Text>
-        <Text style={styles.bracket}>)</Text>
-        <View style={styles.longDividend}>
-          <Text style={styles.problemText}>{dividend}</Text>
+
+      {/* Divisor, then the bracketed dividend + work area. */}
+      <View style={styles.longMainRow}>
+        <Text style={[styles.problemText, styles.longDivisor]}>{divisor}</Text>
+        <View style={styles.longBracket}>
+          <Text style={[styles.problemText, styles.longDividend]}>
+            {dividend}
+          </Text>
+          {workSlot ? <View style={styles.longWork}>{workSlot}</View> : null}
         </View>
       </View>
     </View>
@@ -172,17 +202,20 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
-  longRow: { flexDirection: 'row', alignItems: 'flex-end' },
-  bracket: {
-    fontSize: PROBLEM_DIGIT_SIZE + 8,
-    color: colors.text,
-    marginHorizontal: spacing.xs,
-  },
+  /* Long division */
+  longContainer: { flex: 1, alignSelf: 'stretch' },
+  longTopRow: { flexDirection: 'row', alignItems: 'flex-end' },
   hidden: { opacity: 0 },
-  longQuotient: { paddingBottom: spacing.xs },
-  longDividend: {
+  longQuotient: { paddingLeft: spacing.md, paddingBottom: spacing.xs },
+  longMainRow: { flexDirection: 'row', flex: 1, alignItems: 'stretch' },
+  longDivisor: { paddingRight: spacing.sm, paddingTop: spacing.md },
+  longBracket: {
+    flex: 1,
     borderTopWidth: 3,
+    borderLeftWidth: 3,
     borderColor: colors.text,
-    paddingTop: spacing.xs,
+    paddingLeft: spacing.md,
   },
+  longDividend: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  longWork: { flex: 1, minHeight: 200, marginRight: spacing.sm },
 });

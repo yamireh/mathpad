@@ -3,43 +3,32 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import {
-  AnswerArea,
-  ProblemDisplay,
-  ScratchCanvas,
-  type ScratchCanvasHandle,
-  type ScratchTool,
-  TimerDisplay,
-} from '../components/domain';
+import { QuestionWorkspace, TimerDisplay } from '../components/domain';
 import {
   Button,
   ConfirmDialog,
   IconButton,
   ScreenContainer,
 } from '../components/ui';
-import {
-  colors,
-  operationColors,
-  radius,
-  spacing,
-  typography,
-} from '../constants/design';
+import { colors, operationColors, radius, spacing, typography } from '../constants/design';
 import { usePracticeSession, useRecognition, useTimer } from '../hooks';
 
 /** Practice — solve the session's questions one at a time. */
 export default function PracticeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { session, updateAnswerInk, updateScratchInk, finish } =
-    usePracticeSession();
+  const {
+    session,
+    updateAnswerInk,
+    updateScratchInk,
+    setLayoutOverride,
+    finish,
+  } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
 
   const [index, setIndex] = useState(0);
-  const [tool, setTool] = useState<ScratchTool>('pen');
-  const [selectedBox, setSelectedBox] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const scratchRef = useRef<ScratchCanvasHandle>(null);
   const submittedRef = useRef(false);
 
   const handleFinish = useCallback(async () => {
@@ -68,19 +57,7 @@ export default function PracticeScreen() {
   const question = session.questions[index];
   const accent = operationColors[session.settings.operation].accent;
   const isLast = index === total - 1;
-
-  const goNext = () => {
-    setSelectedBox(null);
-    setIndex((i) => Math.min(total - 1, i + 1));
-  };
-  const goPrev = () => {
-    setSelectedBox(null);
-    setIndex((i) => Math.max(0, i - 1));
-  };
-  const onFinishPress = () => {
-    stop();
-    void handleFinish();
-  };
+  const layout = session.layoutOverrides[question.id] ?? question.layout;
 
   return (
     <ScreenContainer padded={false}>
@@ -118,57 +95,19 @@ export default function PracticeScreen() {
         />
       </View>
 
-      <View style={styles.problemArea}>
-        <ProblemDisplay
-          key={question.id}
-          question={question}
-          answerSlot={
-            <AnswerArea
-              question={question}
-              ink={session.answerInk[question.id]}
-              onChange={(ink) => updateAnswerInk(question.id, ink)}
-              selectedBox={selectedBox}
-              onSelectBox={setSelectedBox}
-              tone={accent}
-            />
-          }
-        />
-      </View>
-
-      <View style={styles.scratchArea}>
-        <View style={styles.scratchToolbar}>
-          <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
-          <View style={styles.tools}>
-            <Button
-              label={t('practice.eraser')}
-              variant={tool === 'eraser' ? 'primary' : 'secondary'}
-              tone={accent}
-              fullWidth={false}
-              onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-            />
-            <IconButton
-              name="arrow-undo-outline"
-              accessibilityLabel={t('practice.undo')}
-              onPress={() => scratchRef.current?.undo()}
-            />
-            <IconButton
-              name="trash-outline"
-              accessibilityLabel={t('practice.clearScratch')}
-              onPress={() => scratchRef.current?.clear()}
-            />
-          </View>
-        </View>
-        <ScratchCanvas
-          key={question.id}
-          ref={scratchRef}
-          tool={tool}
-          initialStrokes={session.scratchInk[question.id]}
-          onStrokesChange={(strokes) =>
-            updateScratchInk(question.id, strokes)
-          }
-          accessibilityLabel={t('a11y.scratchCanvas')}
-        />
-      </View>
+      <QuestionWorkspace
+        key={question.id}
+        question={question}
+        layout={layout}
+        onLayoutChange={(next) => setLayoutOverride(question.id, next)}
+        answerInk={session.answerInk[question.id]}
+        onAnswerInkChange={(ink) => updateAnswerInk(question.id, ink)}
+        scratchInk={session.scratchInk[question.id]}
+        onScratchInkChange={(strokes) =>
+          updateScratchInk(question.id, strokes)
+        }
+        tone={accent}
+      />
 
       <View style={styles.bottomBar}>
         {index > 0 ? (
@@ -176,7 +115,7 @@ export default function PracticeScreen() {
             label={t('common.back')}
             variant="secondary"
             fullWidth={false}
-            onPress={goPrev}
+            onPress={() => setIndex((i) => Math.max(0, i - 1))}
           />
         ) : null}
         <View style={styles.primaryButton}>
@@ -184,7 +123,14 @@ export default function PracticeScreen() {
             label={isLast ? t('practice.finish') : t('common.next')}
             tone={accent}
             disabled={submitting}
-            onPress={isLast ? onFinishPress : goNext}
+            onPress={
+              isLast
+                ? () => {
+                    stop();
+                    void handleFinish();
+                  }
+                : () => setIndex((i) => Math.min(total - 1, i + 1))
+            }
           />
         </View>
       </View>
@@ -228,28 +174,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     overflow: 'hidden',
   },
-  problemArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
-  scratchArea: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    gap: spacing.sm,
-  },
-  scratchToolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  scratchLabel: {
-    flex: 1,
-    fontSize: typography.size.caption,
-    color: colors.textMuted,
-  },
-  tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',

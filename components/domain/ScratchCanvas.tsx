@@ -23,6 +23,8 @@ export interface ScratchCanvasProps {
   initialStrokes?: InkStroke[];
   onStrokesChange?: (strokes: InkStroke[]) => void;
   accessibilityLabel?: string;
+  /** Draw the surface's own border. Off when an outer frame supplies one. */
+  bordered?: boolean;
 }
 
 const STROKE_WIDTH = 3;
@@ -37,7 +39,13 @@ export const ScratchCanvas = forwardRef<
   ScratchCanvasHandle,
   ScratchCanvasProps
 >(function ScratchCanvas(
-  { tool, initialStrokes, onStrokesChange, accessibilityLabel },
+  {
+    tool,
+    initialStrokes,
+    onStrokesChange,
+    accessibilityLabel,
+    bordered = true,
+  },
   ref,
 ) {
   const ink = useInkCapture(initialStrokes, onStrokesChange);
@@ -69,7 +77,7 @@ export const ScratchCanvas = forwardRef<
 
   return (
     <View
-      style={styles.canvas}
+      style={[styles.canvas, bordered ? styles.bordered : null]}
       accessibilityLabel={accessibilityLabel}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
@@ -109,10 +117,12 @@ export const ScratchCanvas = forwardRef<
 const styles = StyleSheet.create({
   canvas: {
     flex: 1,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  bordered: {
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
   },
 });

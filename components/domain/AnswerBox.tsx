@@ -119,9 +119,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   box: {
-    width: DIGIT_COLUMN_WIDTH - 8,
+    width: DIGIT_COLUMN_WIDTH - 12,
     height: ANSWER_BOX_HEIGHT,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     borderWidth: 1.5,
     backgroundColor: colors.surface,
     overflow: 'hidden',

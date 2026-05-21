@@ -72,6 +72,8 @@
     "clearScratch": "Clear all",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
+    "layoutLong": "Long division",
+    "layoutInline": "In a row",
     "remainderLabel": "R",
     "leaveTitle": "Leave practice?",
     "leaveMessage": "Your progress on this session will be lost.",

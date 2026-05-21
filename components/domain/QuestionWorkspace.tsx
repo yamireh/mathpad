@@ -1,0 +1,182 @@
+import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { Button, Chip, IconButton } from '../ui';
+import { colors, spacing, typography } from '../../constants/design';
+import type { ProblemLayout, Question } from '../../types';
+import { AnswerArea } from './AnswerArea';
+import { ProblemDisplay } from './ProblemDisplay';
+import {
+  ScratchCanvas,
+  type ScratchCanvasHandle,
+  type ScratchTool,
+} from './ScratchCanvas';
+import { type AnswerInk, type InkStroke } from './ink';
+
+export interface QuestionWorkspaceProps {
+  question: Question;
+  /** Effective problem layout (after any user override). */
+  layout: ProblemLayout;
+  /** When set, division questions show a long ⇄ in-a-row layout toggle. */
+  onLayoutChange?: (layout: ProblemLayout) => void;
+  answerInk: AnswerInk;
+  onAnswerInkChange: (ink: AnswerInk) => void;
+  scratchInk?: InkStroke[];
+  onScratchInkChange: (strokes: InkStroke[]) => void;
+  tone: string;
+}
+
+/**
+ * The shared "solve a question" surface used by Practice and Review:
+ * the problem with its answer boxes, plus a scratch/working area and its
+ * tools. For long division the working area is embedded inside the bracket.
+ */
+export function QuestionWorkspace({
+  question,
+  layout,
+  onLayoutChange,
+  answerInk,
+  onAnswerInkChange,
+  scratchInk,
+  onScratchInkChange,
+  tone,
+}: QuestionWorkspaceProps) {
+  const { t } = useTranslation();
+  const [tool, setTool] = useState<ScratchTool>('pen');
+  const [selectedBox, setSelectedBox] = useState<string | null>(null);
+  const scratchRef = useRef<ScratchCanvasHandle>(null);
+
+  const isLongDivision = layout === 'divisionLong';
+  const isDivision = question.operation === 'division';
+  const inlineLayout: ProblemLayout =
+    question.answer.kind === 'decimal'
+      ? 'divisionDecimal'
+      : 'divisionHorizontal';
+
+  const answer = (
+    <AnswerArea
+      question={question}
+      ink={answerInk}
+      onChange={onAnswerInkChange}
+      selectedBox={selectedBox}
+      onSelectBox={setSelectedBox}
+      tone={tone}
+    />
+  );
+
+  const scratch = (
+    <ScratchCanvas
+      ref={scratchRef}
+      tool={tool}
+      bordered={!isLongDivision}
+      initialStrokes={scratchInk}
+      onStrokesChange={onScratchInkChange}
+      accessibilityLabel={t('a11y.scratchCanvas')}
+    />
+  );
+
+  return (
+    <View style={styles.container}>
+      {isDivision && onLayoutChange ? (
+        <View style={styles.layoutToggle}>
+          <Chip
+            label={t('practice.layoutLong')}
+            selected={isLongDivision}
+            tone={tone}
+            onPress={() => onLayoutChange('divisionLong')}
+          />
+          <Chip
+            label={t('practice.layoutInline')}
+            selected={!isLongDivision}
+            tone={tone}
+            onPress={() => onLayoutChange(inlineLayout)}
+          />
+        </View>
+      ) : null}
+
+      {isLongDivision ? (
+        <View style={styles.longBody}>
+          <ProblemDisplay
+            question={question}
+            layout={layout}
+            answerSlot={answer}
+            workSlot={scratch}
+          />
+        </View>
+      ) : (
+        <>
+          <View style={styles.problemArea}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.problemScroll}
+            >
+              <ProblemDisplay
+                question={question}
+                layout={layout}
+                answerSlot={answer}
+              />
+            </ScrollView>
+          </View>
+          <View style={styles.scratchArea}>{scratch}</View>
+        </>
+      )}
+
+      <View style={styles.toolbar}>
+        <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
+        <View style={styles.tools}>
+          <Button
+            label={t('practice.eraser')}
+            variant={tool === 'eraser' ? 'primary' : 'secondary'}
+            tone={tone}
+            fullWidth={false}
+            onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
+          />
+          <IconButton
+            name="arrow-undo-outline"
+            accessibilityLabel={t('practice.undo')}
+            onPress={() => scratchRef.current?.undo()}
+          />
+          <IconButton
+            name="trash-outline"
+            accessibilityLabel={t('practice.clearScratch')}
+            onPress={() => scratchRef.current?.clear()}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  layoutToggle: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  problemArea: { paddingVertical: spacing.lg },
+  problemScroll: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  scratchArea: { flex: 1, paddingHorizontal: spacing.lg },
+  longBody: { flex: 1, padding: spacing.lg },
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  scratchLabel: {
+    flex: 1,
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+  },
+  tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+});
