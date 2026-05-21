@@ -109,8 +109,10 @@ export function useInkCapture(
   const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
   const beginStroke = useCallback((x: number, y: number) => {
-    startRef.current = Date.now();
-    currentRef.current = [[x, y, 0]];
+    // Set the time origin once — timestamps must stay monotonic across every
+    // stroke or ML Kit cannot segment multi-digit input.
+    if (startRef.current === 0) startRef.current = Date.now();
+    currentRef.current = [[x, y, Date.now() - startRef.current]];
     forceRender();
   }, []);
 
@@ -153,6 +155,7 @@ export function useInkCapture(
   const clear = useCallback(() => {
     strokesRef.current = [];
     currentRef.current = null;
+    startRef.current = 0;
     onCommit?.([]);
     forceRender();
   }, [onCommit]);
