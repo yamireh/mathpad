@@ -53,6 +53,8 @@ export interface SessionData {
   layoutOverrides: Record<string, ProblemLayout>;
   /** Tapped borrow-lender columns keyed by question id (subtraction). */
   borrowMarks: Record<string, number[]>;
+  /** Per-column carry-box ink keyed by question id (addition/×). */
+  carryInk: Record<string, InkStroke[][]>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -71,6 +73,12 @@ export interface PracticeSessionContextValue {
   setLayoutOverride: (questionId: string, layout: ProblemLayout) => void;
   /** Toggle a borrow on a top-operand digit column (subtraction). */
   toggleBorrowMark: (questionId: string, column: number) => void;
+  /** Replace one carry box's ink for a question column. */
+  updateCarryInk: (
+    questionId: string,
+    column: number,
+    strokes: InkStroke[],
+  ) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -130,6 +138,7 @@ export function PracticeSessionProvider({
         scratchInk: {},
         layoutOverrides: {},
         borrowMarks: {},
+        carryInk: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -185,6 +194,22 @@ export function PracticeSessionProvider({
       commit({
         ...data,
         borrowMarks: { ...data.borrowMarks, [questionId]: next },
+      });
+    },
+    [commit],
+  );
+
+  const updateCarryInk = useCallback(
+    (questionId: string, column: number, strokes: InkStroke[]) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const current = data.carryInk[questionId] ?? [];
+      const next = [...current];
+      while (next.length <= column) next.push([]);
+      next[column] = strokes;
+      commit({
+        ...data,
+        carryInk: { ...data.carryInk, [questionId]: next },
       });
     },
     [commit],
@@ -254,6 +279,7 @@ export function PracticeSessionProvider({
       updateScratchInk,
       setLayoutOverride,
       toggleBorrowMark,
+      updateCarryInk,
       finish,
       reviewSubmit,
       reset,
@@ -265,6 +291,7 @@ export function PracticeSessionProvider({
       updateScratchInk,
       setLayoutOverride,
       toggleBorrowMark,
+      updateCarryInk,
       finish,
       reviewSubmit,
       reset,

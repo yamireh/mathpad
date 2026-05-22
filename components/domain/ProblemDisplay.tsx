@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typography } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
 import { computeBorrowDisplay } from './borrow';
+import { CarryBox } from './CarryBox';
+import { type InkStroke } from './ink';
 import {
   DIGIT_COLUMN_WIDTH,
   OPERATOR_COLUMN_WIDTH,
@@ -12,6 +14,10 @@ import {
   digitCount,
   operatorSymbol,
 } from './layout';
+
+/** Carry-box size — small, the carry digit is written tiny above a column. */
+const CARRY_BOX_WIDTH = DIGIT_COLUMN_WIDTH - 22;
+const CARRY_BOX_HEIGHT = 46;
 
 export interface ProblemDisplayProps {
   question: Question;
@@ -25,6 +31,10 @@ export interface ProblemDisplayProps {
   borrowMarks?: number[];
   /** Toggle a borrow on a top-operand digit; presence enables tap-to-borrow. */
   onToggleBorrow?: (column: number) => void;
+  /** Per-column carry ink (addition / multiplication). */
+  carryInk?: InkStroke[][];
+  /** Reports a carry box's strokes; presence enables the carry row. */
+  onCarryInkChange?: (column: number, strokes: InkStroke[]) => void;
   /** Accent colour for borrow marks. */
   tone?: string;
 }
@@ -37,6 +47,8 @@ export function ProblemDisplay({
   workSlot,
   borrowMarks,
   onToggleBorrow,
+  carryInk,
+  onCarryInkChange,
   tone = colors.text,
 }: ProblemDisplayProps) {
   const effective = layout ?? question.layout;
@@ -48,6 +60,8 @@ export function ProblemDisplay({
           answerSlot={answerSlot}
           borrowMarks={borrowMarks ?? []}
           onToggleBorrow={onToggleBorrow}
+          carryInk={carryInk}
+          onCarryInkChange={onCarryInkChange}
           tone={tone}
         />
       );
@@ -78,6 +92,35 @@ function DigitCells({ value }: { value: number }) {
       {digits.map((digit, i) => (
         <View key={i} style={styles.cell}>
           <Text style={styles.digit}>{digit}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** A row of small write-in carry boxes, one above each column but the units. */
+function CarryRow({
+  columns,
+  carryInk,
+  onChange,
+}: {
+  columns: number;
+  carryInk: InkStroke[][];
+  onChange: (column: number, strokes: InkStroke[]) => void;
+}) {
+  return (
+    <View style={[styles.carryRow, { marginLeft: OPERATOR_COLUMN_WIDTH }]}>
+      {Array.from({ length: columns }).map((_, i) => (
+        <View key={i} style={styles.carryCell}>
+          {i < columns - 1 ? (
+            <CarryBox
+              strokes={carryInk[i] ?? []}
+              onStrokesChange={(strokes) => onChange(i, strokes)}
+              accessibilityLabel={`Carry box ${columns - 1 - i}`}
+              width={CARRY_BOX_WIDTH}
+              height={CARRY_BOX_HEIGHT}
+            />
+          ) : null}
         </View>
       ))}
     </View>
@@ -123,7 +166,6 @@ function BorrowDigitRow({
             </View>
           </View>
         );
-        // Every digit except the units (last) can lend.
         return i < digits.length - 1 ? (
           <Pressable
             key={i}
@@ -146,12 +188,16 @@ function VerticalProblem({
   answerSlot,
   borrowMarks,
   onToggleBorrow,
+  carryInk,
+  onCarryInkChange,
   tone,
 }: {
   question: Question;
   answerSlot: ReactNode;
   borrowMarks: number[];
   onToggleBorrow?: (column: number) => void;
+  carryInk?: InkStroke[][];
+  onCarryInkChange?: (column: number, strokes: InkStroke[]) => void;
   tone: string;
 }) {
   const [op1, op2] = question.operands;
@@ -162,6 +208,14 @@ function VerticalProblem({
 
   return (
     <View>
+      {onCarryInkChange ? (
+        <CarryRow
+          columns={columns}
+          carryInk={carryInk ?? []}
+          onChange={onCarryInkChange}
+        />
+      ) : null}
+
       <View style={styles.problemRow}>
         <View style={styles.operatorColumn} />
         <View style={[styles.columnArea, { width: columnAreaWidth }]}>
@@ -281,6 +335,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
+  /* Carry boxes */
+  carryRow: { flexDirection: 'row', marginBottom: spacing.xs },
+  carryCell: { width: DIGIT_COLUMN_WIDTH, alignItems: 'center' },
   /* Borrow annotations */
   annotationSlot: {
     height: 28,

@@ -28,6 +28,7 @@ export default function ReviewScreen() {
     updateScratchInk,
     setLayoutOverride,
     toggleBorrowMark,
+    updateCarryInk,
     reviewSubmit,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -80,6 +81,10 @@ export default function ReviewScreen() {
         }
         borrowMarks={session.borrowMarks[question.id]}
         onToggleBorrow={(column) => toggleBorrowMark(question.id, column)}
+        carryInk={session.carryInk[question.id]}
+        onCarryInkChange={(column, strokes) =>
+          updateCarryInk(question.id, column, strokes)
+        }
         tone={accent}
       />
 

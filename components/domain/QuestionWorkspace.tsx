@@ -39,6 +39,10 @@ export interface QuestionWorkspaceProps {
   borrowMarks?: number[];
   /** Toggle a borrow on a top-operand digit (subtraction only). */
   onToggleBorrow?: (column: number) => void;
+  /** Per-column carry ink (addition / multiplication). */
+  carryInk?: InkStroke[][];
+  /** Reports a carry box's strokes (addition / multiplication only). */
+  onCarryInkChange?: (column: number, strokes: InkStroke[]) => void;
   tone: string;
 }
 
@@ -58,6 +62,8 @@ export function QuestionWorkspace({
   onScratchInkChange,
   borrowMarks,
   onToggleBorrow,
+  carryInk,
+  onCarryInkChange,
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
@@ -216,6 +222,13 @@ export function QuestionWorkspace({
             onToggleBorrow={
               question.operation === 'subtraction'
                 ? onToggleBorrow
+                : undefined
+            }
+            carryInk={carryInk}
+            onCarryInkChange={
+              question.operation === 'addition' ||
+              question.operation === 'multiplication'
+                ? onCarryInkChange
                 : undefined
             }
             tone={tone}

@@ -27,6 +27,14 @@ const divisionSettings: DivisionSettings = {
   answerType: 'noRemainder',
 };
 
+const carryAdditionSettings: AdditionSettings = {
+  operation: 'addition',
+  digitRange: { min: 2, max: 2 },
+  questionCount: 5,
+  timer: { enabled: false, durationMinutes: 5 },
+  carrying: 'with',
+};
+
 const subtractionSettings: SubtractionSettings = {
   operation: 'subtraction',
   digitRange: { min: 2, max: 2 },
@@ -85,6 +93,14 @@ describe('Practice screen', () => {
     // Switching to the long-division layout renders without error.
     fireEvent.press(screen.getByText('Long division'));
     expect(screen.getByText('Long division')).toBeOnTheScreen();
+  });
+
+  it('shows write-in carry boxes for addition', async () => {
+    renderPractice(carryAdditionSettings);
+    await waitFor(() =>
+      expect(screen.getByText('Question 1 of 5')).toBeOnTheScreen(),
+    );
+    expect(screen.getAllByLabelText(/^Carry box/).length).toBeGreaterThan(0);
   });
 
   it('lets you tap a top digit to borrow on a subtraction', async () => {
