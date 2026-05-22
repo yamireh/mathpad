@@ -64,7 +64,8 @@ export function answerShape(
     return {
       hasSign: false,
       integerBoxes: 1,
-      decimalBoxes: 0,
+      // A decimal answer gets a second strip after a pre-printed separator.
+      decimalBoxes: question.answer.kind === 'decimal' ? 1 : 0,
       remainderBoxes: question.answer.kind === 'remainder' ? 1 : 0,
     };
   }

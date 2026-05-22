@@ -58,9 +58,12 @@ export function useRecognition(): UseRecognitionResult {
       // into one wide strip each.
       if (layout === 'divisionLong') {
         const quotientInk = ink.integer[0] ?? [];
+        const decimalInk = ink.decimal[0] ?? [];
         const remainderInk = ink.remainder[0] ?? [];
         const quotient =
           quotientInk.length > 0 ? await recognizeNumber(quotientInk) : null;
+        const decimalPart =
+          decimalInk.length > 0 ? await recognizeNumber(decimalInk) : null;
         const remainder =
           remainderInk.length > 0
             ? await recognizeNumber(remainderInk)
@@ -68,7 +71,13 @@ export function useRecognition(): UseRecognitionResult {
         return {
           sign: null,
           integerDigits: quotient ? quotient.integerDigits : [],
-          decimalDigits: quotient ? quotient.decimalDigits : [],
+          // The decimal part comes from its own strip (pre-printed separator);
+          // fall back to any decimal written into the integer strip.
+          decimalDigits: decimalPart
+            ? decimalPart.integerDigits
+            : quotient
+              ? quotient.decimalDigits
+              : [],
           remainderDigits: remainder ? remainder.integerDigits : [],
         };
       }
