@@ -10,7 +10,7 @@ import { ANSWER_BOX_HEIGHT, type AnswerShape } from './layout';
 export interface DecimalAnswerRowProps {
   shape: AnswerShape;
   ink: AnswerInk;
-  onChange: (ink: AnswerInk) => void;
+  onClearBox: (boxId: string) => void;
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
@@ -26,7 +26,7 @@ const DECIMAL_SEPARATOR = getLocales()[0]?.decimalSeparator ?? '.';
 
 export function DecimalAnswerRow({
   ink,
-  onChange,
+  onClearBox,
   selectedBox,
   onSelectBox,
   tone = colors.text,
@@ -48,12 +48,7 @@ export function DecimalAnswerRow({
             locked={!writable(id)}
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
-            onClear={() =>
-              onChange({
-                ...ink,
-                integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
-              })
-            }
+            onClear={() => onClearBox(id)}
           />
         );
       })}
@@ -73,12 +68,7 @@ export function DecimalAnswerRow({
             locked={!writable(id)}
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
-            onClear={() =>
-              onChange({
-                ...ink,
-                decimal: ink.decimal.map((s, idx) => (idx === i ? [] : s)),
-              })
-            }
+            onClear={() => onClearBox(id)}
           />
         );
       })}

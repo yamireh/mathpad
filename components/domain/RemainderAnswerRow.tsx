@@ -9,7 +9,7 @@ import { ANSWER_BOX_HEIGHT, type AnswerShape } from './layout';
 export interface RemainderAnswerRowProps {
   shape: AnswerShape;
   ink: AnswerInk;
-  onChange: (ink: AnswerInk) => void;
+  onClearBox: (boxId: string) => void;
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
@@ -19,7 +19,7 @@ export interface RemainderAnswerRowProps {
 /** Remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
 export function RemainderAnswerRow({
   ink,
-  onChange,
+  onClearBox,
   selectedBox,
   onSelectBox,
   tone = colors.text,
@@ -41,12 +41,7 @@ export function RemainderAnswerRow({
             locked={!writable(id)}
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
-            onClear={() =>
-              onChange({
-                ...ink,
-                integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
-              })
-            }
+            onClear={() => onClearBox(id)}
           />
         );
       })}
@@ -66,14 +61,7 @@ export function RemainderAnswerRow({
             locked={!writable(id)}
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
-            onClear={() =>
-              onChange({
-                ...ink,
-                remainder: ink.remainder.map((s, idx) =>
-                  idx === i ? [] : s,
-                ),
-              })
-            }
+            onClear={() => onClearBox(id)}
           />
         );
       })}

@@ -99,6 +99,22 @@ export function QuestionWorkspace({
     setPadNonce((n) => n + 1);
   };
 
+  // Clear one box (answer or carry); close the pad if it was focused there.
+  const clearBox = (boxId: string) => {
+    if (boxId.startsWith('carry-')) {
+      onCarryInkChange?.(Number(boxId.slice(6)), []);
+    } else {
+      onAnswerInkChange(setBoxStrokes(answerInk, boxId, []));
+    }
+    if (boxId === activeBox) setActiveBox(null);
+  };
+
+  // Carry boxes write through the same pad; -1 when an answer box is active.
+  const activeCarryColumn =
+    activeBox && activeBox.startsWith('carry-')
+      ? Number(activeBox.slice(6))
+      : -1;
+
   const scratch = (
     <ScratchCanvas
       ref={scratchRef}
@@ -196,7 +212,7 @@ export function QuestionWorkspace({
     <AnswerArea
       question={question}
       ink={answerInk}
-      onChange={onAnswerInkChange}
+      onClearBox={clearBox}
       selectedBox={activeBox}
       onSelectBox={selectBox}
       tone={tone}
@@ -224,13 +240,15 @@ export function QuestionWorkspace({
                 ? onToggleBorrow
                 : undefined
             }
-            carryInk={carryInk}
-            onCarryInkChange={
+            carryInk={
               question.operation === 'addition' ||
               question.operation === 'multiplication'
-                ? onCarryInkChange
+                ? (carryInk ?? [])
                 : undefined
             }
+            selectedBox={activeBox}
+            onSelectBox={selectBox}
+            onClearBox={clearBox}
             tone={tone}
           />
         </ScrollView>
@@ -240,9 +258,17 @@ export function QuestionWorkspace({
         <View style={styles.bottomRegion}>
           <AnswerPad
             key={`${activeBox}:${padNonce}`}
-            strokes={getBoxStrokes(answerInk, activeBox)}
+            strokes={
+              activeCarryColumn >= 0
+                ? (carryInk?.[activeCarryColumn] ?? [])
+                : getBoxStrokes(answerInk, activeBox)
+            }
             onStrokesChange={(strokes) =>
-              onAnswerInkChange(setBoxStrokes(answerInk, activeBox, strokes))
+              activeCarryColumn >= 0
+                ? onCarryInkChange?.(activeCarryColumn, strokes)
+                : onAnswerInkChange(
+                    setBoxStrokes(answerInk, activeBox, strokes),
+                  )
             }
             onClearAll={clearAllAnswers}
             onDone={() => setActiveBox(null)}

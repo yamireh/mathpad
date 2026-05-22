@@ -71,6 +71,33 @@ export function strokesBounds(strokes: InkStroke[]): StrokeBounds | null {
   return found ? { minX, minY, maxX, maxY } : null;
 }
 
+/**
+ * A transform that fits a stroke set's bounding box, centred, into a box of
+ * the given inner size — used to show big-captured ink scaled into a cell.
+ */
+export function fitStrokes(
+  strokes: InkStroke[],
+  innerWidth: number,
+  innerHeight: number,
+  padding = 8,
+  maxScale = 3.5,
+): PathTransform {
+  const bounds = strokesBounds(strokes);
+  if (!bounds) return { scale: 1, dx: 0, dy: 0 };
+  const width = Math.max(bounds.maxX - bounds.minX, 4);
+  const height = Math.max(bounds.maxY - bounds.minY, 4);
+  const scale = Math.min(
+    (innerWidth - 2 * padding) / width,
+    (innerHeight - 2 * padding) / height,
+    maxScale,
+  );
+  return {
+    scale,
+    dx: innerWidth / 2 - (bounds.minX + width / 2) * scale,
+    dy: innerHeight / 2 - (bounds.minY + height / 2) * scale,
+  };
+}
+
 /** Squared distance from a point to (x, y). */
 function distanceSquared(point: InkPoint, x: number, y: number): number {
   const dx = point[0] - x;

@@ -31,11 +31,15 @@ export interface ProblemDisplayProps {
   borrowMarks?: number[];
   /** Toggle a borrow on a top-operand digit; presence enables tap-to-borrow. */
   onToggleBorrow?: (column: number) => void;
-  /** Per-column carry ink (addition / multiplication). */
+  /** Per-column carry ink (addition / multiplication); enables the carry row. */
   carryInk?: InkStroke[][];
-  /** Reports a carry box's strokes; presence enables the carry row. */
-  onCarryInkChange?: (column: number, strokes: InkStroke[]) => void;
-  /** Accent colour for borrow marks. */
+  /** Currently pad-focused box id (shared with the answer area). */
+  selectedBox?: string | null;
+  /** Focus the writing pad on a box id (carry boxes). */
+  onSelectBox?: (boxId: string) => void;
+  /** Clear a box by id (carry boxes). */
+  onClearBox?: (boxId: string) => void;
+  /** Accent colour for borrow marks and selection. */
   tone?: string;
 }
 
@@ -48,7 +52,9 @@ export function ProblemDisplay({
   borrowMarks,
   onToggleBorrow,
   carryInk,
-  onCarryInkChange,
+  selectedBox,
+  onSelectBox,
+  onClearBox,
   tone = colors.text,
 }: ProblemDisplayProps) {
   const effective = layout ?? question.layout;
@@ -61,7 +67,9 @@ export function ProblemDisplay({
           borrowMarks={borrowMarks ?? []}
           onToggleBorrow={onToggleBorrow}
           carryInk={carryInk}
-          onCarryInkChange={onCarryInkChange}
+          selectedBox={selectedBox ?? null}
+          onSelectBox={onSelectBox}
+          onClearBox={onClearBox}
           tone={tone}
         />
       );
@@ -98,31 +106,46 @@ function DigitCells({ value }: { value: number }) {
   );
 }
 
-/** A row of small write-in carry boxes, one above each column but the units. */
+/**
+ * A row of small tap-to-write carry boxes, one above each column but the units.
+ * Tapping a box focuses the writing pad on it, exactly like an answer box.
+ */
 function CarryRow({
   columns,
   carryInk,
-  onChange,
+  selectedBox,
+  onSelectBox,
+  onClearBox,
+  tone,
 }: {
   columns: number;
   carryInk: InkStroke[][];
-  onChange: (column: number, strokes: InkStroke[]) => void;
+  selectedBox: string | null;
+  onSelectBox: (boxId: string) => void;
+  onClearBox: (boxId: string) => void;
+  tone: string;
 }) {
   return (
     <View style={[styles.carryRow, { marginLeft: OPERATOR_COLUMN_WIDTH }]}>
-      {Array.from({ length: columns }).map((_, i) => (
-        <View key={i} style={styles.carryCell}>
-          {i < columns - 1 ? (
-            <CarryBox
-              strokes={carryInk[i] ?? []}
-              onStrokesChange={(strokes) => onChange(i, strokes)}
-              accessibilityLabel={`Carry box ${columns - 1 - i}`}
-              width={CARRY_BOX_WIDTH}
-              height={CARRY_BOX_HEIGHT}
-            />
-          ) : null}
-        </View>
-      ))}
+      {Array.from({ length: columns }).map((_, i) => {
+        const id = `carry-${i}`;
+        return (
+          <View key={i} style={styles.carryCell}>
+            {i < columns - 1 ? (
+              <CarryBox
+                strokes={carryInk[i] ?? []}
+                selected={selectedBox === id}
+                onSelect={() => onSelectBox(id)}
+                onClear={() => onClearBox(id)}
+                accessibilityLabel={`Carry box ${columns - 1 - i}`}
+                tone={tone}
+                width={CARRY_BOX_WIDTH}
+                height={CARRY_BOX_HEIGHT}
+              />
+            ) : null}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -189,7 +212,9 @@ function VerticalProblem({
   borrowMarks,
   onToggleBorrow,
   carryInk,
-  onCarryInkChange,
+  selectedBox,
+  onSelectBox,
+  onClearBox,
   tone,
 }: {
   question: Question;
@@ -197,7 +222,9 @@ function VerticalProblem({
   borrowMarks: number[];
   onToggleBorrow?: (column: number) => void;
   carryInk?: InkStroke[][];
-  onCarryInkChange?: (column: number, strokes: InkStroke[]) => void;
+  selectedBox: string | null;
+  onSelectBox?: (boxId: string) => void;
+  onClearBox?: (boxId: string) => void;
   tone: string;
 }) {
   const [op1, op2] = question.operands;
@@ -208,11 +235,14 @@ function VerticalProblem({
 
   return (
     <View>
-      {onCarryInkChange ? (
+      {carryInk && onSelectBox && onClearBox ? (
         <CarryRow
           columns={columns}
-          carryInk={carryInk ?? []}
-          onChange={onCarryInkChange}
+          carryInk={carryInk}
+          selectedBox={selectedBox}
+          onSelectBox={onSelectBox}
+          onClearBox={onClearBox}
+          tone={tone}
         />
       ) : null}
 

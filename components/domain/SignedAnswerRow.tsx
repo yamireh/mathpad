@@ -9,7 +9,7 @@ import type { AnswerShape } from './layout';
 export interface SignedAnswerRowProps {
   shape: AnswerShape;
   ink: AnswerInk;
-  onChange: (ink: AnswerInk) => void;
+  onClearBox: (boxId: string) => void;
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
@@ -23,7 +23,7 @@ export interface SignedAnswerRowProps {
 export function SignedAnswerRow({
   shape,
   ink,
-  onChange,
+  onClearBox,
   selectedBox,
   onSelectBox,
   tone = colors.text,
@@ -43,7 +43,7 @@ export function SignedAnswerRow({
           locked={!writable('sign')}
           onSelect={() => onSelectBox('sign')}
           strokes={ink.sign}
-          onClear={() => onChange({ ...ink, sign: [] })}
+          onClear={() => onClearBox('sign')}
         />
       ) : null}
 
@@ -58,12 +58,7 @@ export function SignedAnswerRow({
             locked={!writable(id)}
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
-            onClear={() =>
-              onChange({
-                ...ink,
-                integer: ink.integer.map((s, idx) => (idx === i ? [] : s)),
-              })
-            }
+            onClear={() => onClearBox(id)}
           />
         );
       })}

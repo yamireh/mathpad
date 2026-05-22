@@ -107,7 +107,7 @@ describe('ink components render', () => {
       <SignedAnswerRow
         shape={shape}
         ink={emptyAnswerInk(shape)}
-        onChange={jest.fn()}
+        onClearBox={jest.fn()}
         selectedBox={null}
         onSelectBox={jest.fn()}
       />,

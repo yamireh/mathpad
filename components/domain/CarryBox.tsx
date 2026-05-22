@@ -1,84 +1,75 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Canvas, Path } from '@shopify/react-native-skia';
-import {
-  type GestureResponderEvent,
-  Pressable,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../constants/design';
-import { type InkStroke, strokeToPath, useInkCapture } from './ink';
+import { fitStrokes, type InkStroke, strokeToPath } from './ink';
 
 export interface CarryBoxProps {
-  /** The box's ink. */
+  /** The box's carry ink (captured in the answer pad, shown here scaled). */
   strokes: InkStroke[];
-  onStrokesChange: (strokes: InkStroke[]) => void;
+  /** Highlighted as the box the answer pad is currently writing into. */
+  selected: boolean;
+  /** Tap to focus the writing pad on this carry box. */
+  onSelect: () => void;
+  /** Clear this carry box. */
+  onClear: () => void;
   accessibilityLabel: string;
+  tone?: string;
   width: number;
   height: number;
 }
 
-const STROKE_WIDTH = 2.5;
-
 /**
- * A small write-in box above a problem column for the kid's carry digit.
- * It is the kid's own working — never recognised, never used for marking.
+ * A small carry box above a problem column. Tapping it focuses the writing
+ * pad (same as an answer box); the kid's carry digit shows here scaled. It is
+ * the kid's own working — never recognised, never used for marking.
  */
 export function CarryBox({
   strokes,
-  onStrokesChange,
+  selected,
+  onSelect,
+  onClear,
   accessibilityLabel,
+  tone = colors.text,
   width,
   height,
 }: CarryBoxProps) {
-  const ink = useInkCapture(strokes, onStrokesChange);
+  const transform = fitStrokes(strokes, width, height, 5);
+  const hasInk = strokes.length > 0;
 
   return (
     <View style={{ width, height }}>
-      <View
-        style={[styles.box, StyleSheet.absoluteFill]}
+      <Pressable
+        accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderTerminationRequest={() => false}
-        onResponderGrant={(e: GestureResponderEvent) =>
-          ink.beginStroke(e.nativeEvent.locationX, e.nativeEvent.locationY)
-        }
-        onResponderMove={(e: GestureResponderEvent) =>
-          ink.extendStroke(e.nativeEvent.locationX, e.nativeEvent.locationY)
-        }
-        onResponderRelease={ink.endStroke}
-        onResponderTerminate={ink.endStroke}
+        accessibilityState={{ selected }}
+        onPress={onSelect}
+        style={[
+          styles.box,
+          StyleSheet.absoluteFill,
+          { borderColor: selected ? tone : colors.border },
+          selected && styles.boxSelected,
+        ]}
       >
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {ink.strokes.map((stroke, i) => (
+          {strokes.map((stroke, i) => (
             <Path
               key={i}
-              path={strokeToPath(stroke)}
+              path={strokeToPath(stroke, transform)}
               color={colors.textMuted}
               style="stroke"
-              strokeWidth={STROKE_WIDTH}
+              strokeWidth={2.5}
               strokeCap="round"
               strokeJoin="round"
             />
           ))}
-          {ink.currentStroke ? (
-            <Path
-              path={strokeToPath(ink.currentStroke)}
-              color={colors.textMuted}
-              style="stroke"
-              strokeWidth={STROKE_WIDTH}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          ) : null}
         </Canvas>
-      </View>
+      </Pressable>
 
-      {ink.isEmpty ? null : (
+      {hasInk ? (
         <Pressable
-          onPress={ink.clear}
+          onPress={onClear}
           accessibilityRole="button"
           accessibilityLabel={`${accessibilityLabel} — clear`}
           hitSlop={8}
@@ -86,7 +77,7 @@ export function CarryBox({
         >
           <Ionicons name="close" size={9} color="#FFFFFF" />
         </Pressable>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -95,11 +86,11 @@ const styles = StyleSheet.create({
   box: {
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
     borderStyle: 'dashed',
     backgroundColor: colors.surfaceAlt,
     overflow: 'hidden',
   },
+  boxSelected: { borderWidth: 2, borderStyle: 'solid' },
   clear: {
     position: 'absolute',
     top: 1,

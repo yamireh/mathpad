@@ -95,12 +95,16 @@ describe('Practice screen', () => {
     expect(screen.getByText('Long division')).toBeOnTheScreen();
   });
 
-  it('shows write-in carry boxes for addition', async () => {
+  it('shows tap-to-write carry boxes for addition', async () => {
     renderPractice(carryAdditionSettings);
     await waitFor(() =>
       expect(screen.getByText('Question 1 of 5')).toBeOnTheScreen(),
     );
-    expect(screen.getAllByLabelText(/^Carry box/).length).toBeGreaterThan(0);
+    const carryBoxes = screen.getAllByLabelText(/^Carry box/);
+    expect(carryBoxes.length).toBeGreaterThan(0);
+    // Tapping a carry box focuses the writing pad without error.
+    fireEvent.press(carryBoxes[0]);
+    expect(screen.getByText('Write the digit here')).toBeOnTheScreen();
   });
 
   it('lets you tap a top digit to borrow on a subtraction', async () => {

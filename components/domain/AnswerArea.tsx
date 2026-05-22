@@ -8,7 +8,8 @@ import { answerShape } from './layout';
 export interface AnswerAreaProps {
   question: Question;
   ink: AnswerInk;
-  onChange: (ink: AnswerInk) => void;
+  /** Clear one answer box by id. */
+  onClearBox: (boxId: string) => void;
   selectedBox: string | null;
   onSelectBox: (boxId: string) => void;
   tone?: string;
@@ -20,7 +21,7 @@ export interface AnswerAreaProps {
 export function AnswerArea({
   question,
   ink,
-  onChange,
+  onClearBox,
   selectedBox,
   onSelectBox,
   tone,
@@ -29,7 +30,7 @@ export function AnswerArea({
   const shared = {
     shape: answerShape(question),
     ink,
-    onChange,
+    onClearBox,
     selectedBox,
     onSelectBox,
     tone,
