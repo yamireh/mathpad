@@ -166,19 +166,9 @@ export function PracticeSessionProvider({
     (questionId: string, layout: ProblemLayout) => {
       const data = sessionRef.current;
       if (!data) return;
-      // The answer-area shape differs by layout (long division uses one wide
-      // strip), so reset this question's answer ink to the new shape.
-      const question = data.questions.find((q) => q.id === questionId);
-      const answerInk = question
-        ? {
-            ...data.answerInk,
-            [questionId]: emptyAnswerInk(answerShape(question, layout)),
-          }
-        : data.answerInk;
       commit({
         ...data,
         layoutOverrides: { ...data.layoutOverrides, [questionId]: layout },
-        answerInk,
       });
     },
     [commit],

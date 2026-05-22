@@ -75,7 +75,7 @@ describe('emptyAnswerInk', () => {
     };
     const ink = emptyAnswerInk(answerShape(q));
     expect(ink.integer).toHaveLength(1);
-    expect(ink.decimal).toHaveLength(3);
+    expect(ink.decimal).toHaveLength(1);
     expect(ink.remainder).toHaveLength(0);
   });
 });

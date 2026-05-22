@@ -54,9 +54,9 @@ export function useRecognition(): UseRecognitionResult {
 
   const recognizeAnswer = useCallback<AnswerRecognizer>(
     async (ink, layout) => {
-      // Long division: the quotient (and remainder) are whole numbers written
-      // into one wide strip each.
-      if (layout === 'divisionLong') {
+      // Division: the quotient (and remainder, or a decimal part) are whole
+      // numbers written into one wide strip each.
+      if (layout !== 'vertical') {
         const quotientInk = ink.integer[0] ?? [];
         const decimalInk = ink.decimal[0] ?? [];
         const remainderInk = ink.remainder[0] ?? [];

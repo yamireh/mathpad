@@ -214,12 +214,14 @@ function HorizontalDivisionProblem({
 }) {
   const [dividend, divisor] = question.operands;
   return (
-    <View style={styles.horizontalRow}>
-      <Text style={styles.problemText}>{dividend}</Text>
-      <Text style={styles.problemText}>÷</Text>
-      <Text style={styles.problemText}>{divisor}</Text>
-      <Text style={styles.problemText}>=</Text>
-      {answerSlot}
+    <View style={styles.horizontalWrap}>
+      <View style={styles.horizontalRow}>
+        <Text style={styles.problemText}>{dividend}</Text>
+        <Text style={styles.problemText}>÷</Text>
+        <Text style={styles.problemText}>{divisor}</Text>
+        <Text style={styles.problemText}>=</Text>
+      </View>
+      <View style={styles.horizontalAnswer}>{answerSlot}</View>
     </View>
   );
 }
@@ -310,12 +312,14 @@ const styles = StyleSheet.create({
     marginVertical: spacing.sm,
   },
   answerArea: { flexDirection: 'row', justifyContent: 'flex-end' },
+  horizontalWrap: { alignSelf: 'stretch' },
   horizontalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     flexWrap: 'wrap',
   },
+  horizontalAnswer: { alignSelf: 'stretch', marginTop: spacing.lg },
   problemText: {
     fontSize: PROBLEM_DIGIT_SIZE,
     fontWeight: typography.weight.regular,

@@ -45,10 +45,8 @@ export interface QuestionWorkspaceProps {
 /**
  * The shared "solve a question" surface used by Practice and Review.
  *
- * Standard layouts (+/−/×, horizontal & decimal division) use small,
- * column-aligned answer boxes plus a pop-up writing pad. Long division uses
- * its own layout: large write-directly quotient boxes on top and the whole
- * area below the bracket as the working space.
+ * Division uses wide write-directly answer strips and a working area; every
+ * other operation uses small column-aligned answer boxes plus a pop-up pad.
  */
 export function QuestionWorkspace({
   question,
@@ -63,7 +61,7 @@ export function QuestionWorkspace({
   tone,
 }: QuestionWorkspaceProps) {
   const { t } = useTranslation();
-  const shape = answerShape(question, layout);
+  const shape = answerShape(question);
   const [activeBox, setActiveBox] = useState<string | null>(() =>
     frontierBox(answerInk, shape, layout),
   );
@@ -149,36 +147,48 @@ export function QuestionWorkspace({
       </View>
     ) : null;
 
-  // Long division: write-directly quotient boxes; the whole area below the
-  // bracket is the working space; no pop-up answer pad.
-  if (isLongDivision) {
+  // Division: wide write-directly answer strips, no pop-up pad.
+  if (isDivision) {
+    const answerStrips = (
+      <DirectAnswerRow
+        shape={shape}
+        ink={answerInk}
+        onChange={onAnswerInkChange}
+      />
+    );
     return (
       <View style={styles.container}>
         {layoutToggle}
-        <View style={styles.longBody}>
-          <ProblemDisplay
-            question={question}
-            layout={layout}
-            answerSlot={
-              <DirectAnswerRow
-                shape={shape}
-                ink={answerInk}
-                onChange={onAnswerInkChange}
+        {isLongDivision ? (
+          <View style={styles.longBody}>
+            <ProblemDisplay
+              question={question}
+              layout={layout}
+              answerSlot={answerStrips}
+              workSlot={scratch}
+            />
+          </View>
+        ) : (
+          <>
+            <View style={styles.divisionInline}>
+              <ProblemDisplay
+                question={question}
+                layout={layout}
+                answerSlot={answerStrips}
               />
-            }
-            workSlot={scratch}
-          />
-        </View>
+            </View>
+            <View style={styles.scratchArea}>{scratch}</View>
+          </>
+        )}
         {toolbar}
       </View>
     );
   }
 
-  // Standard layout: small answer boxes + pop-up writing pad.
+  // +, −, ×: small answer boxes + pop-up writing pad.
   const answer = (
     <AnswerArea
       question={question}
-      layout={layout}
       ink={answerInk}
       onChange={onAnswerInkChange}
       selectedBox={activeBox}
@@ -192,8 +202,6 @@ export function QuestionWorkspace({
 
   return (
     <View style={styles.container}>
-      {layoutToggle}
-
       <View style={styles.problemArea}>
         <ScrollView
           horizontal
@@ -253,11 +261,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   longBody: { flex: 1, padding: spacing.lg },
+  divisionInline: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   bottomRegion: {
     flex: 1,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
+  scratchArea: { flex: 1, paddingHorizontal: spacing.lg },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
