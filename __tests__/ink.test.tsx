@@ -66,6 +66,7 @@ describe('useInkCapture', () => {
 
 describe('emptyAnswerInk', () => {
   it('matches the box counts of a decimal answer shape', () => {
+    // 15 ÷ 4 = 3.75 — integer part "3" (1 digit) + up to 3 decimal cells.
     const q: Question = {
       id: 'q',
       operation: 'division',
@@ -75,7 +76,7 @@ describe('emptyAnswerInk', () => {
     };
     const ink = emptyAnswerInk(answerShape(q));
     expect(ink.integer).toHaveLength(1);
-    expect(ink.decimal).toHaveLength(1);
+    expect(ink.decimal).toHaveLength(3);
     expect(ink.remainder).toHaveLength(0);
   });
 });

@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import {
   type GestureResponderEvent,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 
-import { Button } from '../ui';
-import { colors, radius, spacing, typography } from '../../constants/design';
+import { Button, TipBubble } from '../ui';
+import { colors, radius, spacing } from '../../constants/design';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
 
 export interface AnswerPadProps {
@@ -16,6 +15,8 @@ export interface AnswerPadProps {
   strokes: InkStroke[];
   /** Reports the box's full stroke list after each completed stroke. */
   onStrokesChange: (strokes: InkStroke[]) => void;
+  /** Fires the moment a new stroke begins (used to cancel an auto-advance). */
+  onStrokeStart?: () => void;
   /** Clear every answer box (per-box clears live on the boxes themselves). */
   onClearAll: () => void;
   /** Return to the scratch area. */
@@ -34,6 +35,7 @@ const STROKE_WIDTH = 4;
 export function AnswerPad({
   strokes,
   onStrokesChange,
+  onStrokeStart,
   onClearAll,
   onDone,
   tone,
@@ -50,7 +52,6 @@ export function AnswerPad({
           fullWidth={false}
           onPress={onClearAll}
         />
-        <Text style={styles.hint}>{t('practice.answerPadHint')}</Text>
         <Button
           label={t('common.done')}
           tone={tone}
@@ -65,9 +66,10 @@ export function AnswerPad({
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
         onResponderTerminationRequest={() => false}
-        onResponderGrant={(e: GestureResponderEvent) =>
-          ink.beginStroke(e.nativeEvent.locationX, e.nativeEvent.locationY)
-        }
+        onResponderGrant={(e: GestureResponderEvent) => {
+          onStrokeStart?.();
+          ink.beginStroke(e.nativeEvent.locationX, e.nativeEvent.locationY);
+        }}
         onResponderMove={(e: GestureResponderEvent) =>
           ink.extendStroke(e.nativeEvent.locationX, e.nativeEvent.locationY)
         }
@@ -97,6 +99,15 @@ export function AnswerPad({
             />
           ) : null}
         </Canvas>
+
+        <View style={styles.tipOverlay} pointerEvents="box-none">
+          <TipBubble
+            id="write-in-pad"
+            when={ink.isEmpty}
+            text={t('practice.tips.writeInPad')}
+            pointer="none"
+          />
+        </View>
       </View>
     </View>
   );
@@ -110,12 +121,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.sm,
   },
-  hint: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: typography.size.body,
-    color: colors.textMuted,
-  },
   canvas: {
     flex: 1,
     borderRadius: radius.md,
@@ -123,5 +128,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     overflow: 'hidden',
+  },
+  tipOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
   },
 });

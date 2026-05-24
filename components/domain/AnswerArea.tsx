@@ -15,6 +15,10 @@ export interface AnswerAreaProps {
   tone?: string;
   /** Whether a given box may currently be written (sequential fill order). */
   isBoxWritable?: (boxId: string) => boolean;
+  /** Column / cell width — defaults to the full grid. */
+  cellWidth?: number;
+  /** Answer box height — defaults to the full grid. */
+  boxHeight?: number;
 }
 
 /** Picks and renders the answer area matching a question's answer kind. */
@@ -26,6 +30,8 @@ export function AnswerArea({
   onSelectBox,
   tone,
   isBoxWritable,
+  cellWidth,
+  boxHeight,
 }: AnswerAreaProps) {
   const shared = {
     shape: answerShape(question),
@@ -35,6 +41,8 @@ export function AnswerArea({
     onSelectBox,
     tone,
     isBoxWritable,
+    cellWidth,
+    boxHeight,
   };
   if (question.answer.kind === 'decimal') {
     return <DecimalAnswerRow {...shared} />;

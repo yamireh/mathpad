@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     borderWidth: 1,
     borderStyle: 'dashed',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   boxSelected: { borderWidth: 2, borderStyle: 'solid' },

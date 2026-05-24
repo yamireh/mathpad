@@ -55,6 +55,27 @@ export interface SessionData {
   borrowMarks: Record<string, number[]>;
   /** Per-column carry-box ink keyed by question id (addition/×). */
   carryInk: Record<string, InkStroke[][]>;
+  /**
+   * Per-row, per-column partial-product ink keyed by question id (× only,
+   * when the multiplier has > 1 digit). `partialInk[qid][row][col]` is the
+   * stroke list for one cell of the row-th partial product. Working-out
+   * only — never scored, never persisted as raw strokes.
+   */
+  partialInk: Record<string, InkStroke[][][]>;
+  /**
+   * Per-partial times-step carry ink keyed by question id (× only). Shape
+   * mirrors `partialInk` but indexed by op1 column instead of partial cell:
+   * `timesCarryInk[qid][partialRow][op1Col]`. A single UI row above op1
+   * surfaces the active partial's slice.
+   */
+  timesCarryInk: Record<string, InkStroke[][][]>;
+  /**
+   * Long-division draft ink keyed by question id. Shape:
+   * `divisionDraftInk[qid][row][col]` — one stroke list per cell of the
+   * column-aligned grid of working-out boxes inside the long-division
+   * bracket. Working-out only — never scored.
+   */
+  divisionDraftInk: Record<string, InkStroke[][][]>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -77,6 +98,27 @@ export interface PracticeSessionContextValue {
   updateCarryInk: (
     questionId: string,
     column: number,
+    strokes: InkStroke[],
+  ) => void;
+  /** Replace one partial-product cell's ink (multiplication only). */
+  updatePartialInk: (
+    questionId: string,
+    row: number,
+    col: number,
+    strokes: InkStroke[],
+  ) => void;
+  /** Replace one per-partial times-carry cell's ink (multiplication only). */
+  updateTimesCarryInk: (
+    questionId: string,
+    partialRow: number,
+    op1Col: number,
+    strokes: InkStroke[],
+  ) => void;
+  /** Replace one long-division draft-grid cell's ink (division only). */
+  updateDivisionDraftInk: (
+    questionId: string,
+    row: number,
+    col: number,
     strokes: InkStroke[],
   ) => void;
   /** Recognise and mark every question; locks the first-try score. */
@@ -139,6 +181,9 @@ export function PracticeSessionProvider({
         layoutOverrides: {},
         borrowMarks: {},
         carryInk: {},
+        partialInk: {},
+        timesCarryInk: {},
+        divisionDraftInk: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -215,6 +260,74 @@ export function PracticeSessionProvider({
     [commit],
   );
 
+  const updatePartialInk = useCallback(
+    (questionId: string, row: number, col: number, strokes: InkStroke[]) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const currentRows = data.partialInk[questionId] ?? [];
+      const nextRows = [...currentRows];
+      while (nextRows.length <= row) nextRows.push([]);
+      const nextRow = [...nextRows[row]];
+      while (nextRow.length <= col) nextRow.push([]);
+      nextRow[col] = strokes;
+      nextRows[row] = nextRow;
+      commit({
+        ...data,
+        partialInk: { ...data.partialInk, [questionId]: nextRows },
+      });
+    },
+    [commit],
+  );
+
+  const updateTimesCarryInk = useCallback(
+    (
+      questionId: string,
+      partialRow: number,
+      op1Col: number,
+      strokes: InkStroke[],
+    ) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const currentRows = data.timesCarryInk[questionId] ?? [];
+      const nextRows = [...currentRows];
+      while (nextRows.length <= partialRow) nextRows.push([]);
+      const nextRow = [...nextRows[partialRow]];
+      while (nextRow.length <= op1Col) nextRow.push([]);
+      nextRow[op1Col] = strokes;
+      nextRows[partialRow] = nextRow;
+      commit({
+        ...data,
+        timesCarryInk: {
+          ...data.timesCarryInk,
+          [questionId]: nextRows,
+        },
+      });
+    },
+    [commit],
+  );
+
+  const updateDivisionDraftInk = useCallback(
+    (questionId: string, row: number, col: number, strokes: InkStroke[]) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const currentRows = data.divisionDraftInk[questionId] ?? [];
+      const nextRows = [...currentRows];
+      while (nextRows.length <= row) nextRows.push([]);
+      const nextRow = [...nextRows[row]];
+      while (nextRow.length <= col) nextRow.push([]);
+      nextRow[col] = strokes;
+      nextRows[row] = nextRow;
+      commit({
+        ...data,
+        divisionDraftInk: {
+          ...data.divisionDraftInk,
+          [questionId]: nextRows,
+        },
+      });
+    },
+    [commit],
+  );
+
   const finish = useCallback(
     async (recognize: AnswerRecognizer) => {
       const data = sessionRef.current;
@@ -280,6 +393,9 @@ export function PracticeSessionProvider({
       setLayoutOverride,
       toggleBorrowMark,
       updateCarryInk,
+      updatePartialInk,
+      updateTimesCarryInk,
+      updateDivisionDraftInk,
       finish,
       reviewSubmit,
       reset,
@@ -292,6 +408,9 @@ export function PracticeSessionProvider({
       setLayoutOverride,
       toggleBorrowMark,
       updateCarryInk,
+      updatePartialInk,
+      updateTimesCarryInk,
+      updateDivisionDraftInk,
       finish,
       reviewSubmit,
       reset,

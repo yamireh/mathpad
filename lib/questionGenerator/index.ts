@@ -288,17 +288,22 @@ function decimalPlacesOf(dividend: number, divisor: number): number {
 }
 
 function divisionLayout(
-  dividendDigits: number,
-  divisorDigits: number,
-  decimal: boolean,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _dividendDigits: number,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _divisorDigits: number,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _decimal: boolean,
 ): ProblemLayout {
-  if (decimal) return 'divisionDecimal';
-  if (dividendDigits === 1 && divisorDigits === 1) return 'divisionHorizontal';
+  // Long division is the default for every division question — even the
+  // simple 1-digit ÷ 1-digit and decimal-answer cases. The kid can switch
+  // to the in-a-row layout via the toggle chip on the practice screen.
   return 'divisionLong';
 }
 
 function generateDivision(
-  range: DigitRange,
+  dividendDigits: DigitCount,
+  divisorDigits: DigitCount,
   answerType: DivisionAnswerType,
   rng: RNG,
 ): QuestionCore {
@@ -308,8 +313,6 @@ function generateDivision(
       : answerType;
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const divisorDigits = digitCountInRange(range, rng);
-    const dividendDigits = digitCountInRange(range, rng);
     const lo = lowerBound(dividendDigits);
     const hi = upperBound(dividendDigits);
 
@@ -408,7 +411,10 @@ function generateForOperation(
       );
     case 'division':
       return generateDivision(
-        digitRange,
+        // Division uses fixed dividend / divisor digit counts instead of a
+        // range. Mix mode falls back to a sensible default (3-digit ÷ 1).
+        settings.operation === 'division' ? settings.dividendDigits : 3,
+        settings.operation === 'division' ? settings.divisorDigits : 1,
         // Mix mode keeps division simple: clean integer answers only.
         settings.operation === 'division'
           ? settings.answerType

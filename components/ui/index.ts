@@ -19,3 +19,4 @@ export {
   ScreenContainer,
   type ScreenContainerProps,
 } from './ScreenContainer';
+export { TipBubble, type TipBubbleProps } from './TipBubble';

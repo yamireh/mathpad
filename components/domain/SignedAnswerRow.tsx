@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
-import { colors, spacing } from '../../constants/design';
+import { colors } from '../../constants/design';
 import { AnswerBox } from './AnswerBox';
 import { type AnswerInk } from './ink';
 import type { AnswerShape } from './layout';
@@ -14,6 +14,10 @@ export interface SignedAnswerRowProps {
   onSelectBox: (boxId: string) => void;
   tone?: string;
   isBoxWritable?: (boxId: string) => boolean;
+  /** Column / cell width — defaults to the full grid. */
+  cellWidth?: number;
+  /** Answer box height — defaults to the full grid. */
+  boxHeight?: number;
 }
 
 /**
@@ -28,6 +32,8 @@ export function SignedAnswerRow({
   onSelectBox,
   tone = colors.text,
   isBoxWritable,
+  cellWidth,
+  boxHeight,
 }: SignedAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -44,6 +50,8 @@ export function SignedAnswerRow({
           onSelect={() => onSelectBox('sign')}
           strokes={ink.sign}
           onClear={() => onClearBox('sign')}
+          cellWidth={cellWidth}
+          boxHeight={boxHeight}
         />
       ) : null}
 
@@ -59,6 +67,8 @@ export function SignedAnswerRow({
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
             onClear={() => onClearBox(id)}
+            cellWidth={cellWidth}
+            boxHeight={boxHeight}
           />
         );
       })}
@@ -67,5 +77,5 @@ export function SignedAnswerRow({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: spacing.xs },
+  row: { flexDirection: 'row' },
 });

@@ -16,8 +16,14 @@ export interface DirectInkBoxProps {
   /** Reports the full stroke list after each completed stroke or clear. */
   onStrokesChange: (strokes: InkStroke[]) => void;
   accessibilityLabel: string;
-  /** Box height; width flexes to fill the row. */
+  /** Box height. */
   height: number;
+  /**
+   * Fixed box width. When omitted the wrapper uses `flex: 1` to share the
+   * row evenly (long-division quotient strips); when set the cell renders
+   * at exactly that width (division draft grid cells).
+   */
+  width?: number;
 }
 
 const STROKE_WIDTH = 3.5;
@@ -32,11 +38,12 @@ export function DirectInkBox({
   onStrokesChange,
   accessibilityLabel,
   height,
+  width,
 }: DirectInkBoxProps) {
   const ink = useInkCapture(strokes, onStrokesChange);
 
   return (
-    <View style={styles.wrap}>
+    <View style={width === undefined ? styles.wrap : { width }}>
       <View style={styles.clearSlot}>
         {ink.isEmpty ? null : (
           <Pressable

@@ -3,7 +3,11 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
-import { QuestionWorkspace, TimerDisplay } from '../components/domain';
+import {
+  QuestionWorkspace,
+  type QuestionWorkspaceHandle,
+  TimerDisplay,
+} from '../components/domain';
 import {
   Button,
   ConfirmDialog,
@@ -11,7 +15,13 @@ import {
   ScreenContainer,
 } from '../components/ui';
 import { colors, operationColors, radius, spacing, typography } from '../constants/design';
-import { usePracticeSession, useRecognition, useTimer } from '../hooks';
+import {
+  useDevPreferences,
+  usePracticeSession,
+  useRecognition,
+  useResetTips,
+  useTimer,
+} from '../hooks';
 
 /** Practice — solve the session's questions one at a time. */
 export default function PracticeScreen() {
@@ -24,14 +34,20 @@ export default function PracticeScreen() {
     setLayoutOverride,
     toggleBorrowMark,
     updateCarryInk,
+    updatePartialInk,
+    updateTimesCarryInk,
+    updateDivisionDraftInk,
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
+  const resetTips = useResetTips();
 
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittedRef = useRef(false);
+  const workspaceRef = useRef<QuestionWorkspaceHandle>(null);
+  const { prefs: devPrefs } = useDevPreferences();
 
   const handleFinish = useCallback(async () => {
     if (submittedRef.current) return;
@@ -88,16 +104,31 @@ export default function PracticeScreen() {
         {timerSeconds !== null ? (
           <TimerDisplay secondsRemaining={secondsRemaining} />
         ) : null}
+        {devPrefs.showSolveButton ? (
+          <IconButton
+            name="sparkles-outline"
+            accessibilityLabel={t('practice.solve')}
+            onPress={() => workspaceRef.current?.solve()}
+          />
+        ) : null}
         <IconButton
           name="help-circle-outline"
           accessibilityLabel={t('practice.help')}
           onPress={() =>
-            Alert.alert(t('practice.helpTitle'), t('practice.helpMessage'))
+            Alert.alert(
+              t('practice.helpTitle'),
+              t('practice.helpMessage'),
+              [
+                { text: t('common.close'), style: 'cancel' },
+                { text: t('practice.showTipsAgain'), onPress: resetTips },
+              ],
+            )
           }
         />
       </View>
 
       <QuestionWorkspace
+        ref={workspaceRef}
         key={question.id}
         question={question}
         layout={layout}
@@ -113,6 +144,18 @@ export default function PracticeScreen() {
         carryInk={session.carryInk[question.id]}
         onCarryInkChange={(column, strokes) =>
           updateCarryInk(question.id, column, strokes)
+        }
+        partialInk={session.partialInk[question.id]}
+        onPartialInkChange={(row, column, strokes) =>
+          updatePartialInk(question.id, row, column, strokes)
+        }
+        timesCarryInk={session.timesCarryInk[question.id]}
+        onTimesCarryInkChange={(partialRow, op1Col, strokes) =>
+          updateTimesCarryInk(question.id, partialRow, op1Col, strokes)
+        }
+        divisionDraftInk={session.divisionDraftInk[question.id]}
+        onDivisionDraftInkChange={(row, col, strokes) =>
+          updateDivisionDraftInk(question.id, row, col, strokes)
         }
         tone={accent}
       />

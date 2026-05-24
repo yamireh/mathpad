@@ -12,6 +12,7 @@ export { OperationCard, type OperationCardProps } from './OperationCard';
 export { ProblemDisplay, type ProblemDisplayProps } from './ProblemDisplay';
 export {
   QuestionWorkspace,
+  type QuestionWorkspaceHandle,
   type QuestionWorkspaceProps,
 } from './QuestionWorkspace';
 export {

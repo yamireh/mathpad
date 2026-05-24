@@ -28,16 +28,12 @@ export default function HomeScreen() {
 
       <View style={styles.grid}>
         {OPERATIONS.map((operation) => (
-          <View
+          <OperationCard
             key={operation}
-            style={operation === 'mix' ? styles.cellWide : styles.cell}
-          >
-            <OperationCard
-              operation={operation}
-              label={t(`operations.${operation}`)}
-              onPress={() => router.push(`/settings/${operation}`)}
-            />
-          </View>
+            operation={operation}
+            label={t(`operations.${operation}`)}
+            onPress={() => router.push(`/settings/${operation}`)}
+          />
         ))}
       </View>
 
@@ -67,12 +63,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.md,
   },
-  cell: { width: '47%', flexGrow: 1 },
-  cellWide: { width: '100%' },
   footer: {
     marginTop: spacing.xxl,
     alignItems: 'center',

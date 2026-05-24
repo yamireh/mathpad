@@ -13,7 +13,8 @@
     "done": "Done",
     "retry": "Retry",
     "submit": "Submit",
-    "delete": "Delete"
+    "delete": "Delete",
+    "gotIt": "Got it"
   },
   "operations": {
     "addition": "Addition",
@@ -32,6 +33,8 @@
     "digits": "Number of digits",
     "digitsFrom": "From",
     "digitsTo": "To",
+    "dividendDigits": "Dividend",
+    "divisorDigits": "Divisor",
     "questionCount": "Number of questions",
     "timer": "Timer",
     "timerHint": "One countdown for the whole session",
@@ -58,6 +61,7 @@
       "random": "Random"
     },
     "summaryDigits": "{{min}}–{{max}} digit numbers",
+    "summaryDivisionDigits": "{{dividend}}-digit ÷ {{divisor}}-digit",
     "summaryQuestions_one": "{{count}} question",
     "summaryQuestions_other": "{{count}} questions",
     "summaryTimed": "{{minutes}} min timer",
@@ -67,13 +71,19 @@
   "practice": {
     "progress": "Question {{current}} of {{total}}",
     "help": "Help",
+    "solve": "Auto-solve",
     "finish": "Finish",
     "eraser": "Eraser",
     "undo": "Undo",
     "clearScratch": "Clear all",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
-    "answerPadHint": "Write the digit here",
+    "tips": {
+      "tapAnswerBox": "Tap a box to choose where your answer goes",
+      "writeInPad": "Write your answer here with your finger",
+      "tapToBorrow": "Need to borrow? Tap a top number"
+    },
+    "showTipsAgain": "Show tips again",
     "layoutLong": "Long division",
     "layoutInline": "In a row",
     "remainderLabel": "R",

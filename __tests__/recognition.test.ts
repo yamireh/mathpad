@@ -63,6 +63,46 @@ describe('recognizeDigit', () => {
     });
     expect(recognize).not.toHaveBeenCalled();
   });
+
+  it('overrides ML Kit when a "1" was misread as 7 (tall narrow vertical line)', async () => {
+    // ML Kit's guess: 7. But the strokes are a clear `1` — narrow + tall,
+    // no top bar to speak of.
+    recognize.mockResolvedValueOnce([{ text: '7', score: 0.6 }]);
+    const oneStrokes: Stroke[] = [
+      [
+        [10, 0, 0],
+        [10, 50, 50], // straight vertical
+      ],
+    ];
+    expect((await recognizeDigit(oneStrokes)).digit).toBe(1);
+  });
+
+  it('overrides ML Kit when a "7" was misread as 1 (top bar + diagonal)', async () => {
+    // ML Kit's guess: 1. Strokes describe a clear 7: a long horizontal
+    // top followed by a diagonal down to the lower left.
+    recognize.mockResolvedValueOnce([{ text: '1', score: 0.6 }]);
+    const sevenStrokes: Stroke[] = [
+      [
+        [0, 0, 0],
+        [30, 0, 5], // top horizontal
+        [10, 50, 30], // diagonal down
+      ],
+    ];
+    expect((await recognizeDigit(sevenStrokes)).digit).toBe(7);
+  });
+
+  it('classifies a moderately-wide stroke as 7 via aspect-ratio fallback', async () => {
+    // A single short diagonal — width ≈ 5, height ≈ 8 → aspect 0.625
+    // which sits above the "definitely 7" threshold.
+    recognize.mockResolvedValueOnce([{ text: '7', score: 0.92 }]);
+    const wideish: Stroke[] = [
+      [
+        [0, 0, 0],
+        [5, 8, 12],
+      ],
+    ];
+    expect((await recognizeDigit(wideish)).digit).toBe(7);
+  });
 });
 
 describe('recognizeSign', () => {

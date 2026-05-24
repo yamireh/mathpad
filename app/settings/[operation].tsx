@@ -19,7 +19,9 @@ import {
 } from '../../constants/design';
 import { usePracticeSession, useSettings } from '../../hooks';
 import type {
+  DigitCount,
   DivisionAnswerType,
+  DivisionSettings,
   ModeOption,
   NegativeAnswerOption,
   Operation,
@@ -82,13 +84,22 @@ export default function SettingsScreen() {
       />
 
       <Section title={t('settings.digits')}>
-        <DigitRangeSelector
-          value={settings.digitRange}
-          onChange={(digitRange) => patch({ digitRange })}
-          fromLabel={t('settings.digitsFrom')}
-          toLabel={t('settings.digitsTo')}
-          tone={accent}
-        />
+        {settings.operation === 'division' ? (
+          <DivisionDigitSelectors
+            dividendDigits={settings.dividendDigits}
+            divisorDigits={settings.divisorDigits}
+            onChange={(changes) => patch(changes)}
+            tone={accent}
+          />
+        ) : (
+          <DigitRangeSelector
+            value={settings.digitRange}
+            onChange={(digitRange) => patch({ digitRange })}
+            fromLabel={t('settings.digitsFrom')}
+            toLabel={t('settings.digitsTo')}
+            tone={accent}
+          />
+        )}
       </Section>
 
       <Section title={t('settings.questionCount')}>
@@ -149,6 +160,63 @@ export default function SettingsScreen() {
         onPress={startPracticing}
       />
     </ScreenContainer>
+  );
+}
+
+const DIGIT_CHOICES: DigitCount[] = [1, 2, 3, 4];
+
+/**
+ * Division-specific digit picker — separate chip row for the dividend and
+ * for the divisor (single value each, not a range). Replaces the
+ * `DigitRangeSelector` shown to other operations.
+ */
+function DivisionDigitSelectors({
+  dividendDigits,
+  divisorDigits,
+  onChange,
+  tone,
+}: {
+  dividendDigits: DigitCount;
+  divisorDigits: DigitCount;
+  onChange: (changes: Partial<DivisionSettings>) => void;
+  tone: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.divisionDigits}>
+      <View style={styles.divisionDigitsRow}>
+        <Text style={styles.divisionDigitsLabel}>
+          {t('settings.dividendDigits')}
+        </Text>
+        <View style={styles.chipRow}>
+          {DIGIT_CHOICES.map((n) => (
+            <Chip
+              key={n}
+              label={String(n)}
+              selected={dividendDigits === n}
+              onPress={() => onChange({ dividendDigits: n })}
+              tone={tone}
+            />
+          ))}
+        </View>
+      </View>
+      <View style={styles.divisionDigitsRow}>
+        <Text style={styles.divisionDigitsLabel}>
+          {t('settings.divisorDigits')}
+        </Text>
+        <View style={styles.chipRow}>
+          {DIGIT_CHOICES.map((n) => (
+            <Chip
+              key={n}
+              label={String(n)}
+              selected={divisorDigits === n}
+              onPress={() => onChange({ divisorDigits: n })}
+              tone={tone}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -252,12 +320,19 @@ function summarise(
   settings: Settings,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
+  const digitSummary =
+    settings.operation === 'division'
+      ? t('settings.summaryDivisionDigits', {
+          dividend: settings.dividendDigits,
+          divisor: settings.divisorDigits,
+        })
+      : t('settings.summaryDigits', {
+          min: settings.digitRange.min,
+          max: settings.digitRange.max,
+        });
   const parts = [
     t('settings.summaryQuestions', { count: settings.questionCount }),
-    t('settings.summaryDigits', {
-      min: settings.digitRange.min,
-      max: settings.digitRange.max,
-    }),
+    digitSummary,
     settings.timer.enabled
       ? t('settings.summaryTimed', {
           minutes: settings.timer.durationMinutes,
@@ -268,6 +343,17 @@ function summarise(
 }
 
 const styles = StyleSheet.create({
+  divisionDigits: { gap: spacing.md },
+  divisionDigitsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  divisionDigitsLabel: {
+    width: 100,
+    fontSize: typography.size.body,
+    color: colors.textMuted,
+  },
   section: { marginTop: spacing.xl, gap: spacing.md },
   sectionTitle: {
     fontSize: typography.size.bodyLarge,

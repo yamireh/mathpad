@@ -21,7 +21,10 @@ const SYMBOL: Record<Exclude<Operation, 'mix'>, string> = {
   division: '÷',
 };
 
-/** A large tappable topic card for the Home screen. */
+/**
+ * A wide row-style topic card for the Home screen — operation badge on the
+ * left, label centered, chevron on the right.
+ */
 export function OperationCard({
   operation,
   label,
@@ -39,35 +42,43 @@ export function OperationCard({
     >
       <View style={[styles.badge, { backgroundColor: accent }]}>
         {operation === 'mix' ? (
-          <Ionicons name="shuffle" size={28} color="#FFFFFF" />
+          <Ionicons name="shuffle" size={24} color="#FFFFFF" />
         ) : (
           <Text style={styles.symbol}>{SYMBOL[operation]}</Text>
         )}
       </View>
-      <Text style={[styles.label, { color: accent }]}>{label}</Text>
+      <View style={styles.labelWrap}>
+        <Text style={[styles.label, { color: accent }]}>{label}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={22} color={accent} />
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
-    minHeight: 132,
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.md,
   },
   badge: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   symbol: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: typography.weight.medium,
     color: '#FFFFFF',
+  },
+  // Stretches between the badge and the chevron so the label sits centered
+  // within the available middle space regardless of label length.
+  labelWrap: {
+    flex: 1,
+    alignItems: 'center',
   },
   label: {
     fontSize: typography.size.title,

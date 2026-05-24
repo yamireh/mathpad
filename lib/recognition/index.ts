@@ -58,8 +58,12 @@ export async function prepareModel(): Promise<void> {
 /**
  * Recognise a single handwritten digit from one answer box.
  *
- * ML Kit has no digit-only model, so candidates are post-filtered to the first
- * one that is a single character 0–9.
+ * ML Kit has no digit-only model, so candidates are post-filtered to the
+ * first one that is a single character 0–9. ML Kit also routinely confuses
+ * `1` and `7` — both can read as either depending on how the kid drew the
+ * top flag — so when the winning candidate is one of those two we override
+ * with a stroke-shape heuristic (aspect ratio + top-bar presence) that's
+ * much harder to fool.
  */
 export async function recognizeDigit(
   strokes: Stroke[],
@@ -72,10 +76,77 @@ export async function recognizeDigit(
   for (const candidate of candidates) {
     const text = candidate.text.trim();
     if (/^[0-9]$/.test(text)) {
-      return { digit: Number(text), confidence: candidate.score ?? null, raw };
+      let digit = Number(text);
+      if (digit === 1 || digit === 7) {
+        digit = disambiguateOneAndSeven(strokes, digit);
+      }
+      return { digit, confidence: candidate.score ?? null, raw };
     }
   }
   return { digit: null, confidence: null, raw };
+}
+
+/**
+ * Override ML Kit's `1` ↔ `7` confusion with a stroke-shape check based
+ * almost entirely on the bounding-box aspect ratio (width / height):
+ *  - a `1` is tall and narrow — even with a top hook/flag, the digit's
+ *    width stays well below half its height;
+ *  - a `7` is wider — the top bar pushes its width close to its height.
+ *
+ * The aspect-ratio signal is decisive enough on its own that we override
+ * ML Kit's pick whenever the shape clearly leans one way. A horizontal
+ * top-bar boost biases very ambiguous cases (aspect ~ 0.5) toward 7.
+ */
+function disambiguateOneAndSeven(
+  strokes: Stroke[],
+  mlKitGuess: 1 | 7,
+): 1 | 7 {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let anyPoint = false;
+  for (const stroke of strokes) {
+    for (const [x, y] of stroke) {
+      anyPoint = true;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!anyPoint) return mlKitGuess;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  if (height <= 0) return mlKitGuess;
+  // A perfectly vertical stroke (width 0) is the clearest possible "1".
+  const aspect = width / height;
+
+  // Sum up horizontal-segment lengths in the top 35% of the bounding box.
+  // A "horizontal" segment is one whose |dx| > |dy| — i.e. the pen was
+  // moving more across than down at that moment. Used as a tiebreaker
+  // for borderline aspect ratios.
+  const topZoneCutoff = minY + height * 0.35;
+  let topHorizontalLength = 0;
+  for (const stroke of strokes) {
+    for (let i = 0; i + 1 < stroke.length; i += 1) {
+      const [x1, y1] = stroke[i];
+      const [x2, y2] = stroke[i + 1];
+      if (y1 > topZoneCutoff && y2 > topZoneCutoff) continue;
+      const dx = Math.abs(x2 - x1);
+      const dy = Math.abs(y2 - y1);
+      if (dx > dy) topHorizontalLength += dx;
+    }
+  }
+  const topBarRatio = width > 0 ? topHorizontalLength / width : 0;
+
+  // Decisive zones first:
+  if (aspect < 0.45) return 1; // narrow → 1, even with a hook/flag
+  if (aspect >= 0.6) return 7; // clearly wider → 7
+  // Borderline (0.45 ≤ aspect < 0.6): use the top-bar tiebreaker. A long
+  // horizontal top bar is a strong "this is a 7" signal; otherwise lean
+  // toward 1.
+  return topBarRatio >= 0.4 ? 7 : 1;
 }
 
 /**

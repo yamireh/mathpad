@@ -25,6 +25,8 @@ const divisionSettings: DivisionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   answerType: 'noRemainder',
+  dividendDigits: 2,
+  divisorDigits: 1,
 };
 
 const carryAdditionSettings: AdditionSettings = {
@@ -74,7 +76,7 @@ describe('Practice screen', () => {
     renderPractice(additionSettings);
     // The pad is focused on the first answer box on entry.
     await waitFor(() =>
-      expect(screen.getByText('Write the digit here')).toBeOnTheScreen(),
+      expect(screen.getByText('Done')).toBeOnTheScreen(),
     );
     // Done switches back to the scratch area and its tools.
     fireEvent.press(screen.getByText('Done'));
@@ -104,7 +106,7 @@ describe('Practice screen', () => {
     expect(carryBoxes.length).toBeGreaterThan(0);
     // Tapping a carry box focuses the writing pad without error.
     fireEvent.press(carryBoxes[0]);
-    expect(screen.getByText('Write the digit here')).toBeOnTheScreen();
+    expect(screen.getByText('Done')).toBeOnTheScreen();
   });
 
   it('lets you tap a top digit to borrow on a subtraction', async () => {

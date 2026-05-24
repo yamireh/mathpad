@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { PracticeSessionProvider } from '../hooks';
+import { PracticeSessionProvider, TipsProvider } from '../hooks';
 // Side-effect import: initialises i18next before any screen renders.
 import '../lib/i18n';
 
@@ -15,9 +15,11 @@ import '../lib/i18n';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <PracticeSessionProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-      </PracticeSessionProvider>
+      <TipsProvider>
+        <PracticeSessionProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </PracticeSessionProvider>
+      </TipsProvider>
     </SafeAreaProvider>
   );
 }

@@ -52,3 +52,15 @@ export function computeBorrowDisplay(
     crossedOut: delta[i] !== 0,
   }));
 }
+
+/** True when computing `op1 - op2` column-by-column needs at least one borrow. */
+export function needsBorrow(op1: number, op2: number): boolean {
+  let a = Math.abs(op1);
+  let b = Math.abs(op2);
+  while (a > 0 || b > 0) {
+    if (a % 10 < b % 10) return true;
+    a = Math.floor(a / 10);
+    b = Math.floor(b / 10);
+  }
+  return false;
+}

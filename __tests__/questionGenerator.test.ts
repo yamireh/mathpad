@@ -57,6 +57,8 @@ function divisionSettings(over: Partial<DivisionSettings> = {}): DivisionSetting
     questionCount: 20,
     timer,
     answerType: 'random',
+    dividendDigits: 3,
+    divisorDigits: 2,
     ...over,
   };
 }

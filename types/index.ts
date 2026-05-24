@@ -94,6 +94,14 @@ export interface MultiplicationSettings extends BaseSettings {
 export interface DivisionSettings extends BaseSettings {
   operation: 'division';
   answerType: DivisionAnswerType;
+  /**
+   * Dividend digit count (single number, not a range). Division questions
+   * use a precise dividend / divisor digit count rather than the
+   * `digitRange` field from `BaseSettings`, which is left at its defaults.
+   */
+  dividendDigits: DigitCount;
+  /** Divisor digit count (single number). */
+  divisorDigits: DigitCount;
 }
 
 export interface MixSettings extends BaseSettings {

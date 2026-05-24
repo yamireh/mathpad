@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing, typography } from '../../constants/design';
 import { DirectInkBox } from './DirectInkBox';
 import { type AnswerInk, type InkStroke, setBoxStrokes } from './ink';
-import { ANSWER_BOX_HEIGHT, type AnswerShape } from './layout';
+import { DIVISION_QUOTIENT_HEIGHT, type AnswerShape } from './layout';
 
 export interface DirectAnswerRowProps {
   shape: AnswerShape;
@@ -30,7 +30,7 @@ export function DirectAnswerRow({ shape, ink, onChange }: DirectAnswerRowProps) 
       key={boxId}
       accessibilityLabel={label}
       strokes={strokes}
-      height={ANSWER_BOX_HEIGHT}
+      height={DIVISION_QUOTIENT_HEIGHT}
       onStrokesChange={(next) => onChange(setBoxStrokes(ink, boxId, next))}
     />
   );
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   fixedLabel: {
-    height: ANSWER_BOX_HEIGHT + 22,
+    height: DIVISION_QUOTIENT_HEIGHT + 22,
     justifyContent: 'center',
     paddingHorizontal: spacing.xs,
   },

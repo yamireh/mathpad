@@ -29,6 +29,9 @@ export default function ReviewScreen() {
     setLayoutOverride,
     toggleBorrowMark,
     updateCarryInk,
+    updatePartialInk,
+    updateTimesCarryInk,
+    updateDivisionDraftInk,
     reviewSubmit,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -84,6 +87,18 @@ export default function ReviewScreen() {
         carryInk={session.carryInk[question.id]}
         onCarryInkChange={(column, strokes) =>
           updateCarryInk(question.id, column, strokes)
+        }
+        partialInk={session.partialInk[question.id]}
+        onPartialInkChange={(row, column, strokes) =>
+          updatePartialInk(question.id, row, column, strokes)
+        }
+        timesCarryInk={session.timesCarryInk[question.id]}
+        onTimesCarryInkChange={(partialRow, op1Col, strokes) =>
+          updateTimesCarryInk(question.id, partialRow, op1Col, strokes)
+        }
+        divisionDraftInk={session.divisionDraftInk[question.id]}
+        onDivisionDraftInkChange={(row, col, strokes) =>
+          updateDivisionDraftInk(question.id, row, col, strokes)
         }
         tone={accent}
       />

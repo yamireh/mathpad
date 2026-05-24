@@ -15,6 +15,10 @@ export interface DecimalAnswerRowProps {
   onSelectBox: (boxId: string) => void;
   tone?: string;
   isBoxWritable?: (boxId: string) => boolean;
+  /** Column / cell width — defaults to the full grid. */
+  cellWidth?: number;
+  /** Answer box height — defaults to the full grid. */
+  boxHeight?: number;
 }
 
 /**
@@ -31,9 +35,12 @@ export function DecimalAnswerRow({
   onSelectBox,
   tone = colors.text,
   isBoxWritable,
+  cellWidth,
+  boxHeight,
 }: DecimalAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
+  const separatorHeight = (boxHeight ?? ANSWER_BOX_HEIGHT) + 22;
 
   return (
     <View style={styles.row}>
@@ -49,11 +56,18 @@ export function DecimalAnswerRow({
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
             onClear={() => onClearBox(id)}
+            cellWidth={cellWidth}
+            boxHeight={boxHeight}
           />
         );
       })}
 
-      <View style={styles.separator}>
+      <View
+        style={[
+          styles.separator,
+          { height: separatorHeight },
+        ]}
+      >
         <Text style={styles.separatorText}>{DECIMAL_SEPARATOR}</Text>
       </View>
 
@@ -69,6 +83,8 @@ export function DecimalAnswerRow({
             onSelect={() => onSelectBox(id)}
             strokes={boxStrokes}
             onClear={() => onClearBox(id)}
+            cellWidth={cellWidth}
+            boxHeight={boxHeight}
           />
         );
       })}
@@ -79,7 +95,6 @@ export function DecimalAnswerRow({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   separator: {
-    height: ANSWER_BOX_HEIGHT + 22,
     justifyContent: 'flex-end',
     paddingBottom: spacing.md,
   },

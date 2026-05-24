@@ -24,29 +24,40 @@ export interface AnswerBoxProps {
   onClear: () => void;
   accessibilityLabel: string;
   tone?: string;
-  /** Column width — kept equal to the printed problem digit columns. */
-  columnWidth?: number;
+  /** Column width. Defaults to the full-size grid. */
+  cellWidth?: number;
+  /** Box height. Defaults to the full-size grid. */
+  boxHeight?: number;
+  /**
+   * Render with a muted gray background instead of white — used for the
+   * long-division draft grid's "extension" cells past the dividend width,
+   * to read as scratch-like overflow space.
+   */
+  muted?: boolean;
 }
 
-const BOX_INNER_WIDTH = DIGIT_COLUMN_WIDTH - 12;
 const FIT_PADDING = 8;
 const MAX_SCALE = 3.5;
 
 /** Fit a stroke set's bounding box, centred, into the answer box. */
-function fitTransform(strokes: InkStroke[]): PathTransform {
+function fitTransform(
+  strokes: InkStroke[],
+  innerWidth: number,
+  innerHeight: number,
+): PathTransform {
   const bounds = strokesBounds(strokes);
   if (!bounds) return { scale: 1, dx: 0, dy: 0 };
   const width = Math.max(bounds.maxX - bounds.minX, 4);
   const height = Math.max(bounds.maxY - bounds.minY, 4);
   const scale = Math.min(
-    (BOX_INNER_WIDTH - 2 * FIT_PADDING) / width,
-    (ANSWER_BOX_HEIGHT - 2 * FIT_PADDING) / height,
+    (innerWidth - 2 * FIT_PADDING) / width,
+    (innerHeight - 2 * FIT_PADDING) / height,
     MAX_SCALE,
   );
   return {
     scale,
-    dx: BOX_INNER_WIDTH / 2 - (bounds.minX + width / 2) * scale,
-    dy: ANSWER_BOX_HEIGHT / 2 - (bounds.minY + height / 2) * scale,
+    dx: innerWidth / 2 - (bounds.minX + width / 2) * scale,
+    dy: innerHeight / 2 - (bounds.minY + height / 2) * scale,
   };
 }
 
@@ -63,14 +74,21 @@ export function AnswerBox({
   onClear,
   accessibilityLabel,
   tone = colors.text,
-  columnWidth = DIGIT_COLUMN_WIDTH,
+  cellWidth = DIGIT_COLUMN_WIDTH,
+  boxHeight = ANSWER_BOX_HEIGHT,
+  muted = false,
 }: AnswerBoxProps) {
-  const transform = fitTransform(strokes);
+  const boxInnerWidth = cellWidth - 12;
+  const transform = fitTransform(strokes, boxInnerWidth, boxHeight);
   const hasInk = strokes.length > 0;
 
+  // Compact (smaller) boxes get a tighter clear-button slot — but the
+  // round X button itself is 18pt, so the slot must be at least that tall
+  // or the button gets clipped into the cell border below it.
+  const clearSlotHeight = cellWidth < DIGIT_COLUMN_WIDTH ? 20 : 22;
   return (
-    <View style={[styles.column, { width: columnWidth }]}>
-      <View style={styles.clearSlot}>
+    <View style={[styles.column, { width: cellWidth }]}>
+      <View style={[styles.clearSlot, { height: clearSlotHeight }]}>
         {hasInk ? (
           <Pressable
             onPress={onClear}
@@ -91,7 +109,12 @@ export function AnswerBox({
         onPress={onSelect}
         style={[
           styles.box,
-          { borderColor: selected ? tone : colors.border },
+          {
+            width: boxInnerWidth,
+            height: boxHeight,
+            borderColor: selected ? tone : colors.border,
+          },
+          muted && styles.boxMuted,
           selected && styles.boxSelected,
           locked && styles.boxLocked,
         ]}
@@ -116,7 +139,7 @@ export function AnswerBox({
 
 const styles = StyleSheet.create({
   column: { alignItems: 'center' },
-  clearSlot: { height: 22, justifyContent: 'center' },
+  clearSlot: { justifyContent: 'center' },
   clearButton: {
     width: 18,
     height: 18,
@@ -126,13 +149,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   box: {
-    width: BOX_INNER_WIDTH,
-    height: ANSWER_BOX_HEIGHT,
     borderRadius: radius.md,
     borderWidth: 1.5,
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
   boxSelected: { borderWidth: 2.5 },
+  boxMuted: { backgroundColor: colors.surfaceAlt },
   boxLocked: { opacity: 0.4, backgroundColor: colors.surfaceAlt },
 });
