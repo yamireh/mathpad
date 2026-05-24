@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { useTip } from '../../hooks/useTips';
 import { TipBubble } from '../ui';
 import { colors, radius, spacing, typography } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
@@ -402,21 +401,23 @@ function BorrowDigitRow({
   const digits = String(Math.abs(value)).split('').map(Number);
   const display = computeBorrowDisplay(digits, marks);
 
-  const { shouldShow: arrowEnabled, markSeen: dismissArrow } =
-    useTip('borrow-arrow');
+  // The borrow arrow plays EVERY time the kid taps a digit to borrow —
+  // it's a teaching aid, not a one-time tip. (Previously it was gated by
+  // `useTip('borrow-arrow')` which dismissed itself after the first
+  // borrow, hiding the animation for the rest of the session.)
   const prevCount = useRef(marks.length);
   const [arrow, setArrow] = useState<{ column: number; key: number } | null>(
     null,
   );
   useEffect(() => {
-    if (marks.length > prevCount.current && arrowEnabled) {
+    if (marks.length > prevCount.current) {
       const lastColumn = marks[marks.length - 1];
       if (lastColumn >= 0 && lastColumn < digits.length - 1) {
         setArrow({ column: lastColumn, key: Date.now() });
       }
     }
     prevCount.current = marks.length;
-  }, [marks, arrowEnabled, digits.length]);
+  }, [marks, digits.length]);
 
   // Borrow annotation font scales with the digit so the small "crossed-out"
   // value above the digit stays visually proportionate.
@@ -469,11 +470,9 @@ function BorrowDigitRow({
           key={arrow.key}
           column={arrow.column}
           cellCount={digits.length}
+          cellWidth={cellWidth}
           tone={tone}
-          onDone={() => {
-            setArrow(null);
-            dismissArrow();
-          }}
+          onDone={() => setArrow(null)}
         />
       ) : null}
     </View>

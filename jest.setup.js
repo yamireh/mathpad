@@ -32,7 +32,11 @@ jest.mock('./modules/digital-ink', () => ({
 jest.mock('@shopify/react-native-skia', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const makePath = () => ({ moveTo: jest.fn(), lineTo: jest.fn() });
+  const makePath = () => ({
+    moveTo: jest.fn(),
+    lineTo: jest.fn(),
+    quadTo: jest.fn(),
+  });
   return {
     Skia: { Path: { Make: makePath } },
     Canvas: ({ children }) => React.createElement(View, null, children),

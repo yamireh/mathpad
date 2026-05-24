@@ -357,8 +357,14 @@ export interface QuestionWorkspaceHandle {
 
 /** Idle delay between writing one digit and starting the next. */
 const SOLVE_STEP_MS = 750;
-/** Gap between subtraction borrow taps. */
-const SOLVE_BORROW_MS = 750;
+/**
+ * Gap between subtraction borrow taps during the auto-solve. Sized to
+ * cover the full BorrowArrow animation (~280 fade-in + 1500 trace +
+ * 260 label fade-in + 1800 hold + 420 fade-out ≈ 4.26s) plus a small
+ * breath, so each borrow plays its arrow to completion before the next
+ * one fires — exactly like a kid solving step by step.
+ */
+const SOLVE_BORROW_MS = 4500;
 
 /**
  * The shared "solve a question" surface used by Practice and Review.
@@ -684,13 +690,15 @@ export const QuestionWorkspace = forwardRef<
       solveTimersRef.current.push(handle);
     };
 
-    // Subtraction borrows fire first as a quick burst of taps.
+    // Subtraction borrows fire one at a time, leaving the full
+    // SOLVE_BORROW_MS between taps so each tap's borrow-arrow animation
+    // plays from start to finish before the next borrow happens —
+    // mirroring the experience of a kid solving the problem step by step.
     plan.borrows.forEach((column) => {
       const at = delay;
       schedule(() => onToggleBorrow?.(column), at);
       delay += SOLVE_BORROW_MS;
     });
-    if (plan.borrows.length > 0) delay += SOLVE_STEP_MS - SOLVE_BORROW_MS;
 
     orderedWrites.forEach(({ id, value }) => {
       const at = delay;
@@ -1128,12 +1136,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingTop: spacing.sm,
   },
-  problemArea: { paddingVertical: spacing.sm },
+  // Enough headroom up top that the borrow-arrow's `+10` label (which
+  // floats ~24pt above the arc peak — itself a touch above the first
+  // digit row) doesn't get clipped by the practice top bar.
+  problemArea: { paddingTop: spacing.xl, paddingBottom: spacing.sm },
   problemScroll: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+    // Inner top padding so the borrow-arrow's "+10" label has room to
+    // float above the first digit row inside the horizontal ScrollView,
+    // which would otherwise clip it.
+    paddingTop: spacing.lg,
   },
   // Long division: outer padding around the bracket. No horizontal scroll
   // wraps this — the bracket header (divisor + dividend) is statically
