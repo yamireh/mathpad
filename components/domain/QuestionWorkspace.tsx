@@ -16,13 +16,11 @@ import {
 } from 'react-native';
 
 import { digitInk } from '../../lib/solver/digitInk';
-import { computeSolvePlan } from '../../lib/solver/solveValues';
 
-import { Chip, IconButton, TipBubble } from '../ui';
+import { TipBubble } from '../ui';
 import { colors, spacing } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
 import { AnswerArea } from './AnswerArea';
-import { AnswerPad } from './AnswerPad';
 import { DivisionDraftGrid } from './DivisionDraftGrid';
 import { ProblemDisplay } from './ProblemDisplay';
 import { ScratchCanvas, type ScratchCanvasHandle } from './ScratchCanvas';
@@ -41,259 +39,31 @@ import {
   answerShape,
   compactSizing,
   digitCount,
-  divisionDraftRowLayout,
   divisionDraftSize,
   divisionSizing,
   DIVISION_DRAFT_CELL_WIDTH,
   DIVISION_MINUS_WIDTH,
   DIVISION_QUOTIENT_HEIGHT,
-  partialMultiplicationCarries,
   partialWidths,
 } from './layout';
-
-/** Multi-digit × info threaded through fill-sequence + sizing logic. */
-interface MultiplicationInfo {
-  op1: number;
-  op2: number;
-  op1Cols: number;
-  partials: number[];
-}
-
-/** Parse a partial-product box id (`pp-{row}-{col}`) or return null. */
-function parsePartialId(id: string): { row: number; col: number } | null {
-  const m = /^pp-(\d+)-(\d+)$/.exec(id);
-  return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
-}
-
-/** Parse a times-carry box id (`tcarry-{row}-{op1Col}`) or return null. */
-function parseTimesCarryId(
-  id: string,
-): { row: number; col: number } | null {
-  const m = /^tcarry-(\d+)-(\d+)$/.exec(id);
-  return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
-}
-
-/** Parse a division-draft box id (`dd-{row}-{col}`) or return null. */
-function parseDivisionDraftId(
-  id: string,
-): { row: number; col: number } | null {
-  const m = /^dd-(\d+)-(\d+)$/.exec(id);
-  return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
-}
-
-/** Highest row index in the division-draft ink that has any strokes, or -1. */
-function lastDraftInkRow(ink: InkStroke[][][] | undefined): number {
-  if (!ink) return -1;
-  for (let r = ink.length - 1; r >= 0; r -= 1) {
-    if (ink[r]?.some((cell) => cell.length > 0)) return r;
-  }
-  return -1;
-}
+import {
+  fillSequence,
+  lastDraftInkRow,
+  LayoutToggle,
+  type MultiplicationInfo,
+  multiOperandCarries,
+  nextEmptyBox,
+  PadRegion,
+  parseDivisionDraftId,
+  parsePartialId,
+  parseTimesCarryId,
+  partialProductValues,
+  ScratchToolbar,
+  useSolver,
+} from './workspace';
 
 /** Idle time after the last stroke before auto-advancing to the next box. */
 const ADVANCE_DELAY_MS = 300;
-
-/**
- * Build the auto-advance sequence. For a vertical +/× problem, each sum
- * answer box is followed by the carry box above the column to its left
- * when the math actually generates a carry. For multi-digit multiplication,
- * the kid walks each partial product first (units → leftmost), with the
- * per-step times-carry `tcarry-{row}-{op1Col}` slot interleaved between
- * partial cells whenever that step generates a carry into op1's next
- * column. The final-sum walk follows the addition pattern.
- */
-function fillSequence(
-  shape: AnswerShape,
-  layout: ProblemLayout,
-  expectedCarries: boolean[] | null,
-  mult: MultiplicationInfo | null,
-  divisionDraft: {
-    rows: number;
-    columns: number;
-    divisorDigits: number;
-  } | null,
-): string[] {
-  if (layout !== 'vertical' || !expectedCarries) {
-    const order: string[] = [];
-    const isDivision =
-      layout === 'divisionLong' ||
-      layout === 'divisionHorizontal' ||
-      layout === 'divisionDecimal';
-    if (isDivision && divisionDraft && divisionDraft.rows > 0) {
-      // Long division walk: write each quotient digit (integer OR decimal),
-      // then the product + difference rows for that step, then move on.
-      //
-      // The draft grid follows the standard paper layout: each pair of
-      // rows (product + difference) is shifted one column right from the
-      // previous pair, and the difference row is one cell wider than the
-      // product to hold the brought-down digit. Within a row, walk from
-      // the dividend-aligned rightmost cell down to the row's leftmost
-      // cell — units first, the way kids write column arithmetic.
-      const offset = Math.max(0, divisionDraft.columns - shape.integerBoxes);
-      const totalSteps = shape.integerBoxes + shape.decimalBoxes;
-      for (let q = 0; q < totalSteps; q += 1) {
-        const isDecimalStep = q >= shape.integerBoxes;
-        const quotientId = isDecimalStep
-          ? `dec-${q - shape.integerBoxes}`
-          : `int-${q}`;
-        order.push(quotientId);
-        const prodRow = 2 * q;
-        const diffRow = 2 * q + 1;
-        // Where this step's working column ends. For integer steps that's
-        // the dividend column under quotient digit q; for decimal expansion
-        // steps it continues past the dividend into extension cells.
-        const rightCol = q + offset;
-        const pushRow = (row: number, brought: boolean) => {
-          if (row >= divisionDraft.rows) return;
-          const { startCol, cellCount } = divisionDraftRowLayout(
-            row,
-            divisionDraft.columns,
-            {
-              divisorDigits: divisionDraft.divisorDigits,
-              integerQuotientDigits: shape.integerBoxes,
-            },
-          );
-          const lastCol = startCol + cellCount - 1;
-          // Difference row also includes the brought-down digit cell, one
-          // column to the right of the product row's rightmost.
-          const maxCol = Math.min(lastCol, rightCol + (brought ? 1 : 0));
-          for (let c = maxCol; c >= startCol; c -= 1) {
-            order.push(`dd-${row}-${c}`);
-          }
-        };
-        pushRow(prodRow, false);
-        pushRow(diffRow, true);
-      }
-      // Remainder boxes (if any) come at the very end — they're the final
-      // difference transcribed into the answer area.
-      for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
-      return order;
-    }
-    if (isDivision) {
-      for (let i = 0; i < shape.integerBoxes; i += 1) order.push(`int-${i}`);
-    } else {
-      // Vertical layout with no expected carries (subtraction) — right-to-left.
-      for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
-    }
-    for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
-    for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
-    return order;
-  }
-  const seq: string[] = [];
-  if (mult) {
-    const { op1, op2, op1Cols, partials } = mult;
-    let op2Remaining = Math.abs(op2);
-    for (let r = 0; r < partials.length; r += 1) {
-      const width = partials[r];
-      const d = op2Remaining % 10;
-      op2Remaining = Math.floor(op2Remaining / 10);
-      const carries = partialMultiplicationCarries(op1, d, op1Cols);
-      // Walk op1 from units (rightmost) to leftmost. Each step writes one
-      // partial cell; if the step generates a carry into op1's next col,
-      // visit that tcarry slot before the next partial cell.
-      for (let pos = 0; pos < op1Cols; pos += 1) {
-        seq.push(`pp-${r}-${width - 1 - pos}`);
-        if (pos < op1Cols - 1 && carries[pos]) {
-          seq.push(`tcarry-${r}-${op1Cols - 2 - pos}`);
-        }
-      }
-      // Overflow into the partial's leftmost cell when w > op1Cols.
-      if (width > op1Cols) seq.push(`pp-${r}-0`);
-    }
-  }
-  for (let r = 0; r < shape.integerBoxes; r += 1) {
-    const intCol = shape.integerBoxes - 1 - r;
-    seq.push(`int-${intCol}`);
-    const carryCol = intCol - 1;
-    if (carryCol >= 0 && expectedCarries[carryCol]) {
-      seq.push(`carry-${carryCol}`);
-    }
-  }
-  for (let i = 0; i < shape.decimalBoxes; i += 1) seq.push(`dec-${i}`);
-  for (let i = 0; i < shape.remainderBoxes; i += 1) seq.push(`rem-${i}`);
-  return seq;
-}
-
-/**
- * For an N-operand column addition over `columns` digit columns, return a
- * per-column flag (indexed left-to-right) marking columns that *receive* a
- * carry from the column to their right. Used by both addition (`op1 + op2`)
- * and the multiplication sum step (adding the partial products together) so
- * the auto-advance skips carry slots the math says aren't needed.
- */
-function multiOperandCarries(
-  operands: number[],
-  columns: number,
-): boolean[] {
-  const out = new Array<boolean>(columns).fill(false);
-  const remaining = operands.map((o) => Math.abs(o));
-  let carry = 0;
-  for (let pos = 0; pos < columns; pos += 1) {
-    let sum = carry;
-    for (let i = 0; i < remaining.length; i += 1) {
-      sum += remaining[i] % 10;
-      remaining[i] = Math.floor(remaining[i] / 10);
-    }
-    const nextCarry = Math.floor(sum / 10);
-    if (nextCarry > 0) {
-      const receiverFromLeft = columns - 2 - pos;
-      if (receiverFromLeft >= 0) out[receiverFromLeft] = true;
-    }
-    carry = nextCarry;
-  }
-  return out;
-}
-
-/** Partial-product values for `op1 × op2`, shifted into their place values. */
-function partialProductValues(op1: number, op2: number): number[] {
-  const values: number[] = [];
-  let m = Math.abs(op2);
-  let shift = 1;
-  while (m > 0) {
-    values.push(Math.abs(op1) * (m % 10) * shift);
-    m = Math.floor(m / 10);
-    shift *= 10;
-  }
-  return values;
-}
-
-/** First empty box in `seq` strictly after `currentId`; null if none. */
-function nextEmptyBox(
-  seq: string[],
-  currentId: string,
-  ink: AnswerInk,
-  carryInk: InkStroke[][] | undefined,
-  partialInk: InkStroke[][][] | undefined,
-  timesCarryInk: InkStroke[][][] | undefined,
-  divisionDraftInk: InkStroke[][][] | undefined,
-): string | null {
-  const startIdx = seq.indexOf(currentId);
-  for (let i = startIdx + 1; i < seq.length; i += 1) {
-    const id = seq[i];
-    if (id.startsWith('carry-')) {
-      const col = Number(id.slice(6));
-      if ((carryInk?.[col]?.length ?? 0) === 0) return id;
-      continue;
-    }
-    const tc = parseTimesCarryId(id);
-    if (tc) {
-      if ((timesCarryInk?.[tc.row]?.[tc.col]?.length ?? 0) === 0) return id;
-      continue;
-    }
-    const pp = parsePartialId(id);
-    if (pp) {
-      if ((partialInk?.[pp.row]?.[pp.col]?.length ?? 0) === 0) return id;
-      continue;
-    }
-    const dd = parseDivisionDraftId(id);
-    if (dd) {
-      if ((divisionDraftInk?.[dd.row]?.[dd.col]?.length ?? 0) === 0) return id;
-      continue;
-    }
-    if (getBoxStrokes(ink, id).length === 0) return id;
-  }
-  return null;
-}
 
 export interface QuestionWorkspaceProps {
   question: Question;
@@ -355,17 +125,6 @@ export interface QuestionWorkspaceHandle {
    */
   solve: () => void;
 }
-
-/** Idle delay between writing one digit and starting the next. */
-const SOLVE_STEP_MS = 1500;
-/**
- * Gap between subtraction borrow taps during the auto-solve. Sized to
- * cover the full BorrowArrow animation (~280 fade-in + 1500 trace +
- * 260 label fade-in + 1800 hold + 420 fade-out ≈ 4.26s) plus a small
- * breath, so each borrow plays its arrow to completion before the next
- * one fires — exactly like a kid solving step by step.
- */
-const SOLVE_BORROW_MS = 4500;
 
 /**
  * The shared "solve a question" surface used by Practice and Review.
@@ -670,24 +429,6 @@ export const QuestionWorkspace = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBox]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Auto-solve (manual QA / future e2e harness)                              */
-  /* ---------------------------------------------------------------------- */
-  // Pending solve timers — cleared on cancel, on a new solve, and on unmount.
-  const solveTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
-
-  const cancelSolve = useCallback(() => {
-    solveTimersRef.current.forEach(clearTimeout);
-    solveTimersRef.current = [];
-  }, []);
-
-  useEffect(() => cancelSolve, [cancelSolve]);
-
-  // Cancel any in-flight solve when the question itself changes.
-  useEffect(() => {
-    cancelSolve();
-  }, [question.id, cancelSolve]);
-
   const writeBox = useCallback(
     (boxId: string, digit: number) => {
       const strokes = digitInk(digit);
@@ -721,85 +462,20 @@ export const QuestionWorkspace = forwardRef<
     ],
   );
 
-  const solve = useCallback(() => {
-    cancelAdvance();
-    cancelSolve();
-    const plan = computeSolvePlan(question, layout);
-    // Use the same fill order the kid would auto-advance through. Boxes
-    // that have a value in the plan get written; others are skipped
-    // (e.g. carry boxes for columns that don't actually carry).
-    // For long division, generate enough rows for the full work — one
-    // product + one difference row per quotient digit (integer + decimal).
-    const draftSize =
-      isDivision && isLongDivision
-        ? {
-            columns: digitCount(question.operands[0]),
-            rows: 2 * (shape.integerBoxes + shape.decimalBoxes),
-            divisorDigits: digitCount(question.operands[1]),
-          }
-        : null;
-    const seq = fillSequence(
-      shape,
-      layout,
-      expectedCarries,
-      multInfo,
-      draftSize,
-    );
-    const orderedWrites = seq
-      .map((id) => ({ id, value: plan.values.get(id) }))
-      .filter((step): step is { id: string; value: number } =>
-        typeof step.value === 'number',
-      );
-
-    let delay = 0;
-    const schedule = (fn: () => void, ms: number) => {
-      const handle = setTimeout(fn, ms);
-      solveTimersRef.current.push(handle);
-    };
-
-    // Subtraction borrows fire one at a time, leaving the full
-    // SOLVE_BORROW_MS between taps so each tap's borrow-arrow animation
-    // plays from start to finish before the next borrow happens —
-    // mirroring the experience of a kid solving the problem step by step.
-    plan.borrows.forEach((column) => {
-      const at = delay;
-      schedule(() => onToggleBorrow?.(column), at);
-      delay += SOLVE_BORROW_MS;
-    });
-
-    orderedWrites.forEach(({ id, value }) => {
-      const at = delay;
-      const isBringDown = plan.bringDownCells.has(id);
-      schedule(() => {
-        setActiveBox(id);
-        writeBox(id, value);
-        // For long-division bring-downs, bump the per-cell nonce so the
-        // grid runs the drop animation instead of just showing the ink.
-        if (isBringDown) {
-          setBringDownPulse((prev) => ({
-            cellId: id,
-            nonce: (prev?.cellId === id ? prev.nonce : 0) + 1,
-          }));
-        }
-      }, at);
-      delay += SOLVE_STEP_MS;
-    });
-
-    // Close the writing pad at the end so the kid sees the final answer.
-    schedule(() => setActiveBox(null), delay);
-  }, [
-    cancelAdvance,
-    cancelSolve,
+  const { solve } = useSolver({
+    question,
+    layout,
+    shape,
     expectedCarries,
+    multInfo,
     isDivision,
     isLongDivision,
-    layout,
-    multInfo,
-    onToggleBorrow,
-    question,
-    shape,
+    cancelAdvance,
     writeBox,
-  ]);
+    setActiveBox,
+    onToggleBorrow,
+    setBringDownPulse,
+  });
 
   useImperativeHandle(ref, () => ({ solve }), [solve]);
 
@@ -814,40 +490,21 @@ export const QuestionWorkspace = forwardRef<
     />
   );
 
-  // Scratch toolbar — sits at the top of the scratch view (after the kid
-  // finishes filling answers) and mirrors the collapsed-pad toolbar layout
-  // so the icons land in the same visual place across both states.
   const toolbar = (
-    <View style={styles.toolbar}>
-      <IconButton
-        name="trash-outline"
-        accessibilityLabel={t('practice.clearScratch')}
-        onPress={() => scratchRef.current?.clear()}
-      />
-      <IconButton
-        name="arrow-undo-outline"
-        accessibilityLabel={t('practice.undo')}
-        onPress={() => scratchRef.current?.undo()}
-      />
-    </View>
+    <ScratchToolbar
+      onClear={() => scratchRef.current?.clear()}
+      onUndo={() => scratchRef.current?.undo()}
+    />
   );
 
   const layoutToggle =
     isDivision && onLayoutChange ? (
-      <View style={styles.layoutToggle}>
-        <Chip
-          label={t('practice.layoutLong')}
-          selected={isLongDivision}
-          tone={tone}
-          onPress={() => onLayoutChange('divisionLong')}
-        />
-        <Chip
-          label={t('practice.layoutInline')}
-          selected={!isLongDivision}
-          tone={tone}
-          onPress={() => onLayoutChange(inlineLayout)}
-        />
-      </View>
+      <LayoutToggle
+        isLongDivision={isLongDivision}
+        tone={tone}
+        onChange={onLayoutChange}
+        inlineLayout={inlineLayout}
+      />
     ) : null;
 
   // Division: shared activeBox / pad routing with +/−/× now. The quotient
@@ -971,66 +628,61 @@ export const QuestionWorkspace = forwardRef<
             and the bottom-bar buttons (Back / Next / Finish) stay
             visible in their normal spot. */}
         {activeBox ? (
-          <View
-            style={padCollapsed ? styles.bottomRegionCollapsed : styles.bottomRegion}
-          >
-            <AnswerPad
-              key={`${activeBox}:${padNonce}`}
-              strokes={
-                activeDivisionDraft
-                  ? (divisionDraftInk?.[activeDivisionDraft.row]?.[
-                      activeDivisionDraft.col
-                    ] ?? [])
-                  : getBoxStrokes(answerInk, activeBox)
+          <PadRegion
+            activeBox={activeBox}
+            padNonce={padNonce}
+            collapsed={padCollapsed}
+            onToggleCollapsed={() => setPadCollapsed((c) => !c)}
+            strokes={
+              activeDivisionDraft
+                ? (divisionDraftInk?.[activeDivisionDraft.row]?.[
+                    activeDivisionDraft.col
+                  ] ?? [])
+                : getBoxStrokes(answerInk, activeBox)
+            }
+            onStrokeStart={cancelAdvance}
+            onStrokesChange={(strokes) => {
+              const prev = lastStrokeCountRef.current;
+              lastStrokeCountRef.current = strokes.length;
+              if (activeDivisionDraft) {
+                onDivisionDraftInkChange?.(
+                  activeDivisionDraft.row,
+                  activeDivisionDraft.col,
+                  strokes,
+                );
+              } else {
+                onAnswerInkChange(setBoxStrokes(answerInk, activeBox, strokes));
               }
-              onStrokeStart={cancelAdvance}
-              onStrokesChange={(strokes) => {
-                const prev = lastStrokeCountRef.current;
-                lastStrokeCountRef.current = strokes.length;
-                if (activeDivisionDraft) {
-                  onDivisionDraftInkChange?.(
-                    activeDivisionDraft.row,
-                    activeDivisionDraft.col,
-                    strokes,
-                  );
-                } else {
-                  onAnswerInkChange(
-                    setBoxStrokes(answerInk, activeBox, strokes),
-                  );
-                }
-                if (strokes.length <= prev) {
-                  cancelAdvance();
-                  return;
-                }
+              if (strokes.length <= prev) {
                 cancelAdvance();
-                advanceTimerRef.current = setTimeout(() => {
-                  advanceTimerRef.current = null;
-                  const seq = fillSequence(
-                    shape,
-                    layout,
-                    expectedCarries,
-                    multInfo,
-                    draftRows > 0 ? draftGridSize : null,
-                  );
-                  const next = nextEmptyBox(
-                    seq,
-                    activeBox,
-                    latestInkRef.current,
-                    latestCarryInkRef.current,
-                    latestPartialInkRef.current,
-                    latestTimesCarryRef.current,
-                    latestDivisionDraftRef.current,
-                  );
-                  setActiveBox(next);
-                }, ADVANCE_DELAY_MS);
-              }}
-              onClearAll={clearAllAnswers}
-              onUndo={onUndo}
-              canUndo={canUndo}
-              onToggleCollapsed={() => setPadCollapsed((c) => !c)}
-              collapsed={padCollapsed}
-            />
-          </View>
+                return;
+              }
+              cancelAdvance();
+              advanceTimerRef.current = setTimeout(() => {
+                advanceTimerRef.current = null;
+                const seq = fillSequence(
+                  shape,
+                  layout,
+                  expectedCarries,
+                  multInfo,
+                  draftRows > 0 ? draftGridSize : null,
+                );
+                const next = nextEmptyBox(
+                  seq,
+                  activeBox,
+                  latestInkRef.current,
+                  latestCarryInkRef.current,
+                  latestPartialInkRef.current,
+                  latestTimesCarryRef.current,
+                  latestDivisionDraftRef.current,
+                );
+                setActiveBox(next);
+              }, ADVANCE_DELAY_MS);
+            }}
+            onClearAll={clearAllAnswers}
+            onUndo={onUndo}
+            canUndo={canUndo}
+          />
         ) : isLongDivision ? null : (
           <View style={styles.bottomRegion}>
             {toolbar}
@@ -1117,78 +769,63 @@ export const QuestionWorkspace = forwardRef<
       </View>
 
       {activeBox ? (
-        <View
-          style={padCollapsed ? styles.bottomRegionCollapsed : styles.bottomRegion}
-        >
-          <AnswerPad
-            key={`${activeBox}:${padNonce}`}
-            strokes={
-              activeCarryColumn >= 0
-                ? (carryInk?.[activeCarryColumn] ?? [])
-                : activePartial
-                  ? (partialInk?.[activePartial.row]?.[activePartial.col] ?? [])
-                  : activeTimesCarry
-                    ? (timesCarryInk?.[activeTimesCarry.row]?.[
-                        activeTimesCarry.col
-                      ] ?? [])
-                    : getBoxStrokes(answerInk, activeBox)
+        <PadRegion
+          activeBox={activeBox}
+          padNonce={padNonce}
+          collapsed={padCollapsed}
+          onToggleCollapsed={() => setPadCollapsed((c) => !c)}
+          strokes={
+            activeCarryColumn >= 0
+              ? (carryInk?.[activeCarryColumn] ?? [])
+              : activePartial
+                ? (partialInk?.[activePartial.row]?.[activePartial.col] ?? [])
+                : activeTimesCarry
+                  ? (timesCarryInk?.[activeTimesCarry.row]?.[
+                      activeTimesCarry.col
+                    ] ?? [])
+                  : getBoxStrokes(answerInk, activeBox)
+          }
+          onStrokeStart={cancelAdvance}
+          onStrokesChange={(strokes) => {
+            const prev = lastStrokeCountRef.current;
+            lastStrokeCountRef.current = strokes.length;
+            if (activeCarryColumn >= 0) {
+              onCarryInkChange?.(activeCarryColumn, strokes);
+            } else if (activePartial) {
+              onPartialInkChange?.(activePartial.row, activePartial.col, strokes);
+            } else if (activeTimesCarry) {
+              onTimesCarryInkChange?.(
+                activeTimesCarry.row,
+                activeTimesCarry.col,
+                strokes,
+              );
+            } else {
+              onAnswerInkChange(setBoxStrokes(answerInk, activeBox, strokes));
             }
-            onStrokeStart={cancelAdvance}
-            onStrokesChange={(strokes) => {
-              const prev = lastStrokeCountRef.current;
-              lastStrokeCountRef.current = strokes.length;
-              if (activeCarryColumn >= 0) {
-                onCarryInkChange?.(activeCarryColumn, strokes);
-              } else if (activePartial) {
-                onPartialInkChange?.(
-                  activePartial.row,
-                  activePartial.col,
-                  strokes,
-                );
-              } else if (activeTimesCarry) {
-                onTimesCarryInkChange?.(
-                  activeTimesCarry.row,
-                  activeTimesCarry.col,
-                  strokes,
-                );
-              } else {
-                onAnswerInkChange(
-                  setBoxStrokes(answerInk, activeBox, strokes),
-                );
-              }
-              if (strokes.length <= prev) {
-                cancelAdvance();
-                return;
-              }
+            if (strokes.length <= prev) {
               cancelAdvance();
-              advanceTimerRef.current = setTimeout(() => {
-                advanceTimerRef.current = null;
-                const seq = fillSequence(
-                  shape,
-                  layout,
-                  expectedCarries,
-                  multInfo,
-                  null,
-                );
-                const next = nextEmptyBox(
-                  seq,
-                  activeBox,
-                  latestInkRef.current,
-                  latestCarryInkRef.current,
-                  latestPartialInkRef.current,
-                  latestTimesCarryRef.current,
-                  latestDivisionDraftRef.current,
-                );
-                setActiveBox(next);
-              }, ADVANCE_DELAY_MS);
-            }}
-            onClearAll={clearAllAnswers}
-            onUndo={onUndo}
-            canUndo={canUndo}
-            onToggleCollapsed={() => setPadCollapsed((c) => !c)}
-            collapsed={padCollapsed}
-          />
-        </View>
+              return;
+            }
+            cancelAdvance();
+            advanceTimerRef.current = setTimeout(() => {
+              advanceTimerRef.current = null;
+              const seq = fillSequence(shape, layout, expectedCarries, multInfo, null);
+              const next = nextEmptyBox(
+                seq,
+                activeBox,
+                latestInkRef.current,
+                latestCarryInkRef.current,
+                latestPartialInkRef.current,
+                latestTimesCarryRef.current,
+                latestDivisionDraftRef.current,
+              );
+              setActiveBox(next);
+            }, ADVANCE_DELAY_MS);
+          }}
+          onClearAll={clearAllAnswers}
+          onUndo={onUndo}
+          canUndo={canUndo}
+        />
       ) : (
         <View style={styles.bottomRegion}>
           {toolbar}
@@ -1208,12 +845,6 @@ export const QuestionWorkspace = forwardRef<
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  layoutToggle: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingTop: spacing.sm,
-  },
   // Enough headroom up top that the borrow-arrow's `+10` label (which
   // floats ~24pt above the arc peak — itself a touch above the first
   // digit row) doesn't get clipped by the practice top bar.
@@ -1246,21 +877,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
-  // Collapsed: still takes the full bottom region, but pushes its content
-  // (the toolbar + canvas sliver) to the bottom edge so the answer area
-  // above gets the freed-up space.
-  bottomRegionCollapsed: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-    justifyContent: 'flex-end',
-  },
   bottomTip: { marginBottom: spacing.sm },
-  // Left-aligned row mirroring the writing-pad header so trash + undo
-  // land in the same spot whether the kid is writing or scratching.
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
 });

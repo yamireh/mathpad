@@ -28,6 +28,17 @@
     "history": "History",
     "settings": "Settings"
   },
+  "topics": {
+    "operations": "Operations",
+    "shapes": "Shapes",
+    "clock": "Clock",
+    "axis": "Coordinates"
+  },
+  "comingSoon": {
+    "tag": "Coming soon",
+    "headline": "Coming soon!",
+    "body": "We're cooking up something fun. Check back later."
+  },
   "settings": {
     "title": "{{operation}} settings",
     "digits": "Number of digits",
