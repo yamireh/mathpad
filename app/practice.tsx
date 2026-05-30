@@ -22,6 +22,8 @@ import {
   useResetTips,
   useTimer,
 } from '../hooks';
+import { errorFeedback, successFeedback } from '../lib/feedback';
+import { isAnswerCorrect } from '../lib/scoring';
 
 /** Practice — solve the session's questions one at a time. */
 export default function PracticeScreen() {
@@ -37,6 +39,8 @@ export default function PracticeScreen() {
     updatePartialInk,
     updateTimesCarryInk,
     updateDivisionDraftInk,
+    undoLastAction,
+    clearUndoHistory,
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -62,6 +66,21 @@ export default function PracticeScreen() {
       Alert.alert(t('app.name'), t('practice.helpMessage'));
     }
   }, [finish, recognizeAnswer, router, t]);
+
+  // Recognise the current question's ink and play success/error sound.
+  // Awaited before advancing so the sound feels tied to the click.
+  const judgeCurrentAnswer = useCallback(async () => {
+    if (!session) return;
+    const q = session.questions[index];
+    const layout = session.layoutOverrides[q.id] ?? q.layout;
+    try {
+      const submitted = await recognizeAnswer(session.answerInk[q.id], layout);
+      if (isAnswerCorrect(q, submitted)) successFeedback();
+      else errorFeedback();
+    } catch {
+      // recognition failed — skip the sound rather than fake a verdict.
+    }
+  }, [session, index, recognizeAnswer]);
 
   const timerSeconds =
     session && session.settings.timer.enabled
@@ -157,18 +176,13 @@ export default function PracticeScreen() {
         onDivisionDraftInkChange={(row, col, strokes) =>
           updateDivisionDraftInk(question.id, row, col, strokes)
         }
+        onUndo={() => undoLastAction(question.id)}
+        canUndo={(session.undoStacks[question.id]?.length ?? 0) > 0}
+        onClearUndoHistory={() => clearUndoHistory(question.id)}
         tone={accent}
       />
 
       <View style={styles.bottomBar}>
-        {index > 0 ? (
-          <Button
-            label={t('common.back')}
-            variant="secondary"
-            fullWidth={false}
-            onPress={() => setIndex((i) => Math.max(0, i - 1))}
-          />
-        ) : null}
         <View style={styles.primaryButton}>
           <Button
             label={isLast ? t('practice.finish') : t('common.next')}
@@ -176,11 +190,15 @@ export default function PracticeScreen() {
             disabled={submitting}
             onPress={
               isLast
-                ? () => {
+                ? async () => {
+                    await judgeCurrentAnswer();
                     stop();
                     void handleFinish();
                   }
-                : () => setIndex((i) => Math.min(total - 1, i + 1))
+                : async () => {
+                    await judgeCurrentAnswer();
+                    setIndex((i) => Math.min(total - 1, i + 1));
+                  }
             }
           />
         </View>

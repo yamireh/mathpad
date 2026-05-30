@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -19,18 +18,14 @@ import {
 import { digitInk } from '../../lib/solver/digitInk';
 import { computeSolvePlan } from '../../lib/solver/solveValues';
 
-import { Button, Chip, IconButton, TipBubble } from '../ui';
-import { colors, spacing, typography } from '../../constants/design';
+import { Chip, IconButton, TipBubble } from '../ui';
+import { colors, spacing } from '../../constants/design';
 import type { ProblemLayout, Question } from '../../types';
 import { AnswerArea } from './AnswerArea';
 import { AnswerPad } from './AnswerPad';
 import { DivisionDraftGrid } from './DivisionDraftGrid';
 import { ProblemDisplay } from './ProblemDisplay';
-import {
-  ScratchCanvas,
-  type ScratchCanvasHandle,
-  type ScratchTool,
-} from './ScratchCanvas';
+import { ScratchCanvas, type ScratchCanvasHandle } from './ScratchCanvas';
 import {
   type AnswerInk,
   emptyAnswerInk,
@@ -342,6 +337,12 @@ export interface QuestionWorkspaceProps {
     col: number,
     strokes: InkStroke[],
   ) => void;
+  /** Undo the last ink change on this question. */
+  onUndo?: () => void;
+  /** Whether there's anything to undo (controls the button's enabled state). */
+  canUndo?: boolean;
+  /** Wipes this question's undo stack (called after Clear All). */
+  onClearUndoHistory?: () => void;
   tone: string;
 }
 
@@ -356,7 +357,7 @@ export interface QuestionWorkspaceHandle {
 }
 
 /** Idle delay between writing one digit and starting the next. */
-const SOLVE_STEP_MS = 750;
+const SOLVE_STEP_MS = 1500;
 /**
  * Gap between subtraction borrow taps during the auto-solve. Sized to
  * cover the full BorrowArrow animation (~280 fade-in + 1500 trace +
@@ -394,6 +395,9 @@ export const QuestionWorkspace = forwardRef<
     onTimesCarryInkChange,
     divisionDraftInk,
     onDivisionDraftInkChange,
+    onUndo,
+    canUndo = false,
+    onClearUndoHistory,
     tone,
   }: QuestionWorkspaceProps,
   ref,
@@ -402,6 +406,10 @@ export const QuestionWorkspace = forwardRef<
   const shape = answerShape(question);
   // Multi-digit × starts on the units cell of partial 0 (where the kid
   // actually begins the long-multiplication walk) instead of the sum row.
+  // `padCollapsed` lets the kid temporarily hide the writing pad to use
+  // scratch without losing their active box. Re-expanded via the small
+  // chevron-up handle that appears on top of scratch.
+  const [padCollapsed, setPadCollapsed] = useState(false);
   const [activeBox, setActiveBox] = useState<string | null>(() => {
     if (question.operation === 'multiplication') {
       const widths = partialWidths(
@@ -412,8 +420,13 @@ export const QuestionWorkspace = forwardRef<
     }
     return frontierBox(answerInk, shape, layout);
   });
-  const [tool, setTool] = useState<ScratchTool>('pen');
   const [padNonce, setPadNonce] = useState(0);
+  // Bumping the nonce for a cell id triggers a one-shot drop animation
+  // on that draft cell (used by the long-division auto-solver).
+  const [bringDownPulse, setBringDownPulse] = useState<{
+    cellId: string;
+    nonce: number;
+  } | null>(null);
   const scratchRef = useRef<ScratchCanvasHandle>(null);
 
   const isLongDivision = layout === 'divisionLong';
@@ -507,11 +520,19 @@ export const QuestionWorkspace = forwardRef<
 
   useEffect(() => cancelAdvance, [cancelAdvance]);
 
+  // Whenever the active box changes (auto-advance, fresh tap, new question),
+  // re-expand the pad. Collapsed state is per-tap, not sticky.
+  useEffect(() => {
+    setPadCollapsed(false);
+  }, [activeBox]);
+
   // Sequential fill: tapping a still-locked box snaps to the next box to fill.
   // Carry / partial / times-carry / division-draft boxes are always writable
   // (they're working-out, not the recognised answer).
   const selectBox = (boxId: string) => {
     cancelAdvance();
+    // Re-tapping a box should always re-open the pad if it was collapsed.
+    setPadCollapsed(false);
     if (
       boxId.startsWith('carry-') ||
       boxId.startsWith('pp-') ||
@@ -528,11 +549,57 @@ export const QuestionWorkspace = forwardRef<
     );
   };
 
-  // Clear every answer box and return focus to the first box.
+  // Clear every input on this question: answer, scratch, carry, partials,
+  // times-carry, division draft, and borrow marks. Returns focus to the
+  // first writable box.
   const clearAllAnswers = () => {
     cancelAdvance();
     const empty = emptyAnswerInk(shape);
     onAnswerInkChange(empty);
+
+    scratchRef.current?.clear();
+
+    if (onCarryInkChange && carryInk) {
+      for (let col = 0; col < carryInk.length; col += 1) {
+        if (carryInk[col]?.length) onCarryInkChange(col, []);
+      }
+    }
+    if (onPartialInkChange && partialInk) {
+      for (let row = 0; row < partialInk.length; row += 1) {
+        const rowInk = partialInk[row];
+        if (!rowInk) continue;
+        for (let col = 0; col < rowInk.length; col += 1) {
+          if (rowInk[col]?.length) onPartialInkChange(row, col, []);
+        }
+      }
+    }
+    if (onTimesCarryInkChange && timesCarryInk) {
+      for (let row = 0; row < timesCarryInk.length; row += 1) {
+        const rowInk = timesCarryInk[row];
+        if (!rowInk) continue;
+        for (let col = 0; col < rowInk.length; col += 1) {
+          if (rowInk[col]?.length) onTimesCarryInkChange(row, col, []);
+        }
+      }
+    }
+    if (onDivisionDraftInkChange && divisionDraftInk) {
+      for (let row = 0; row < divisionDraftInk.length; row += 1) {
+        const rowInk = divisionDraftInk[row];
+        if (!rowInk) continue;
+        for (let col = 0; col < rowInk.length; col += 1) {
+          if (rowInk[col]?.length) onDivisionDraftInkChange(row, col, []);
+        }
+      }
+    }
+    if (onToggleBorrow && borrowMarks) {
+      // toggleBorrow flips state — calling it once per marked column clears.
+      for (const col of borrowMarks) onToggleBorrow(col);
+    }
+
+    // Clear All also wipes the undo history — cleared work should not be
+    // resurrectable by tapping undo.
+    onClearUndoHistory?.();
+
     setActiveBox(frontierBox(empty, shape, layout));
     setPadNonce((n) => n + 1);
   };
@@ -702,9 +769,18 @@ export const QuestionWorkspace = forwardRef<
 
     orderedWrites.forEach(({ id, value }) => {
       const at = delay;
+      const isBringDown = plan.bringDownCells.has(id);
       schedule(() => {
         setActiveBox(id);
         writeBox(id, value);
+        // For long-division bring-downs, bump the per-cell nonce so the
+        // grid runs the drop animation instead of just showing the ink.
+        if (isBringDown) {
+          setBringDownPulse((prev) => ({
+            cellId: id,
+            nonce: (prev?.cellId === id ? prev.nonce : 0) + 1,
+          }));
+        }
       }, at);
       delay += SOLVE_STEP_MS;
     });
@@ -730,7 +806,7 @@ export const QuestionWorkspace = forwardRef<
   const scratch = (
     <ScratchCanvas
       ref={scratchRef}
-      tool={tool}
+      tool="pen"
       bordered={!isLongDivision}
       initialStrokes={scratchInk}
       onStrokesChange={onScratchInkChange}
@@ -738,28 +814,21 @@ export const QuestionWorkspace = forwardRef<
     />
   );
 
+  // Scratch toolbar — sits at the top of the scratch view (after the kid
+  // finishes filling answers) and mirrors the collapsed-pad toolbar layout
+  // so the icons land in the same visual place across both states.
   const toolbar = (
     <View style={styles.toolbar}>
-      <Text style={styles.scratchLabel}>{t('practice.scratchHint')}</Text>
-      <View style={styles.tools}>
-        <Button
-          label={t('practice.eraser')}
-          variant={tool === 'eraser' ? 'primary' : 'secondary'}
-          tone={tone}
-          fullWidth={false}
-          onPress={() => setTool(tool === 'eraser' ? 'pen' : 'eraser')}
-        />
-        <IconButton
-          name="arrow-undo-outline"
-          accessibilityLabel={t('practice.undo')}
-          onPress={() => scratchRef.current?.undo()}
-        />
-        <IconButton
-          name="trash-outline"
-          accessibilityLabel={t('practice.clearScratch')}
-          onPress={() => scratchRef.current?.clear()}
-        />
-      </View>
+      <IconButton
+        name="trash-outline"
+        accessibilityLabel={t('practice.clearScratch')}
+        onPress={() => scratchRef.current?.clear()}
+      />
+      <IconButton
+        name="arrow-undo-outline"
+        accessibilityLabel={t('practice.undo')}
+        onPress={() => scratchRef.current?.undo()}
+      />
     </View>
   );
 
@@ -860,6 +929,7 @@ export const QuestionWorkspace = forwardRef<
           cellWidth={dCellWidth}
           divisorDigits={digitCount(question.operands[1])}
           integerQuotientDigits={shape.integerBoxes}
+          bringDownPulse={bringDownPulse}
         />
       ) : null;
     return (
@@ -901,7 +971,9 @@ export const QuestionWorkspace = forwardRef<
             and the bottom-bar buttons (Back / Next / Finish) stay
             visible in their normal spot. */}
         {activeBox ? (
-          <View style={styles.bottomRegion}>
+          <View
+            style={padCollapsed ? styles.bottomRegionCollapsed : styles.bottomRegion}
+          >
             <AnswerPad
               key={`${activeBox}:${padNonce}`}
               strokes={
@@ -953,15 +1025,18 @@ export const QuestionWorkspace = forwardRef<
                 }, ADVANCE_DELAY_MS);
               }}
               onClearAll={clearAllAnswers}
-              onDone={() => setActiveBox(null)}
-              tone={tone}
+              onUndo={onUndo}
+              canUndo={canUndo}
+              onToggleCollapsed={() => setPadCollapsed((c) => !c)}
+              collapsed={padCollapsed}
             />
           </View>
         ) : isLongDivision ? null : (
-          <View style={styles.bottomRegion}>{scratch}</View>
+          <View style={styles.bottomRegion}>
+            {toolbar}
+            {scratch}
+          </View>
         )}
-
-        {activeBox || isLongDivision ? null : toolbar}
       </View>
     );
   }
@@ -1042,7 +1117,9 @@ export const QuestionWorkspace = forwardRef<
       </View>
 
       {activeBox ? (
-        <View style={styles.bottomRegion}>
+        <View
+          style={padCollapsed ? styles.bottomRegionCollapsed : styles.bottomRegion}
+        >
           <AnswerPad
             key={`${activeBox}:${padNonce}`}
             strokes={
@@ -1106,12 +1183,15 @@ export const QuestionWorkspace = forwardRef<
               }, ADVANCE_DELAY_MS);
             }}
             onClearAll={clearAllAnswers}
-            onDone={() => setActiveBox(null)}
-            tone={tone}
+            onUndo={onUndo}
+            canUndo={canUndo}
+            onToggleCollapsed={() => setPadCollapsed((c) => !c)}
+            collapsed={padCollapsed}
           />
         </View>
       ) : (
         <View style={styles.bottomRegion}>
+          {toolbar}
           <TipBubble
             id="tap-answer-box"
             when={frontierBox(answerInk, shape, layout) !== null}
@@ -1122,8 +1202,6 @@ export const QuestionWorkspace = forwardRef<
           {scratch}
         </View>
       )}
-
-      {activeBox ? null : toolbar}
     </View>
   );
 });
@@ -1168,18 +1246,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
+  // Collapsed: still takes the full bottom region, but pushes its content
+  // (the toolbar + canvas sliver) to the bottom edge so the answer area
+  // above gets the freed-up space.
+  bottomRegionCollapsed: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    justifyContent: 'flex-end',
+  },
   bottomTip: { marginBottom: spacing.sm },
+  // Left-aligned row mirroring the writing-pad header so trash + undo
+  // land in the same spot whether the kid is writing or scratching.
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
-  scratchLabel: {
-    flex: 1,
-    fontSize: typography.size.caption,
-    color: colors.textMuted,
-  },
-  tools: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 });

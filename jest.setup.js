@@ -15,6 +15,45 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+// expo-audio is a native binding with no JS runtime under Jest. Mock the
+// hook + helpers the scratch sound and feedback module go through.
+jest.mock('expo-audio', () => {
+  const fakePlayer = () => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    seekTo: jest.fn(),
+    loop: false,
+    volume: 1,
+    isLoaded: true,
+    duration: 0,
+    playing: false,
+  });
+  return {
+    useAudioPlayer: fakePlayer,
+    useAudioPlayerStatus: () => ({
+      isLoaded: true,
+      duration: 0,
+      playing: false,
+      didJustFinish: false,
+    }),
+    createAudioPlayer: fakePlayer,
+    setAudioModeAsync: jest.fn().mockResolvedValue(undefined),
+    setIsAudioActiveAsync: jest.fn().mockResolvedValue(undefined),
+  };
+});
+
+// expo-haptics — fire-and-forget API that needs to be silent in tests.
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
+  ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium', Heavy: 'Heavy' },
+  NotificationFeedbackType: {
+    Success: 'Success',
+    Warning: 'Warning',
+    Error: 'Error',
+  },
+}));
+
 // The digital-ink native module has no JS implementation under Jest. Mock it so
 // the recognition adapter (and anything that imports it) is testable; tests
 // override the return values per case.

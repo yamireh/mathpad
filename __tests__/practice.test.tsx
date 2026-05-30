@@ -13,7 +13,7 @@ import type {
 
 const additionSettings: AdditionSettings = {
   operation: 'addition',
-  digitRange: { min: 1, max: 1 },
+  digitCounts: [1],
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'random',
@@ -21,7 +21,7 @@ const additionSettings: AdditionSettings = {
 
 const divisionSettings: DivisionSettings = {
   operation: 'division',
-  digitRange: { min: 2, max: 2 },
+  digitCounts: [2],
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   answerType: 'noRemainder',
@@ -31,7 +31,7 @@ const divisionSettings: DivisionSettings = {
 
 const carryAdditionSettings: AdditionSettings = {
   operation: 'addition',
-  digitRange: { min: 2, max: 2 },
+  digitCounts: [2],
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'with',
@@ -39,7 +39,7 @@ const carryAdditionSettings: AdditionSettings = {
 
 const subtractionSettings: SubtractionSettings = {
   operation: 'subtraction',
-  digitRange: { min: 2, max: 2 },
+  digitCounts: [2],
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   borrowing: 'with',
@@ -72,18 +72,18 @@ describe('Practice screen', () => {
     expect(screen.getByText('Next')).toBeOnTheScreen();
   });
 
-  it('opens the answer pad, with Done returning to the scratch area', async () => {
+  it('opens the answer pad, with the chevron-down handle collapsing it', async () => {
     renderPractice(additionSettings);
     // The pad is focused on the first answer box on entry.
     await waitFor(() =>
-      expect(screen.getByText('Done')).toBeOnTheScreen(),
+      expect(screen.getByLabelText('Close writing pad')).toBeOnTheScreen(),
     );
-    // Done switches back to the scratch area and its tools.
-    fireEvent.press(screen.getByText('Done'));
-    expect(
-      screen.getByText('Scratch area — your working out'),
-    ).toBeOnTheScreen();
-    expect(screen.getByText('Eraser')).toBeOnTheScreen();
+    // The close handle collapses the pad and reveals just the expand handle.
+    fireEvent.press(screen.getByLabelText('Close writing pad'));
+    expect(screen.getByLabelText('Open writing pad')).toBeOnTheScreen();
+    // Tapping the expand handle restores the pad.
+    fireEvent.press(screen.getByLabelText('Open writing pad'));
+    expect(screen.getByLabelText('Close writing pad')).toBeOnTheScreen();
   });
 
   it('offers a long ⇄ in-a-row layout toggle for division', async () => {
@@ -106,7 +106,7 @@ describe('Practice screen', () => {
     expect(carryBoxes.length).toBeGreaterThan(0);
     // Tapping a carry box focuses the writing pad without error.
     fireEvent.press(carryBoxes[0]);
-    expect(screen.getByText('Done')).toBeOnTheScreen();
+    expect(screen.getByLabelText('Close writing pad')).toBeOnTheScreen();
   });
 
   it('lets you tap a top digit to borrow on a subtraction', async () => {

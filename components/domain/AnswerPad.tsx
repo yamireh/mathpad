@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 
-import { Button, TipBubble } from '../ui';
+import { IconButton, TipBubble } from '../ui';
 import { colors, radius, spacing } from '../../constants/design';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
 
@@ -19,9 +19,14 @@ export interface AnswerPadProps {
   onStrokeStart?: () => void;
   /** Clear every answer box (per-box clears live on the boxes themselves). */
   onClearAll: () => void;
-  /** Return to the scratch area. */
-  onDone: () => void;
-  tone: string;
+  /** Undo the last input change on this question (any input area). */
+  onUndo?: () => void;
+  /** Whether there is anything left to undo. */
+  canUndo?: boolean;
+  /** Toggle the pad between full-height (expanded) and a small handle. */
+  onToggleCollapsed: () => void;
+  /** When true, the pad shrinks to its toolbar + a small touch sliver. */
+  collapsed?: boolean;
 }
 
 /** Stroke width on the big pad (thicker — strokes are scaled down in the box). */
@@ -37,34 +42,46 @@ export function AnswerPad({
   onStrokesChange,
   onStrokeStart,
   onClearAll,
-  onDone,
-  tone,
+  onUndo,
+  canUndo = false,
+  onToggleCollapsed,
+  collapsed = false,
 }: AnswerPadProps) {
   const { t } = useTranslation();
   const ink = useInkCapture(strokes, onStrokesChange);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, collapsed && styles.containerCollapsed]}>
       <View style={styles.header}>
-        <Button
-          label={t('common.clearAll')}
-          variant="secondary"
-          fullWidth={false}
-          onPress={onClearAll}
-        />
-        <Button
-          label={t('common.done')}
-          tone={tone}
-          fullWidth={false}
-          onPress={onDone}
+        <View style={styles.headerLeft}>
+          <IconButton
+            name="trash-outline"
+            accessibilityLabel={t('common.clearAll')}
+            onPress={onClearAll}
+          />
+          {onUndo ? (
+            <IconButton
+              name="arrow-undo-outline"
+              accessibilityLabel={t('practice.undo')}
+              disabled={!canUndo}
+              onPress={onUndo}
+            />
+          ) : null}
+        </View>
+        <IconButton
+          name={collapsed ? 'chevron-up' : 'chevron-down'}
+          accessibilityLabel={
+            collapsed ? t('practice.openPad') : t('practice.closePad')
+          }
+          onPress={onToggleCollapsed}
         />
       </View>
 
       <View
-        style={styles.canvas}
+        style={[styles.canvas, collapsed && styles.canvasCollapsed]}
         accessibilityLabel={t('a11y.answerPad')}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
+        onStartShouldSetResponder={() => !collapsed}
+        onMoveShouldSetResponder={() => !collapsed}
         onResponderTerminationRequest={() => false}
         onResponderGrant={(e: GestureResponderEvent) => {
           onStrokeStart?.();
@@ -115,10 +132,16 @@ export function AnswerPad({
 
 const styles = StyleSheet.create({
   container: { flex: 1, gap: spacing.sm },
+  containerCollapsed: { flex: 0, gap: spacing.sm },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   canvas: {
@@ -129,6 +152,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: 'hidden',
   },
+  // Collapsed: a short sliver below the toolbar so the kid can still see
+  // the writing-pad surface is parked there, ready to be re-opened.
+  canvasCollapsed: { flex: 0, height: 36 },
   tipOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

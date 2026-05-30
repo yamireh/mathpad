@@ -70,7 +70,13 @@ export type DivisionAnswerType =
 
 /** Settings common to every operation. */
 export interface BaseSettings {
-  digitRange: DigitRange;
+  /**
+   * Digit-count picker. Multi-select — every selected count is equally
+   * likely to drive an operand's digit count when generating questions.
+   * `[2, 3]` matches the old "from 2 to 3" range, but the kid can now
+   * skip a value (e.g. `[2, 4]` gives 2- and 4-digit problems only).
+   */
+  digitCounts: DigitCount[];
   questionCount: QuestionCount;
   timer: TimerSetting;
 }
@@ -95,9 +101,9 @@ export interface DivisionSettings extends BaseSettings {
   operation: 'division';
   answerType: DivisionAnswerType;
   /**
-   * Dividend digit count (single number, not a range). Division questions
-   * use a precise dividend / divisor digit count rather than the
-   * `digitRange` field from `BaseSettings`, which is left at its defaults.
+   * Dividend digit count (single number, not a multi-select). Division
+   * questions use a precise dividend / divisor digit count rather than the
+   * `digitCounts` field from `BaseSettings`, which is left at its defaults.
    */
   dividendDigits: DigitCount;
   /** Divisor digit count (single number). */

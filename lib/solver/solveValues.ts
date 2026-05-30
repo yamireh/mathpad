@@ -21,6 +21,13 @@ export interface SolvePlan {
   values: Map<string, number>;
   /** Top-operand column indices (left → right) to tap as borrow lenders. */
   borrows: number[];
+  /**
+   * Long-division draft cells that receive a brought-down digit (rather
+   * than a product/diff digit). Used by the auto-solver to animate the
+   * digit visibly dropping down from the dividend instead of just popping
+   * into place. Empty for non-long-division questions.
+   */
+  bringDownCells: Set<string>;
 }
 
 /** Build the full Solve plan for a question, given its current layout. */
@@ -67,7 +74,7 @@ function solveAddition(question: Question): SolvePlan {
     }
     carry = nextCarry;
   }
-  return { values, borrows: [] };
+  return { values, borrows: [], bringDownCells: new Set() };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -108,7 +115,7 @@ function solveSubtraction(question: Question): SolvePlan {
     const r = finalDisplay[i].value - subtrahend[i];
     if (r >= 0) values.set(`int-${i}`, r);
   }
-  return { values, borrows };
+  return { values, borrows, bringDownCells: new Set() };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -138,14 +145,15 @@ function solveMultiplication(question: Question): SolvePlan {
     }
     carry = nextCarry;
   }
-  return { values, borrows: [] };
+  return { values, borrows: [], bringDownCells: new Set() };
 }
 
 function solveMultiplicationMultiDigit(question: Question): SolvePlan {
   const [op1, op2] = question.operands;
   const shape = answerShape(question);
   const partials = partialWidths(op1, op2);
-  if (!partials) return { values: new Map(), borrows: [] };
+  if (!partials)
+    return { values: new Map(), borrows: [], bringDownCells: new Set() };
   const op1Cols = digitCount(op1);
   const values = new Map<string, number>();
 
@@ -221,7 +229,7 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
     acc = nextCarry;
   }
 
-  return { values, borrows: [] };
+  return { values, borrows: [], bringDownCells: new Set() };
 }
 
 /** For N column-sum operands and `cols` columns, returns per-column
@@ -288,6 +296,7 @@ function solveDivision(question: Question, layout: ProblemLayout): SolvePlan {
   }
 
   // For long-division layout, also populate the staircase draft grid.
+  const bringDownCells = new Set<string>();
   if (layout === 'divisionLong') {
     fillLongDivisionDraft({
       dividend: absD,
@@ -295,9 +304,10 @@ function solveDivision(question: Question, layout: ProblemLayout): SolvePlan {
       integerQuotientDigits: intDigits,
       decimalQuotientDigits: decimalDigits,
       values,
+      bringDownCells,
     });
   }
-  return { values, borrows: [] };
+  return { values, borrows: [], bringDownCells };
 }
 
 function fillLongDivisionDraft(args: {
@@ -306,8 +316,16 @@ function fillLongDivisionDraft(args: {
   integerQuotientDigits: number[];
   decimalQuotientDigits: number[];
   values: Map<string, number>;
+  bringDownCells: Set<string>;
 }) {
-  const { dividend, divisor, integerQuotientDigits, decimalQuotientDigits, values } = args;
+  const {
+    dividend,
+    divisor,
+    integerQuotientDigits,
+    decimalQuotientDigits,
+    values,
+    bringDownCells,
+  } = args;
   const dividendDigits = String(dividend).split('').map(Number);
   const offset = dividendDigits.length - integerQuotientDigits.length;
   const allQDigits = [...integerQuotientDigits, ...decimalQuotientDigits];
@@ -349,7 +367,9 @@ function fillLongDivisionDraft(args: {
     if (q + 1 < totalSteps) {
       const nextBrought =
         q + 1 < integerSteps ? dividendDigits[q + 1 + offset] : 0;
-      values.set(`dd-${diffRow}-${rightCol + 1}`, nextBrought);
+      const bringDownId = `dd-${diffRow}-${rightCol + 1}`;
+      values.set(bringDownId, nextBrought);
+      bringDownCells.add(bringDownId);
     }
   }
 }

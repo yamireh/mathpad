@@ -10,7 +10,7 @@ beforeEach(async () => {
 describe('defaultSettings', () => {
   it('returns SPEC defaults shared across operations', () => {
     const s = defaultSettings('addition');
-    expect(s.digitRange).toEqual({ min: 2, max: 3 });
+    expect(s.digitCounts).toEqual([2, 3]);
     expect(s.questionCount).toBe(10);
     expect(s.timer.enabled).toBe(false);
   });
@@ -30,7 +30,7 @@ describe('defaultSettings', () => {
   it('returns fresh nested objects each call', () => {
     const a = defaultSettings('addition');
     const b = defaultSettings('addition');
-    expect(a.digitRange).not.toBe(b.digitRange);
+    expect(a.digitCounts).not.toBe(b.digitCounts);
   });
 });
 

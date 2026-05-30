@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { OperationCard } from '../components/domain';
 import { Pill, ScreenContainer } from '../components/ui';
 import { colors, spacing, typography } from '../constants/design';
+import { tapFeedback } from '../lib/feedback';
 import type { Operation } from '../types';
 
 /** Topic cards, in display order. */
@@ -32,7 +33,10 @@ export default function HomeScreen() {
             key={operation}
             operation={operation}
             label={t(`operations.${operation}`)}
-            onPress={() => router.push(`/settings/${operation}`)}
+            onPress={() => {
+              tapFeedback();
+              router.push(`/settings/${operation}`);
+            }}
           />
         ))}
       </View>

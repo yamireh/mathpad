@@ -9,7 +9,6 @@
 import type {
   ConcreteOperation,
   DigitCount,
-  DigitRange,
   DivisionAnswerType,
   ModeOption,
   NegativeAnswerOption,
@@ -42,9 +41,10 @@ function pick<T>(items: readonly T[], rng: RNG): T {
   return items[Math.floor(rng() * items.length)];
 }
 
-/** Random digit count within the (inclusive) range. */
-function digitCountInRange(range: DigitRange, rng: RNG): DigitCount {
-  return randInt(range.min, range.max, rng) as DigitCount;
+/** Pick a digit count uniformly from the selected multi-select set. */
+function pickDigitCount(counts: DigitCount[], rng: RNG): DigitCount {
+  if (counts.length === 0) return 2; // safety fallback
+  return pick(counts, rng);
 }
 
 /** Smallest value with `digits` digits (1 → 1, 2 → 10, 3 → 100). */
@@ -170,15 +170,15 @@ function resolveMode(mode: ModeOption, rng: RNG): 'with' | 'without' | 'any' {
 }
 
 function generateAddition(
-  range: DigitRange,
+  counts: DigitCount[],
   carrying: ModeOption,
   rng: RNG,
 ): QuestionCore {
   const want = resolveMode(carrying, rng);
   let last: [number, number] = [0, 0];
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const a = operandWithDigits(digitCountInRange(range, rng), rng);
-    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    const a = operandWithDigits(pickDigitCount(counts, rng), rng);
+    const b = operandWithDigits(pickDigitCount(counts, rng), rng);
     last = [a, b];
     const carry = additionHasCarry(a, b);
     if (want === 'with' && !carry) continue;
@@ -199,7 +199,7 @@ function generateAddition(
 }
 
 function generateSubtraction(
-  range: DigitRange,
+  counts: DigitCount[],
   borrowing: ModeOption,
   allowNegative: NegativeAnswerOption,
   rng: RNG,
@@ -215,8 +215,8 @@ function generateSubtraction(
 
   let fallback: QuestionCore | null = null;
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const a = operandWithDigits(digitCountInRange(range, rng), rng);
-    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    const a = operandWithDigits(pickDigitCount(counts, rng), rng);
+    const b = operandWithDigits(pickDigitCount(counts, rng), rng);
     if (a === b) continue; // avoid trivial zero / impossible negative
     const larger = Math.max(a, b);
     const smaller = Math.min(a, b);
@@ -240,15 +240,15 @@ function generateSubtraction(
 }
 
 function generateMultiplication(
-  range: DigitRange,
+  counts: DigitCount[],
   regrouping: ModeOption,
   rng: RNG,
 ): QuestionCore {
   const want = resolveMode(regrouping, rng);
   let last: [number, number] = [0, 0];
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const a = operandWithDigits(digitCountInRange(range, rng), rng);
-    const b = operandWithDigits(digitCountInRange(range, rng), rng);
+    const a = operandWithDigits(pickDigitCount(counts, rng), rng);
+    const b = operandWithDigits(pickDigitCount(counts, rng), rng);
     last = [a, b];
     const regroup = multiplicationHasRegroup(a, b);
     if (want === 'with' && !regroup) continue;
@@ -386,24 +386,24 @@ function generateForOperation(
   settings: Settings,
   rng: RNG,
 ): QuestionCore {
-  const { digitRange } = settings;
+  const { digitCounts } = settings;
   switch (operation) {
     case 'addition':
       return generateAddition(
-        digitRange,
+        digitCounts,
         settings.operation === 'addition' ? settings.carrying : 'random',
         rng,
       );
     case 'subtraction':
       return generateSubtraction(
-        digitRange,
+        digitCounts,
         settings.operation === 'subtraction' ? settings.borrowing : 'random',
         settings.operation === 'subtraction' ? settings.allowNegative : 'off',
         rng,
       );
     case 'multiplication':
       return generateMultiplication(
-        digitRange,
+        digitCounts,
         settings.operation === 'multiplication'
           ? settings.regrouping
           : 'random',

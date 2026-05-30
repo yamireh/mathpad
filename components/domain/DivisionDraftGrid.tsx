@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '../../constants/design';
 import { AnswerBox } from './AnswerBox';
@@ -9,6 +10,72 @@ import {
   DIVISION_MINUS_WIDTH,
   divisionDraftRowLayout,
 } from './layout';
+
+/** Duration of the bring-down drop animation. */
+const BRING_DOWN_MS = 900;
+/**
+ * Estimated distance from the top of the draft grid up to the dividend
+ * digit row inside the bracket, in cell-heights. Tuned visually so the
+ * drop starts in the dividend area instead of just above the target cell.
+ */
+const DIVIDEND_GAP_CELLS = 2;
+
+/**
+ * One draft cell. Owns a per-cell Animated.Value used for the bring-down
+ * drop animation in the auto-solver: when `dropKey` changes to a positive
+ * number, the cell's contents start at the dividend row (rows above)
+ * fully visible and slide all the way down into the cell.
+ */
+function DraftCell({
+  id,
+  rowIdx,
+  strokes,
+  tone,
+  selected,
+  onSelect,
+  onClear,
+  cellWidth,
+  dropKey,
+}: {
+  id: string;
+  rowIdx: number;
+  strokes: InkStroke[];
+  tone?: string;
+  selected: boolean;
+  onSelect: () => void;
+  onClear: () => void;
+  cellWidth: number;
+  dropKey: number;
+}) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (dropKey <= 0) return;
+    const drop =
+      (rowIdx + DIVIDEND_GAP_CELLS) * DIVISION_DRAFT_CELL_HEIGHT;
+    translateY.setValue(-drop);
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: BRING_DOWN_MS,
+      useNativeDriver: true,
+    }).start();
+  }, [dropKey, rowIdx, translateY]);
+
+  return (
+    <Animated.View style={{ transform: [{ translateY }] }}>
+      <AnswerBox
+        accessibilityLabel={`Working row ${id}`}
+        tone={tone}
+        selected={selected}
+        onSelect={onSelect}
+        onClear={onClear}
+        strokes={strokes}
+        cellWidth={cellWidth}
+        boxHeight={DIVISION_DRAFT_CELL_HEIGHT}
+      />
+    </Animated.View>
+  );
+}
 
 export interface DivisionDraftGridProps {
   /** Dividend digit count — drives the column count. */
@@ -40,6 +107,12 @@ export interface DivisionDraftGridProps {
    * the dividend-quotient offset used by the row layout.
    */
   integerQuotientDigits?: number;
+  /**
+   * Bring-down animation trigger. When the auto-solver wants a cell's
+   * brought-down digit to drop in visibly, it bumps the nonce for that
+   * cell id. Set to `null` for normal use.
+   */
+  bringDownPulse?: { cellId: string; nonce: number } | null;
 }
 
 /**
@@ -63,6 +136,7 @@ export function DivisionDraftGrid({
   cellWidth = DIVISION_DRAFT_CELL_WIDTH,
   divisorDigits,
   integerQuotientDigits,
+  bringDownPulse = null,
 }: DivisionDraftGridProps) {
   if (columns <= 0 || rows <= 0) return null;
   const layoutOptions =
@@ -103,17 +177,20 @@ export function DivisionDraftGrid({
               {Array.from({ length: cellCount }).map((_, i) => {
                 const col = startCol + i;
                 const id = `dd-${row}-${col}`;
+                const dropKey =
+                  bringDownPulse?.cellId === id ? bringDownPulse.nonce : 0;
                 return (
-                  <AnswerBox
+                  <DraftCell
                     key={col}
-                    accessibilityLabel={`Working row ${row + 1}, column ${col + 1}`}
+                    id={`${row + 1}, column ${col + 1}`}
+                    rowIdx={row}
                     tone={tone}
                     selected={selectedBox === id}
                     onSelect={() => onSelect(id)}
                     onClear={() => onClear(id)}
                     strokes={ink[row]?.[col] ?? []}
                     cellWidth={cellWidth}
-                    boxHeight={DIVISION_DRAFT_CELL_HEIGHT}
+                    dropKey={dropKey}
                   />
                 );
               })}

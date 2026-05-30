@@ -122,10 +122,10 @@ function disambiguateOneAndSeven(
   // A perfectly vertical stroke (width 0) is the clearest possible "1".
   const aspect = width / height;
 
-  // Sum up horizontal-segment lengths in the top 35% of the bounding box.
-  // A "horizontal" segment is one whose |dx| > |dy| — i.e. the pen was
-  // moving more across than down at that moment. Used as a tiebreaker
-  // for borderline aspect ratios.
+  // Sum up STRONGLY horizontal segment lengths in the top 35% of the
+  // bounding box. "Strongly horizontal" means the pen was at least 3×
+  // more across than down at that step — a 1's flag drawn at a typical
+  // diagonal angle won't qualify even if it has some leftward motion.
   const topZoneCutoff = minY + height * 0.35;
   let topHorizontalLength = 0;
   for (const stroke of strokes) {
@@ -135,18 +135,22 @@ function disambiguateOneAndSeven(
       if (y1 > topZoneCutoff && y2 > topZoneCutoff) continue;
       const dx = Math.abs(x2 - x1);
       const dy = Math.abs(y2 - y1);
-      if (dx > dy) topHorizontalLength += dx;
+      if (dx > dy * 3) topHorizontalLength += dx;
     }
   }
-  const topBarRatio = width > 0 ? topHorizontalLength / width : 0;
+  // Compare the horizontal "bar" length to the digit's HEIGHT (its long
+  // axis). A 7's bar is substantial — typically ≥40% of the digit's
+  // overall height. A 1's flag, even when drawn flat, is short relative
+  // to the long vertical body below it.
+  const barVsHeight = height > 0 ? topHorizontalLength / height : 0;
 
-  // Decisive zones first:
-  if (aspect < 0.45) return 1; // narrow → 1, even with a hook/flag
-  if (aspect >= 0.6) return 7; // clearly wider → 7
-  // Borderline (0.45 ≤ aspect < 0.6): use the top-bar tiebreaker. A long
-  // horizontal top bar is a strong "this is a 7" signal; otherwise lean
-  // toward 1.
-  return topBarRatio >= 0.4 ? 7 : 1;
+  // Top bar wins outright when it's clearly a "real" bar — long AND
+  // strongly horizontal — that's the unmistakable hallmark of a 7.
+  if (barVsHeight >= 0.4) return 7;
+  // No real top bar — fall back to the aspect-ratio cues. A 1 is tall
+  // and narrow; anything else is most likely a 7.
+  if (aspect < 0.5) return 1;
+  return 7;
 }
 
 /**

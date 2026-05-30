@@ -76,11 +76,31 @@ export interface SessionData {
    * bracket. Working-out only — never scored.
    */
   divisionDraftInk: Record<string, InkStroke[][][]>;
+  /**
+   * Per-question undo stacks. Each entry snapshots every input area for
+   * the question (answer, scratch, carries, partials, times-carries,
+   * division draft, borrows) right before a change. Capped at UNDO_LIMIT.
+   * Clear All wipes the stack so it can't resurrect cleared work.
+   */
+  undoStacks: Record<string, QuestionSnapshot[]>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
   finishedAt: number | null;
 }
+
+/** Snapshot of every input area for one question, used for undo. */
+interface QuestionSnapshot {
+  answerInk: AnswerInk;
+  scratchInk: InkStroke[];
+  borrowMarks: number[];
+  carryInk: InkStroke[][];
+  partialInk: InkStroke[][][];
+  timesCarryInk: InkStroke[][][];
+  divisionDraftInk: InkStroke[][][];
+}
+
+const UNDO_LIMIT = 50;
 
 export interface PracticeSessionContextValue {
   session: SessionData | null;
@@ -121,6 +141,10 @@ export interface PracticeSessionContextValue {
     col: number,
     strokes: InkStroke[],
   ) => void;
+  /** Undo the last ink change for a question. No-op if nothing to undo. */
+  undoLastAction: (questionId: string) => void;
+  /** Wipe the undo history for a question (used by Clear All). */
+  clearUndoHistory: (questionId: string) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -184,6 +208,7 @@ export function PracticeSessionProvider({
         partialInk: {},
         timesCarryInk: {},
         divisionDraftInk: {},
+        undoStacks: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -192,28 +217,66 @@ export function PracticeSessionProvider({
     [commit],
   );
 
+  // Capture the current state of every input area for one question.
+  const snapshotQuestion = useCallback(
+    (data: SessionData, qid: string): QuestionSnapshot => ({
+      answerInk: data.answerInk[qid],
+      scratchInk: data.scratchInk[qid] ?? [],
+      borrowMarks: data.borrowMarks[qid] ?? [],
+      carryInk: data.carryInk[qid] ?? [],
+      partialInk: data.partialInk[qid] ?? [],
+      timesCarryInk: data.timesCarryInk[qid] ?? [],
+      divisionDraftInk: data.divisionDraftInk[qid] ?? [],
+    }),
+    [],
+  );
+
+  // Push the question's current state onto its undo stack, then commit
+  // `next` (which contains the post-change state). Caps the stack at
+  // UNDO_LIMIT so deep practice sessions don't grow memory unbounded.
+  const pushHistoryAndCommit = useCallback(
+    (qid: string, next: SessionData) => {
+      const prev = sessionRef.current;
+      if (!prev) {
+        commit(next);
+        return;
+      }
+      const snapshot = snapshotQuestion(prev, qid);
+      const stack = next.undoStacks[qid] ?? [];
+      const trimmed =
+        stack.length >= UNDO_LIMIT
+          ? stack.slice(stack.length - UNDO_LIMIT + 1)
+          : stack;
+      commit({
+        ...next,
+        undoStacks: { ...next.undoStacks, [qid]: [...trimmed, snapshot] },
+      });
+    },
+    [commit, snapshotQuestion],
+  );
+
   const updateAnswerInk = useCallback(
     (questionId: string, ink: AnswerInk) => {
       const data = sessionRef.current;
       if (!data) return;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         answerInk: { ...data.answerInk, [questionId]: ink },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const updateScratchInk = useCallback(
     (questionId: string, strokes: InkStroke[]) => {
       const data = sessionRef.current;
       if (!data) return;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         scratchInk: { ...data.scratchInk, [questionId]: strokes },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const setLayoutOverride = useCallback(
@@ -236,12 +299,12 @@ export function PracticeSessionProvider({
       const next = current.includes(column)
         ? current.filter((c) => c !== column)
         : [...current, column];
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         borrowMarks: { ...data.borrowMarks, [questionId]: next },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const updateCarryInk = useCallback(
@@ -252,12 +315,12 @@ export function PracticeSessionProvider({
       const next = [...current];
       while (next.length <= column) next.push([]);
       next[column] = strokes;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         carryInk: { ...data.carryInk, [questionId]: next },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const updatePartialInk = useCallback(
@@ -271,12 +334,12 @@ export function PracticeSessionProvider({
       while (nextRow.length <= col) nextRow.push([]);
       nextRow[col] = strokes;
       nextRows[row] = nextRow;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         partialInk: { ...data.partialInk, [questionId]: nextRows },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const updateTimesCarryInk = useCallback(
@@ -295,7 +358,7 @@ export function PracticeSessionProvider({
       while (nextRow.length <= op1Col) nextRow.push([]);
       nextRow[op1Col] = strokes;
       nextRows[partialRow] = nextRow;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         timesCarryInk: {
           ...data.timesCarryInk,
@@ -303,7 +366,7 @@ export function PracticeSessionProvider({
         },
       });
     },
-    [commit],
+    [pushHistoryAndCommit],
   );
 
   const updateDivisionDraftInk = useCallback(
@@ -317,12 +380,54 @@ export function PracticeSessionProvider({
       while (nextRow.length <= col) nextRow.push([]);
       nextRow[col] = strokes;
       nextRows[row] = nextRow;
-      commit({
+      pushHistoryAndCommit(questionId, {
         ...data,
         divisionDraftInk: {
           ...data.divisionDraftInk,
           [questionId]: nextRows,
         },
+      });
+    },
+    [pushHistoryAndCommit],
+  );
+
+  // Pop the question's last snapshot and restore every input area.
+  const undoLastAction = useCallback(
+    (questionId: string) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const stack = data.undoStacks[questionId] ?? [];
+      if (stack.length === 0) return;
+      const snap = stack[stack.length - 1];
+      const remaining = stack.slice(0, -1);
+      commit({
+        ...data,
+        answerInk: { ...data.answerInk, [questionId]: snap.answerInk },
+        scratchInk: { ...data.scratchInk, [questionId]: snap.scratchInk },
+        borrowMarks: { ...data.borrowMarks, [questionId]: snap.borrowMarks },
+        carryInk: { ...data.carryInk, [questionId]: snap.carryInk },
+        partialInk: { ...data.partialInk, [questionId]: snap.partialInk },
+        timesCarryInk: {
+          ...data.timesCarryInk,
+          [questionId]: snap.timesCarryInk,
+        },
+        divisionDraftInk: {
+          ...data.divisionDraftInk,
+          [questionId]: snap.divisionDraftInk,
+        },
+        undoStacks: { ...data.undoStacks, [questionId]: remaining },
+      });
+    },
+    [commit],
+  );
+
+  const clearUndoHistory = useCallback(
+    (questionId: string) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      commit({
+        ...data,
+        undoStacks: { ...data.undoStacks, [questionId]: [] },
       });
     },
     [commit],
@@ -396,6 +501,8 @@ export function PracticeSessionProvider({
       updatePartialInk,
       updateTimesCarryInk,
       updateDivisionDraftInk,
+      undoLastAction,
+      clearUndoHistory,
       finish,
       reviewSubmit,
       reset,
@@ -411,6 +518,8 @@ export function PracticeSessionProvider({
       updatePartialInk,
       updateTimesCarryInk,
       updateDivisionDraftInk,
+      undoLastAction,
+      clearUndoHistory,
       finish,
       reviewSubmit,
       reset,

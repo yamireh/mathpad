@@ -18,7 +18,7 @@ const timer = { enabled: false, durationMinutes: 5 } as const;
 function additionSettings(over: Partial<AdditionSettings> = {}): AdditionSettings {
   return {
     operation: 'addition',
-    digitRange: { min: 2, max: 3 },
+    digitCounts: [2, 3],
     questionCount: 20,
     timer,
     carrying: 'random',
@@ -30,7 +30,7 @@ function subtractionSettings(
 ): SubtractionSettings {
   return {
     operation: 'subtraction',
-    digitRange: { min: 2, max: 3 },
+    digitCounts: [2, 3],
     questionCount: 20,
     timer,
     borrowing: 'random',
@@ -43,7 +43,7 @@ function multiplicationSettings(
 ): MultiplicationSettings {
   return {
     operation: 'multiplication',
-    digitRange: { min: 1, max: 2 },
+    digitCounts: [1, 2],
     questionCount: 20,
     timer,
     regrouping: 'random',
@@ -53,7 +53,7 @@ function multiplicationSettings(
 function divisionSettings(over: Partial<DivisionSettings> = {}): DivisionSettings {
   return {
     operation: 'division',
-    digitRange: { min: 2, max: 3 },
+    digitCounts: [2, 3],
     questionCount: 20,
     timer,
     answerType: 'random',
@@ -103,12 +103,11 @@ describe('generateSession — structure', () => {
     expect(new Set(questions.map((q) => q.id)).size).toBe(15);
   });
 
-  it('keeps every operand within the digit range', () => {
-    for (const q of sample(additionSettings({ digitRange: { min: 2, max: 4 } }))) {
-      expect(digitCount(q.operands[0])).toBeGreaterThanOrEqual(2);
-      expect(digitCount(q.operands[0])).toBeLessThanOrEqual(4);
-      expect(digitCount(q.operands[1])).toBeGreaterThanOrEqual(2);
-      expect(digitCount(q.operands[1])).toBeLessThanOrEqual(4);
+  it('keeps every operand within the selected digit counts', () => {
+    const counts = [2, 4] as const;
+    for (const q of sample(additionSettings({ digitCounts: [...counts] }))) {
+      expect(counts).toContain(digitCount(q.operands[0]));
+      expect(counts).toContain(digitCount(q.operands[1]));
     }
   });
 });
@@ -241,7 +240,7 @@ describe('division', () => {
 describe('mix', () => {
   const mixSettings: MixSettings = {
     operation: 'mix',
-    digitRange: { min: 1, max: 2 },
+    digitCounts: [1, 2],
     questionCount: 20,
     timer,
   };

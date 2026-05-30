@@ -1,9 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import { DigitRangeSelector, ModeRadioGroup } from '../../components/domain';
+import { ModeRadioGroup } from '../../components/domain';
 import {
   Button,
   Chip,
@@ -18,6 +18,7 @@ import {
   typography,
 } from '../../constants/design';
 import { usePracticeSession, useSettings } from '../../hooks';
+import { primaryFeedback } from '../../lib/feedback';
 import type {
   DigitCount,
   DivisionAnswerType,
@@ -64,106 +65,149 @@ export default function SettingsScreen() {
     update({ ...settings, ...changes } as Settings);
 
   const startPracticing = () => {
+    primaryFeedback();
     start(settings);
     router.push('/practice');
   };
 
   return (
-    <ScreenContainer scroll>
-      <Header
-        title={t('settings.title', {
-          operation: t(`operations.${operation}`),
-        })}
-        left={
-          <IconButton
-            name="arrow-back"
-            accessibilityLabel={t('common.back')}
-            onPress={() => router.back()}
-          />
-        }
-      />
+    <ScreenContainer padded={false}>
+      <View style={styles.header}>
+        <Header
+          title={t('settings.title', {
+            operation: t(`operations.${operation}`),
+          })}
+          left={
+            <IconButton
+              name="arrow-back"
+              accessibilityLabel={t('common.back')}
+              onPress={() => router.back()}
+            />
+          }
+        />
+      </View>
 
-      <Section title={t('settings.digits')}>
-        {settings.operation === 'division' ? (
-          <DivisionDigitSelectors
-            dividendDigits={settings.dividendDigits}
-            divisorDigits={settings.divisorDigits}
-            onChange={(changes) => patch(changes)}
-            tone={accent}
-          />
-        ) : (
-          <DigitRangeSelector
-            value={settings.digitRange}
-            onChange={(digitRange) => patch({ digitRange })}
-            fromLabel={t('settings.digitsFrom')}
-            toLabel={t('settings.digitsTo')}
-            tone={accent}
-          />
-        )}
-      </Section>
-
-      <Section title={t('settings.questionCount')}>
-        <View style={styles.chipRow}>
-          {QUESTION_COUNTS.map((count) => (
-            <Chip
-              key={count}
-              label={String(count)}
-              selected={settings.questionCount === count}
-              onPress={() => patch({ questionCount: count })}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Section title={t('settings.digits')}>
+          {settings.operation === 'division' ? (
+            <DivisionDigitSelectors
+              dividendDigits={settings.dividendDigits}
+              divisorDigits={settings.divisorDigits}
+              onChange={(changes) => patch(changes)}
               tone={accent}
             />
-          ))}
-        </View>
-      </Section>
+          ) : (
+            <DigitCountsSelector
+              value={settings.digitCounts}
+              onChange={(digitCounts) => patch({ digitCounts })}
+              tone={accent}
+            />
+          )}
+        </Section>
 
-      <Section title={t('settings.timer')}>
-        <View style={styles.timerRow}>
-          <Text style={styles.timerHint}>{t('settings.timerHint')}</Text>
-          <Switch
-            value={settings.timer.enabled}
-            onValueChange={(enabled) =>
-              patch({ timer: { ...settings.timer, enabled } })
-            }
-            trackColor={{ true: accent, false: colors.border }}
-          />
-        </View>
-        {settings.timer.enabled ? (
+        <Section title={t('settings.questionCount')}>
           <View style={styles.chipRow}>
-            {TIMER_DURATIONS.map((minutes) => (
+            {QUESTION_COUNTS.map((count) => (
               <Chip
-                key={minutes}
-                label={t('settings.timerDuration', { minutes })}
-                selected={settings.timer.durationMinutes === minutes}
-                onPress={() =>
-                  patch({
-                    timer: { ...settings.timer, durationMinutes: minutes },
-                  })
-                }
+                key={count}
+                label={String(count)}
+                selected={settings.questionCount === count}
+                onPress={() => patch({ questionCount: count })}
                 tone={accent}
               />
             ))}
           </View>
-        ) : null}
-      </Section>
+        </Section>
 
-      <OperationOptions
-        settings={settings}
-        accent={accent}
-        onChange={patch}
-      />
+        <Section title={t('settings.timer')}>
+          <View style={styles.timerRow}>
+            <Text style={styles.timerHint}>{t('settings.timerHint')}</Text>
+            <Switch
+              value={settings.timer.enabled}
+              onValueChange={(enabled) =>
+                patch({ timer: { ...settings.timer, enabled } })
+              }
+              trackColor={{ true: accent, false: colors.border }}
+            />
+          </View>
+          {settings.timer.enabled ? (
+            <View style={styles.chipRow}>
+              {TIMER_DURATIONS.map((minutes) => (
+                <Chip
+                  key={minutes}
+                  label={t('settings.timerDuration', { minutes })}
+                  selected={settings.timer.durationMinutes === minutes}
+                  onPress={() =>
+                    patch({
+                      timer: { ...settings.timer, durationMinutes: minutes },
+                    })
+                  }
+                  tone={accent}
+                />
+              ))}
+            </View>
+          ) : null}
+        </Section>
 
-      <Text style={styles.summary}>{summarise(settings, t)}</Text>
+        <OperationOptions
+          settings={settings}
+          accent={accent}
+          onChange={patch}
+        />
 
-      <Button
-        label={t('settings.start')}
-        tone={accent}
-        onPress={startPracticing}
-      />
+        <Text style={styles.summary}>{summarise(settings, t)}</Text>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button
+          label={t('settings.start')}
+          tone={accent}
+          onPress={startPracticing}
+        />
+      </View>
     </ScreenContainer>
   );
 }
 
 const DIGIT_CHOICES: DigitCount[] = [1, 2, 3, 4];
+
+/**
+ * Multi-select chip picker for `digitCounts` (addition / subtraction /
+ * multiplication). The kid taps to toggle each count on or off; at
+ * least one stays selected at all times.
+ */
+function DigitCountsSelector({
+  value,
+  onChange,
+  tone,
+}: {
+  value: DigitCount[];
+  onChange: (next: DigitCount[]) => void;
+  tone: string;
+}) {
+  const toggle = (n: DigitCount) => {
+    const next = value.includes(n)
+      ? value.filter((v) => v !== n)
+      : [...value, n].sort((a, b) => a - b);
+    // Always keep at least one selected — taps on a single-selected
+    // chip become a no-op rather than leaving the kid with no choices.
+    if (next.length === 0) return;
+    onChange(next);
+  };
+  return (
+    <View style={styles.chipRow}>
+      {DIGIT_CHOICES.map((n) => (
+        <Chip
+          key={n}
+          label={String(n)}
+          selected={value.includes(n)}
+          onPress={() => toggle(n)}
+          tone={tone}
+        />
+      ))}
+    </View>
+  );
+}
 
 /**
  * Division-specific digit picker — separate chip row for the dividend and
@@ -327,8 +371,7 @@ function summarise(
           divisor: settings.divisorDigits,
         })
       : t('settings.summaryDigits', {
-          min: settings.digitRange.min,
-          max: settings.digitRange.max,
+          list: settings.digitCounts.join(', '),
         });
   const parts = [
     t('settings.summaryQuestions', { count: settings.questionCount }),
@@ -343,6 +386,22 @@ function summarise(
 }
 
 const styles = StyleSheet.create({
+  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
+  scrollContent: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.lg,
+    flexGrow: 1,
+  },
+  // Pinned Start Practice strip: top border separates it from the
+  // scrolling content above so it doesn't feel like it's floating.
+  footer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
   divisionDigits: { gap: spacing.md },
   divisionDigitsRow: {
     flexDirection: 'row',

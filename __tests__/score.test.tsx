@@ -9,7 +9,7 @@ import type { AdditionSettings, SubmittedAnswer } from '../types';
 
 const settings: AdditionSettings = {
   operation: 'addition',
-  digitRange: { min: 1, max: 1 },
+  digitCounts: [1],
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'random',

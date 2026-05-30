@@ -50,7 +50,7 @@ async function writeJSON(key: string, value: unknown): Promise<void> {
 /** Settings shared by every operation (SPEC defaults: digits 2–3, 10 Qs). */
 function baseSettings(): BaseSettings {
   return {
-    digitRange: { min: 2, max: 3 },
+    digitCounts: [2, 3],
     questionCount: 10,
     timer: { enabled: false, durationMinutes: 5 },
   };
@@ -89,12 +89,30 @@ export function defaultSettings(operation: Operation): Settings {
 
 type SettingsMap = Partial<Record<Operation, Settings>>;
 
+/**
+ * Migrate a pre-multi-select payload to the new `digitCounts` shape so
+ * a kid's saved range (`{min: 2, max: 3}`) still loads as `[2, 3]`.
+ */
+function migrateLegacy<T extends { digitCounts?: number[] } & {
+  digitRange?: { min: number; max: number };
+}>(value: T): T {
+  if (value.digitCounts) return value;
+  const range = value.digitRange;
+  if (!range) return value;
+  const counts: number[] = [];
+  for (let n = range.min; n <= range.max; n += 1) counts.push(n);
+  const next: Record<string, unknown> = { ...value, digitCounts: counts };
+  delete next.digitRange;
+  return next as T;
+}
+
 /** Last-used Settings per operation. */
 export const settingsStore = {
   /** Saved settings for an operation, or null if none. */
   async get(operation: Operation): Promise<Settings | null> {
     const all = await readJSON<SettingsMap>(KEYS.settings, {});
-    return all[operation] ?? null;
+    const raw = all[operation];
+    return raw ? (migrateLegacy(raw) as Settings) : null;
   },
 
   /** Saved settings for an operation, or the defaults if none. */

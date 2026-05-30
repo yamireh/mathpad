@@ -60,7 +60,7 @@
       "decimal": "With decimals",
       "random": "Random"
     },
-    "summaryDigits": "{{min}}–{{max}} digit numbers",
+    "summaryDigits": "{{list}}-digit numbers",
     "summaryDivisionDigits": "{{dividend}}-digit ÷ {{divisor}}-digit",
     "summaryQuestions_one": "{{count}} question",
     "summaryQuestions_other": "{{count}} questions",
@@ -75,6 +75,8 @@
     "finish": "Finish",
     "eraser": "Eraser",
     "undo": "Undo",
+    "openPad": "Open writing pad",
+    "closePad": "Close writing pad",
     "clearScratch": "Clear all",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
