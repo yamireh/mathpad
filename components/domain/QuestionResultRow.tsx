@@ -1,6 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  StyleSheet,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+} from 'react-native';
 
 import { Card } from '../ui';
 import { colors, radius, spacing, typography } from '../../constants/design';
@@ -14,7 +20,20 @@ export interface QuestionResultRowProps {
   onPress?: () => void;
 }
 
-/** One row in the Score / History question list. */
+/** Soft background tint per status — readable, kid-friendly. */
+const STATUS_TINT = {
+  correct: '#ECFDF3',
+  wrong: '#FFF1EE',
+} as const;
+
+/**
+ * One row in the Score / History question list.
+ *
+ * Correct rows show a single inline equation. Wrong rows show a small
+ * label-value grid that contrasts the kid's answer against the correct
+ * one, with a coloured left stripe + tinted background so the kid can
+ * read the verdict at a glance.
+ */
 export function QuestionResultRow({
   result,
   number,
@@ -23,99 +42,155 @@ export function QuestionResultRow({
   const { t } = useTranslation();
   const { question, submittedAnswer, status } = result;
   const correct = status === 'correct_first_try' || status === 'fixed';
+  const statusColor = correct ? colors.correct : colors.wrong;
+  const tint = correct ? STATUS_TINT.correct : STATUS_TINT.wrong;
   const kidAnswer = formatSubmittedAnswer(question, submittedAnswer);
+  const correctAnswer = formatAnswer(question.answer);
 
   return (
     <Card
       onPress={onPress}
-      style={styles.card}
+      style={[
+        styles.card,
+        { backgroundColor: tint, borderLeftColor: statusColor },
+      ]}
       accessibilityLabel={`${t('score.questionLabel', { number })}, ${
         correct ? t('score.encouragement.great') : t('score.blankAnswer')
       }`}
     >
-      <View
-        style={[
-          styles.status,
-          { backgroundColor: correct ? colors.correct : colors.wrong },
-        ]}
-      >
-        <Ionicons
-          name={correct ? 'checkmark' : 'close'}
-          size={18}
-          color="#FFFFFF"
-        />
-      </View>
-
-      <View style={styles.body}>
-        <Text style={styles.problem}>
-          {t('score.questionLabel', { number })} · {formatProblem(question)}
+      <View style={styles.headerRow}>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Ionicons
+            name={correct ? 'checkmark' : 'close'}
+            size={20}
+            color="#FFFFFF"
+          />
+        </View>
+        <Text style={styles.questionTitle}>
+          {t('score.questionLabel', { number })}
         </Text>
-        <View style={styles.answers}>
-          {correct ? (
-            <Text style={styles.correct}>{formatAnswer(question.answer)}</Text>
-          ) : (
-            <>
-              <Text style={styles.wrong}>
-                {kidAnswer ?? t('score.blankAnswer')}
-              </Text>
-              <Text style={styles.muted}>→</Text>
-              <Text style={styles.correct}>
-                {formatAnswer(question.answer)}
-              </Text>
-            </>
-          )}
-        </View>
+        {status === 'fixed' ? (
+          <View style={styles.fixedBadge}>
+            <Text style={styles.fixedBadgeText}>{t('score.fixedBadge')}</Text>
+          </View>
+        ) : null}
       </View>
 
-      {status === 'fixed' ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{t('score.fixedBadge')}</Text>
-        </View>
-      ) : null}
+      <Text style={styles.problemText}>{formatProblem(question)}</Text>
+      <View style={styles.compareGrid}>
+        <CompareRow
+          label={t('score.yourAnswer')}
+          value={kidAnswer ?? t('score.blankAnswer')}
+          valueStyle={[
+            correct ? styles.correctValue : styles.wrongValue,
+            kidAnswer === null ? styles.blankValue : null,
+          ]}
+        />
+        {!correct ? (
+          <CompareRow
+            label={t('score.correctAnswer')}
+            value={correctAnswer}
+            valueStyle={styles.correctValue}
+          />
+        ) : null}
+      </View>
     </Card>
+  );
+}
+
+function CompareRow({
+  label,
+  value,
+  valueStyle,
+}: {
+  label: string;
+  value: string;
+  valueStyle: StyleProp<TextStyle>;
+}) {
+  return (
+    <View style={styles.compareRow}>
+      <Text style={styles.compareLabel}>{label}</Text>
+      <Text style={valueStyle}>{value}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    gap: spacing.sm,
+    borderLeftWidth: 4,
+    borderColor: 'transparent',
+    paddingVertical: spacing.md,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
-  status: {
+  statusBadge: {
     width: 32,
     height: 32,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  body: { flex: 1, gap: spacing.xs },
-  problem: {
+  questionTitle: {
+    flex: 1,
     fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
     color: colors.text,
   },
-  answers: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  wrong: {
-    fontSize: typography.size.body,
-    color: colors.wrong,
-    textDecorationLine: 'line-through',
-  },
-  correct: {
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
-  muted: { fontSize: typography.size.body, color: colors.textMuted },
-  badge: {
+  fixedBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.sm,
-    backgroundColor: '#E0F6F3',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.correct,
   },
-  badgeText: {
+  fixedBadgeText: {
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,
+    color: colors.correct,
+  },
+  problemText: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
     color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  correctValue: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
+    color: colors.correct,
+    fontVariant: ['tabular-nums'],
+  },
+  wrongValue: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
+    color: colors.wrong,
+    textDecorationLine: 'line-through',
+    fontVariant: ['tabular-nums'],
+  },
+  blankValue: {
+    fontStyle: 'italic',
+    fontWeight: typography.weight.regular,
+    textDecorationLine: 'none',
+    color: colors.textMuted,
+  },
+  compareGrid: {
+    marginTop: spacing.xs,
+    paddingLeft: 40,
+    gap: spacing.xs,
+  },
+  compareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  compareLabel: {
+    fontSize: typography.size.body,
+    color: colors.textMuted,
   },
 });

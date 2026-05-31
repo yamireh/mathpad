@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { QuestionResultRow } from '../components/domain';
 import { Button, Card, Header, ScreenContainer } from '../components/ui';
@@ -40,39 +40,38 @@ export default function ScoreScreen() {
   };
 
   return (
-    <ScreenContainer scroll>
-      <Header title={t('score.title')} />
+    <ScreenContainer padded={false}>
+      <View style={styles.topFixed}>
+        <Header title={t('score.title')} />
 
-      <Text style={styles.encouragement}>{encouragement}</Text>
+        <Text style={styles.encouragement}>{encouragement}</Text>
 
-      <View style={styles.stats}>
-        <Stat label={t('score.firstTry')} score={firstTry} total={total} />
-        <Stat
-          label={t('score.final')}
-          score={final}
-          total={total}
-          tone={accent}
-        />
-      </View>
-
-      <Text style={styles.listTitle}>{t('score.answersTitle')}</Text>
-      <View style={styles.list}>
-        {results.map((result, i) => (
-          <QuestionResultRow
-            key={result.question.id}
-            result={result}
-            number={i + 1}
-            onPress={() => router.push(`/review/${i}`)}
+        <View style={styles.stats}>
+          <Stat label={t('score.firstTry')} score={firstTry} total={total} />
+          <Stat
+            label={t('score.final')}
+            score={final}
+            total={total}
+            tone={accent}
           />
-        ))}
+        </View>
       </View>
 
-      <View style={styles.actions}>
-        <Button
-          label={t('score.again')}
-          tone={accent}
-          onPress={playAgain}
-        />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.list}>
+          {results.map((result, i) => (
+            <QuestionResultRow
+              key={result.question.id}
+              result={result}
+              number={i + 1}
+              onPress={() => router.push(`/review/${i}`)}
+            />
+          ))}
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <Button label={t('score.again')} tone={accent} onPress={playAgain} />
         <Button
           label={t('score.home')}
           variant="secondary"
@@ -106,6 +105,32 @@ function Stat({
 }
 
 const styles = StyleSheet.create({
+  // Fixed top: title + encouragement + the two stat cards. Stays in
+  // place while the question list below scrolls.
+  topFixed: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    flexGrow: 1,
+  },
+  // Pinned action strip with a top border so it doesn't float.
+  footer: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
   encouragement: {
     fontSize: typography.size.title,
     fontWeight: typography.weight.medium,
@@ -129,13 +154,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontVariant: ['tabular-nums'],
   },
-  listTitle: {
-    marginTop: spacing.xxl,
-    marginBottom: spacing.md,
-    fontSize: typography.size.bodyLarge,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
   list: { gap: spacing.sm },
-  actions: { marginTop: spacing.xxl, gap: spacing.sm },
 });

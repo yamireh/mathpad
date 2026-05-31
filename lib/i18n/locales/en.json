@@ -123,6 +123,8 @@
     "fixedBadge": "Fixed",
     "blankAnswer": "(blank)",
     "questionLabel": "Question {{number}}",
+    "yourAnswer": "Your answer",
+    "correctAnswer": "Correct answer",
     "home": "Home",
     "again": "Again"
   },
@@ -143,9 +145,7 @@
     "duration": "{{minutes}} min",
     "sessionCount_one": "{{count}} question",
     "sessionCount_other": "{{count}} questions",
-    "detailTitle": "Session details",
-    "yourAnswer": "Your answer",
-    "correctAnswer": "Correct answer"
+    "detailTitle": "Session details"
   },
   "a11y": {
     "operationCard": "Practice {{operation}}",

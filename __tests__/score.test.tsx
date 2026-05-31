@@ -51,7 +51,6 @@ describe('Score screen', () => {
     expect(
       screen.getByText("Good effort — let's try again!"),
     ).toBeOnTheScreen();
-    expect(screen.getByText('Your answers')).toBeOnTheScreen();
     expect(screen.getByText('Again')).toBeOnTheScreen();
   });
 });
