@@ -1,9 +1,12 @@
 export * from './boxIds';
+export * from './CompactBody';
+export * from './DivisionBody';
 export * from './draftInk';
 export * from './fillSequence';
+export * from './LayoutToggle';
 export * from './multiOperand';
 export * from './nextEmptyBox';
-export * from './LayoutToggle';
 export * from './PadRegion';
 export * from './ScratchToolbar';
+export type { WorkspaceCore } from './types';
 export * from './useSolver';

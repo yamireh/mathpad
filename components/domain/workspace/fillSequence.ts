@@ -17,6 +17,12 @@ export interface DivisionDraftMeta {
   rows: number;
   columns: number;
   divisorDigits: number;
+  /**
+   * Per quotient step, the divisor columns (from left) that get a carry box,
+   * in fill order. From {@link longDivisionDivisorCarries}. Optional —
+   * absent/short entries just mean no divisor-carry boxes for that step.
+   */
+  divisorCarryCols?: number[][];
 }
 
 /**
@@ -129,13 +135,30 @@ function longDivisionSequence(
     const prodRow = 2 * q;
     const diffRow = 2 * q + 1;
     const rightCol = q + offset;
-    pushDraftRow(order, prodRow, rightCol, false, shape, divisionDraft);
-    pushDraftRow(order, diffRow, rightCol, true, shape, divisionDraft);
+    // The kid multiplies quotient × divisor while writing the product row
+    // (units first); each divisor-carry box is filled right after the product
+    // cell whose digit produced it — so focus flows answer → product → carry,
+    // not answer → carry.
+    pushDraftRow(order, prodRow, rightCol, false, shape, divisionDraft, {
+      step: q,
+      cols: divisionDraft.divisorCarryCols?.[q] ?? [],
+    });
+    // The difference row only gains a brought-down digit when another step
+    // follows — the final step's difference is the remainder, with nothing
+    // left to bring down.
+    pushDraftRow(order, diffRow, rightCol, q + 1 < totalSteps, shape, divisionDraft);
   }
   return order;
 }
 
-/** Push one draft row's cells (right→left, units-first) into `order`. */
+/**
+ * Push one draft row's cells (right→left, units-first) into `order`. For the
+ * product row, `carry` interleaves each divisor-carry box right after the
+ * product cell that generates it: the cell `i` columns left of `rightCol`
+ * corresponds to multiplying the divisor digit at position `i` from the
+ * right, whose carry sits above the divisor digit one column further left
+ * (from-left col `divisorDigits - 2 - i`).
+ */
 function pushDraftRow(
   order: string[],
   row: number,
@@ -143,6 +166,7 @@ function pushDraftRow(
   withBroughtDown: boolean,
   shape: AnswerShape,
   divisionDraft: DivisionDraftMeta,
+  carry?: { step: number; cols: number[] },
 ): void {
   if (row >= divisionDraft.rows) return;
   const { startCol, cellCount } = divisionDraftRowLayout(
@@ -154,6 +178,22 @@ function pushDraftRow(
     },
   );
   const lastCol = startCol + cellCount - 1;
-  const maxCol = Math.min(lastCol, rightCol + (withBroughtDown ? 1 : 0));
-  for (let c = maxCol; c >= startCol; c -= 1) order.push(`dd-${row}-${c}`);
+  // The row's own digits (product, or the difference) end at `rightCol`,
+  // walked units-first. The brought-down digit, when present, sits one column
+  // to the right and is filled LAST — after the subtraction is written — so
+  // focus flows product → difference → bring-down, never jumping right early.
+  const mainMaxCol = Math.min(lastCol, rightCol);
+  for (let c = mainMaxCol; c >= startCol; c -= 1) {
+    order.push(`dd-${row}-${c}`);
+    if (carry) {
+      const i = rightCol - c; // position from the right (units = 0)
+      const col = divisionDraft.divisorDigits - 2 - i;
+      if (i >= 0 && col >= 0 && carry.cols.includes(col)) {
+        order.push(`dcarry-${carry.step}-${col}`);
+      }
+    }
+  }
+  if (withBroughtDown && rightCol + 1 <= lastCol) {
+    order.push(`dd-${row}-${rightCol + 1}`);
+  }
 }

@@ -9,7 +9,7 @@ export {
   type ModeRadioGroupProps,
 } from './ModeRadioGroup';
 export { OperationCard, type OperationCardProps } from './OperationCard';
-export { ProblemDisplay, type ProblemDisplayProps } from './ProblemDisplay';
+export { ProblemDisplay, type ProblemDisplayProps } from './problem';
 export {
   QuestionWorkspace,
   type QuestionWorkspaceHandle,

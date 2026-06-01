@@ -18,6 +18,12 @@ export interface CarryBoxProps {
   tone?: string;
   width: number;
   height: number;
+  /**
+   * Place the clear button just ABOVE the box instead of inside its top-right
+   * corner. Used for small boxes (e.g. the divisor-carry lane) where an inner
+   * button would cover the digit.
+   */
+  clearAbove?: boolean;
 }
 
 /**
@@ -34,6 +40,7 @@ export function CarryBox({
   tone = colors.text,
   width,
   height,
+  clearAbove = false,
 }: CarryBoxProps) {
   const transform = fitStrokes(strokes, width, height, 5);
   const hasInk = strokes.length > 0;
@@ -73,7 +80,7 @@ export function CarryBox({
           accessibilityRole="button"
           accessibilityLabel={`${accessibilityLabel} — clear`}
           hitSlop={8}
-          style={styles.clear}
+          style={[styles.clear, clearAbove && styles.clearAbove]}
         >
           <Ionicons name="close" size={9} color="#FFFFFF" />
         </Pressable>
@@ -102,4 +109,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Lift the clear button just above the box (for small boxes where an inner
+  // button would overlap the digit).
+  clearAbove: { top: -17, right: -2 },
 });

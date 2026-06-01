@@ -20,6 +20,7 @@ import { computeSolvePlan } from '../../../lib/solver/solveValues';
 import {
   type AnswerShape,
   digitCount,
+  longDivisionDivisorCarries,
 } from '../layout';
 import type { ProblemLayout, Question } from '../../../types';
 import { fillSequence, type MultiplicationInfo } from './';
@@ -57,6 +58,12 @@ export interface UseSolverArgs {
       prev: { cellId: string; nonce: number } | null,
     ) => { cellId: string; nonce: number } | null,
   ) => void;
+  /**
+   * Fires the moment Solve is invoked, so the session can flag the question
+   * as Auto-Solved. Called synchronously before any digits are written so
+   * cancelling the animation can't dodge the mark.
+   */
+  onSolved?: () => void;
 }
 
 export interface UseSolverResult {
@@ -78,6 +85,7 @@ export function useSolver(args: UseSolverArgs): UseSolverResult {
     setActiveBox,
     onToggleBorrow,
     setBringDownPulse,
+    onSolved,
   } = args;
 
   const timersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
@@ -96,6 +104,9 @@ export function useSolver(args: UseSolverArgs): UseSolverResult {
   const solve = useCallback(() => {
     cancelAdvance();
     cancelSolve();
+    // Mark this question as Auto-Solved before animating so a mid-animation
+    // cancel can't dodge the Fixed badge on the Results screen.
+    onSolved?.();
     const plan = computeSolvePlan(question, layout);
     const draftSize =
       isDivision && isLongDivision
@@ -103,6 +114,7 @@ export function useSolver(args: UseSolverArgs): UseSolverResult {
             columns: digitCount(question.operands[0]),
             rows: 2 * (shape.integerBoxes + shape.decimalBoxes),
             divisorDigits: digitCount(question.operands[1]),
+            divisorCarryCols: longDivisionDivisorCarries(question),
           }
         : null;
     const seq = fillSequence(shape, layout, expectedCarries, multInfo, draftSize);
@@ -150,6 +162,7 @@ export function useSolver(args: UseSolverArgs): UseSolverResult {
     isLongDivision,
     layout,
     multInfo,
+    onSolved,
     onToggleBorrow,
     question,
     setActiveBox,

@@ -53,6 +53,12 @@ export interface SessionData {
   layoutOverrides: Record<string, ProblemLayout>;
   /** Tapped borrow-lender columns keyed by question id (subtraction). */
   borrowMarks: Record<string, number[]>;
+  /**
+   * Long-division borrow lenders keyed by question id, per quotient step:
+   * `divisionBorrowMarks[qid][step]` is the list of minuend digit indices the
+   * kid tapped to borrow from for that step's subtraction.
+   */
+  divisionBorrowMarks: Record<string, number[][]>;
   /** Per-column carry-box ink keyed by question id (addition/×). */
   carryInk: Record<string, InkStroke[][]>;
   /**
@@ -77,12 +83,26 @@ export interface SessionData {
    */
   divisionDraftInk: Record<string, InkStroke[][][]>;
   /**
+   * Long-division divisor-carry ink keyed by question id. Shape:
+   * `divisionCarryInk[qid][step][col]` — the carry written above the divisor
+   * digit `col` (from the left) while computing one quotient step's
+   * `quotientDigit × divisor`. Working-out only — never scored.
+   */
+  divisionCarryInk: Record<string, InkStroke[][][]>;
+  /**
    * Per-question undo stacks. Each entry snapshots every input area for
    * the question (answer, scratch, carries, partials, times-carries,
    * division draft, borrows) right before a change. Capped at UNDO_LIMIT.
    * Clear All wipes the stack so it can't resurrect cleared work.
    */
   undoStacks: Record<string, QuestionSnapshot[]>;
+  /**
+   * Question ids on which Auto-Solve was invoked during this session. At
+   * Finish, any such question that recognises as correct is downgraded from
+   * `'correct_first_try'` to `'fixed'` — the answer is right but should not
+   * count as a first-try success.
+   */
+  solvedQuestions: Record<string, true>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -94,10 +114,12 @@ interface QuestionSnapshot {
   answerInk: AnswerInk;
   scratchInk: InkStroke[];
   borrowMarks: number[];
+  divisionBorrowMarks: number[][];
   carryInk: InkStroke[][];
   partialInk: InkStroke[][][];
   timesCarryInk: InkStroke[][][];
   divisionDraftInk: InkStroke[][][];
+  divisionCarryInk: InkStroke[][][];
 }
 
 const UNDO_LIMIT = 50;
@@ -114,6 +136,12 @@ export interface PracticeSessionContextValue {
   setLayoutOverride: (questionId: string, layout: ProblemLayout) => void;
   /** Toggle a borrow on a top-operand digit column (subtraction). */
   toggleBorrowMark: (questionId: string, column: number) => void;
+  /** Toggle a borrow lender for one long-division step's subtraction. */
+  toggleDivisionBorrowMark: (
+    questionId: string,
+    step: number,
+    lenderIndex: number,
+  ) => void;
   /** Replace one carry box's ink for a question column. */
   updateCarryInk: (
     questionId: string,
@@ -141,10 +169,22 @@ export interface PracticeSessionContextValue {
     col: number,
     strokes: InkStroke[],
   ) => void;
+  /** Replace one divisor-carry cell's ink for a quotient step (division only). */
+  updateDivisionCarryInk: (
+    questionId: string,
+    step: number,
+    col: number,
+    strokes: InkStroke[],
+  ) => void;
   /** Undo the last ink change for a question. No-op if nothing to undo. */
   undoLastAction: (questionId: string) => void;
   /** Wipe the undo history for a question (used by Clear All). */
   clearUndoHistory: (questionId: string) => void;
+  /**
+   * Flag that Auto-Solve was used on this question. Sticky for the rest of
+   * the session; downgrades the question's first-Finish status to `'fixed'`.
+   */
+  markSolved: (questionId: string) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -204,11 +244,14 @@ export function PracticeSessionProvider({
         scratchInk: {},
         layoutOverrides: {},
         borrowMarks: {},
+        divisionBorrowMarks: {},
         carryInk: {},
         partialInk: {},
         timesCarryInk: {},
         divisionDraftInk: {},
+        divisionCarryInk: {},
         undoStacks: {},
+        solvedQuestions: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -223,10 +266,12 @@ export function PracticeSessionProvider({
       answerInk: data.answerInk[qid],
       scratchInk: data.scratchInk[qid] ?? [],
       borrowMarks: data.borrowMarks[qid] ?? [],
+      divisionBorrowMarks: data.divisionBorrowMarks[qid] ?? [],
       carryInk: data.carryInk[qid] ?? [],
       partialInk: data.partialInk[qid] ?? [],
       timesCarryInk: data.timesCarryInk[qid] ?? [],
       divisionDraftInk: data.divisionDraftInk[qid] ?? [],
+      divisionCarryInk: data.divisionCarryInk[qid] ?? [],
     }),
     [],
   );
@@ -302,6 +347,28 @@ export function PracticeSessionProvider({
       pushHistoryAndCommit(questionId, {
         ...data,
         borrowMarks: { ...data.borrowMarks, [questionId]: next },
+      });
+    },
+    [pushHistoryAndCommit],
+  );
+
+  const toggleDivisionBorrowMark = useCallback(
+    (questionId: string, step: number, lenderIndex: number) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const currentSteps = data.divisionBorrowMarks[questionId] ?? [];
+      const nextSteps = currentSteps.map((s) => [...(s ?? [])]);
+      while (nextSteps.length <= step) nextSteps.push([]);
+      const lenders = nextSteps[step];
+      nextSteps[step] = lenders.includes(lenderIndex)
+        ? lenders.filter((l) => l !== lenderIndex)
+        : [...lenders, lenderIndex];
+      pushHistoryAndCommit(questionId, {
+        ...data,
+        divisionBorrowMarks: {
+          ...data.divisionBorrowMarks,
+          [questionId]: nextSteps,
+        },
       });
     },
     [pushHistoryAndCommit],
@@ -391,6 +458,28 @@ export function PracticeSessionProvider({
     [pushHistoryAndCommit],
   );
 
+  const updateDivisionCarryInk = useCallback(
+    (questionId: string, step: number, col: number, strokes: InkStroke[]) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      const currentRows = data.divisionCarryInk[questionId] ?? [];
+      const nextRows = [...currentRows];
+      while (nextRows.length <= step) nextRows.push([]);
+      const nextRow = [...nextRows[step]];
+      while (nextRow.length <= col) nextRow.push([]);
+      nextRow[col] = strokes;
+      nextRows[step] = nextRow;
+      pushHistoryAndCommit(questionId, {
+        ...data,
+        divisionCarryInk: {
+          ...data.divisionCarryInk,
+          [questionId]: nextRows,
+        },
+      });
+    },
+    [pushHistoryAndCommit],
+  );
+
   // Pop the question's last snapshot and restore every input area.
   const undoLastAction = useCallback(
     (questionId: string) => {
@@ -405,6 +494,10 @@ export function PracticeSessionProvider({
         answerInk: { ...data.answerInk, [questionId]: snap.answerInk },
         scratchInk: { ...data.scratchInk, [questionId]: snap.scratchInk },
         borrowMarks: { ...data.borrowMarks, [questionId]: snap.borrowMarks },
+        divisionBorrowMarks: {
+          ...data.divisionBorrowMarks,
+          [questionId]: snap.divisionBorrowMarks,
+        },
         carryInk: { ...data.carryInk, [questionId]: snap.carryInk },
         partialInk: { ...data.partialInk, [questionId]: snap.partialInk },
         timesCarryInk: {
@@ -414,6 +507,10 @@ export function PracticeSessionProvider({
         divisionDraftInk: {
           ...data.divisionDraftInk,
           [questionId]: snap.divisionDraftInk,
+        },
+        divisionCarryInk: {
+          ...data.divisionCarryInk,
+          [questionId]: snap.divisionCarryInk,
         },
         undoStacks: { ...data.undoStacks, [questionId]: remaining },
       });
@@ -433,6 +530,19 @@ export function PracticeSessionProvider({
     [commit],
   );
 
+  const markSolved = useCallback(
+    (questionId: string) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      if (data.solvedQuestions[questionId]) return;
+      commit({
+        ...data,
+        solvedQuestions: { ...data.solvedQuestions, [questionId]: true },
+      });
+    },
+    [commit],
+  );
+
   const finish = useCallback(
     async (recognize: AnswerRecognizer) => {
       const data = sessionRef.current;
@@ -445,7 +555,14 @@ export function PracticeSessionProvider({
           ),
         ),
       );
-      const results = markFirstAttempt(data.questions, submissions);
+      // Downgrade any Auto-Solved question that recognises as correct from
+      // `'correct_first_try'` to `'fixed'` so it shows the Fixed badge and is
+      // excluded from the first-try score.
+      const results = markFirstAttempt(data.questions, submissions).map((r) =>
+        data.solvedQuestions[r.question.id] && r.status === 'correct_first_try'
+          ? { ...r, status: 'fixed' as const }
+          : r,
+      );
       const finished: SessionData = {
         ...data,
         results,
@@ -497,12 +614,15 @@ export function PracticeSessionProvider({
       updateScratchInk,
       setLayoutOverride,
       toggleBorrowMark,
+      toggleDivisionBorrowMark,
       updateCarryInk,
       updatePartialInk,
       updateTimesCarryInk,
       updateDivisionDraftInk,
+      updateDivisionCarryInk,
       undoLastAction,
       clearUndoHistory,
+      markSolved,
       finish,
       reviewSubmit,
       reset,
@@ -514,12 +634,15 @@ export function PracticeSessionProvider({
       updateScratchInk,
       setLayoutOverride,
       toggleBorrowMark,
+      toggleDivisionBorrowMark,
       updateCarryInk,
       updatePartialInk,
       updateTimesCarryInk,
       updateDivisionDraftInk,
+      updateDivisionCarryInk,
       undoLastAction,
       clearUndoHistory,
+      markSolved,
       finish,
       reviewSubmit,
       reset,

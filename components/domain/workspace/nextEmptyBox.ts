@@ -1,5 +1,6 @@
 import { type AnswerInk, getBoxStrokes, type InkStroke } from '../ink';
 import {
+  parseDivisionCarryId,
   parseDivisionDraftId,
   parsePartialId,
   parseTimesCarryId,
@@ -14,11 +15,22 @@ export function nextEmptyBox(
   partialInk: InkStroke[][][] | undefined,
   timesCarryInk: InkStroke[][][] | undefined,
   divisionDraftInk: InkStroke[][][] | undefined,
+  divisionCarryInk: InkStroke[][][] | undefined,
 ): string | null {
   const startIdx = seq.indexOf(currentId);
   for (let i = startIdx + 1; i < seq.length; i += 1) {
     const id = seq[i];
-    if (isEmpty(id, ink, carryInk, partialInk, timesCarryInk, divisionDraftInk)) {
+    if (
+      isEmpty(
+        id,
+        ink,
+        carryInk,
+        partialInk,
+        timesCarryInk,
+        divisionDraftInk,
+        divisionCarryInk,
+      )
+    ) {
       return id;
     }
   }
@@ -32,6 +44,7 @@ function isEmpty(
   partialInk: InkStroke[][][] | undefined,
   timesCarryInk: InkStroke[][][] | undefined,
   divisionDraftInk: InkStroke[][][] | undefined,
+  divisionCarryInk: InkStroke[][][] | undefined,
 ): boolean {
   if (id.startsWith('carry-')) {
     const col = Number(id.slice(6));
@@ -43,5 +56,7 @@ function isEmpty(
   if (pp) return (partialInk?.[pp.row]?.[pp.col]?.length ?? 0) === 0;
   const dd = parseDivisionDraftId(id);
   if (dd) return (divisionDraftInk?.[dd.row]?.[dd.col]?.length ?? 0) === 0;
+  const dc = parseDivisionCarryId(id);
+  if (dc) return (divisionCarryInk?.[dc.row]?.[dc.col]?.length ?? 0) === 0;
   return getBoxStrokes(ink, id).length === 0;
 }

@@ -356,6 +356,24 @@ function fillLongDivisionDraft(args: {
     const diff = chunk - product;
     chunk = diff;
 
+    // Divisor-carry boxes: the carries generated while multiplying
+    // `qDigit × divisor` digit-by-digit (units → leftward). The carry out of
+    // the divisor digit at position `pos` from the right is written above the
+    // digit one column to its left → from-left col `divisorDigits - 2 - pos`.
+    {
+      let dcarry = 0;
+      let dv = divisor;
+      for (let pos = 0; pos < divisorDigits; pos += 1) {
+        const stepProduct = (dv % 10) * qDigit + dcarry;
+        const nextCarry = Math.floor(stepProduct / 10);
+        if (pos < divisorDigits - 1 && nextCarry > 0) {
+          values.set(`dcarry-${q}-${divisorDigits - 2 - pos}`, nextCarry);
+        }
+        dcarry = nextCarry;
+        dv = Math.floor(dv / 10);
+      }
+    }
+
     const prodRow = 2 * q;
     const diffRow = 2 * q + 1;
     const rightCol = q + offset;

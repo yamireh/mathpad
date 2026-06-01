@@ -35,12 +35,15 @@ export default function PracticeScreen() {
     updateScratchInk,
     setLayoutOverride,
     toggleBorrowMark,
+    toggleDivisionBorrowMark,
     updateCarryInk,
     updatePartialInk,
     updateTimesCarryInk,
     updateDivisionDraftInk,
+    updateDivisionCarryInk,
     undoLastAction,
     clearUndoHistory,
+    markSolved,
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -160,6 +163,10 @@ export default function PracticeScreen() {
         }
         borrowMarks={session.borrowMarks[question.id]}
         onToggleBorrow={(column) => toggleBorrowMark(question.id, column)}
+        divisionBorrowMarks={session.divisionBorrowMarks[question.id]}
+        onToggleDivisionBorrow={(step, lenderIndex) =>
+          toggleDivisionBorrowMark(question.id, step, lenderIndex)
+        }
         carryInk={session.carryInk[question.id]}
         onCarryInkChange={(column, strokes) =>
           updateCarryInk(question.id, column, strokes)
@@ -176,9 +183,14 @@ export default function PracticeScreen() {
         onDivisionDraftInkChange={(row, col, strokes) =>
           updateDivisionDraftInk(question.id, row, col, strokes)
         }
+        divisionCarryInk={session.divisionCarryInk[question.id]}
+        onDivisionCarryInkChange={(step, col, strokes) =>
+          updateDivisionCarryInk(question.id, step, col, strokes)
+        }
         onUndo={() => undoLastAction(question.id)}
         canUndo={(session.undoStacks[question.id]?.length ?? 0) > 0}
         onClearUndoHistory={() => clearUndoHistory(question.id)}
+        onSolved={() => markSolved(question.id)}
         tone={accent}
       />
 

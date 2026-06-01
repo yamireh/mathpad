@@ -28,10 +28,12 @@ export default function ReviewScreen() {
     updateScratchInk,
     setLayoutOverride,
     toggleBorrowMark,
+    toggleDivisionBorrowMark,
     updateCarryInk,
     updatePartialInk,
     updateTimesCarryInk,
     updateDivisionDraftInk,
+    updateDivisionCarryInk,
     reviewSubmit,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -84,6 +86,10 @@ export default function ReviewScreen() {
         }
         borrowMarks={session.borrowMarks[question.id]}
         onToggleBorrow={(column) => toggleBorrowMark(question.id, column)}
+        divisionBorrowMarks={session.divisionBorrowMarks[question.id]}
+        onToggleDivisionBorrow={(step, lenderIndex) =>
+          toggleDivisionBorrowMark(question.id, step, lenderIndex)
+        }
         carryInk={session.carryInk[question.id]}
         onCarryInkChange={(column, strokes) =>
           updateCarryInk(question.id, column, strokes)
@@ -99,6 +105,10 @@ export default function ReviewScreen() {
         divisionDraftInk={session.divisionDraftInk[question.id]}
         onDivisionDraftInkChange={(row, col, strokes) =>
           updateDivisionDraftInk(question.id, row, col, strokes)
+        }
+        divisionCarryInk={session.divisionCarryInk[question.id]}
+        onDivisionCarryInkChange={(step, col, strokes) =>
+          updateDivisionCarryInk(question.id, step, col, strokes)
         }
         tone={accent}
       />

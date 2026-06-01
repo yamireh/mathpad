@@ -35,3 +35,12 @@ export function parseDivisionDraftId(id: string): RowCol | null {
   const m = /^dd-(\d+)-(\d+)$/.exec(id);
   return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
 }
+
+/**
+ * Parse a divisor-carry box id (`dcarry-{step}-{col}`) or return null.
+ * `row` is the quotient step; `col` is the divisor digit index from the left.
+ */
+export function parseDivisionCarryId(id: string): RowCol | null {
+  const m = /^dcarry-(\d+)-(\d+)$/.exec(id);
+  return m ? { row: Number(m[1]), col: Number(m[2]) } : null;
+}

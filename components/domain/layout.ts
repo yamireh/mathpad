@@ -5,6 +5,7 @@
  * width so they line up vertically.
  */
 import type { ConcreteOperation, Question } from '../../types';
+import { needsBorrow } from './borrow';
 
 /**
  * Width of one digit column — problem digits and answer boxes alike. Sized
@@ -316,4 +317,115 @@ export function answerShape(question: Question): AnswerShape {
         remainderBoxes: 0,
       };
   }
+}
+
+/**
+ * The quotient digits for a long-division question, in step order: the
+ * integer-quotient digits (left → right) followed by `decimalBoxes`
+ * decimal-expansion digits (0 once the division terminates). The length
+ * equals `integerBoxes + decimalBoxes`, matching the long-division step
+ * count used by the fill sequence and the draft grid. Division-only.
+ */
+export function longDivisionQuotientDigits(question: Question): number[] {
+  const [dividend, divisor] = question.operands;
+  const shape = answerShape(question);
+  const absD = Math.abs(dividend);
+  const absDiv = Math.abs(divisor);
+  const integerQuotient = absDiv === 0 ? 0 : Math.floor(absD / absDiv);
+  const digits = String(integerQuotient).split('').map(Number);
+  if (shape.decimalBoxes > 0) {
+    let r = absD - integerQuotient * absDiv;
+    for (let i = 0; i < shape.decimalBoxes; i += 1) {
+      r *= 10;
+      const d = absDiv === 0 ? 0 : Math.floor(r / absDiv);
+      digits.push(d);
+      r -= d * absDiv;
+    }
+  }
+  return digits;
+}
+
+/**
+ * Per quotient step, the divisor columns (indexed from the left) that need a
+ * carry box when computing `quotientDigit × divisor` — i.e. where that
+ * multiplication carries into the next column. Columns are listed in fill
+ * order (units-carry first → leftward). Empty for single-digit divisors and
+ * non-division questions. The single source of truth shared by the fill
+ * sequence, the renderer, and the solver so they never drift.
+ */
+/** One long-division step's subtraction minuend (the chunk above the product). */
+export interface LongDivisionStepMinuend {
+  step: number;
+  /** Minuend (chunk) digits for this step's subtraction, most-significant first. */
+  digits: number[];
+  /** Absolute draft column for each digit (parallel to `digits`). */
+  cols: number[];
+  /** Step 0's minuend is the dividend chunk (header); later steps a diff row. */
+  inDividend: boolean;
+  /** Draft row holding the minuend for step > 0 (`2*step - 1`); -1 for step 0. */
+  diffRow: number;
+  /** Whether `chunk − product` needs at least one borrow. */
+  needsBorrow: boolean;
+}
+
+/**
+ * The per-step subtraction minuends for a long-division question — the chunk
+ * sitting above each step's product. Mirrors the chunk walk in
+ * `solveValues.fillLongDivisionDraft`. Used to drive borrowing: which digits
+ * are tappable, where they sit, and whether the step needs a borrow.
+ * Division-only.
+ */
+export function longDivisionStepMinuends(
+  question: Question,
+): LongDivisionStepMinuend[] {
+  if (question.operation !== 'division') return [];
+  const [dividend, divisor] = question.operands;
+  const shape = answerShape(question);
+  const absD = Math.abs(dividend);
+  const absDiv = Math.abs(divisor);
+  const dividendDigits = String(absD).split('').map(Number);
+  const columns = dividendDigits.length;
+  const integerSteps = shape.integerBoxes;
+  const qDigits = longDivisionQuotientDigits(question);
+  const offset = columns - integerSteps;
+  const out: LongDivisionStepMinuend[] = [];
+  let chunk = 0;
+  for (let i = 0; i < offset; i += 1) chunk = chunk * 10 + dividendDigits[i];
+  for (let q = 0; q < qDigits.length; q += 1) {
+    const broughtDown = q < integerSteps ? dividendDigits[q + offset] : 0;
+    chunk = chunk * 10 + broughtDown;
+    const minuend = chunk;
+    const product = qDigits[q] * absDiv;
+    const digits = String(minuend).split('').map(Number);
+    const rightCol = q + offset;
+    const cols = digits.map((_, i) => rightCol - (digits.length - 1 - i));
+    out.push({
+      step: q,
+      digits,
+      cols,
+      inDividend: q === 0,
+      diffRow: q === 0 ? -1 : 2 * q - 1,
+      needsBorrow: needsBorrow(minuend, product),
+    });
+    chunk = minuend - product;
+  }
+  return out;
+}
+
+export function longDivisionDivisorCarries(question: Question): number[][] {
+  if (question.operation !== 'division') return [];
+  const divisor = question.operands[1];
+  const divisorDigits = digitCount(divisor);
+  return longDivisionQuotientDigits(question).map((q) => {
+    if (divisorDigits <= 1) return [];
+    // partialMultiplicationCarries(divisor, q, …)[pos] is the carry out of
+    // the divisor digit at position `pos` from the right; that carry sits
+    // above the digit one column to the left → from-left col divisorDigits-2-pos.
+    const carries = partialMultiplicationCarries(divisor, q, divisorDigits);
+    const cols: number[] = [];
+    for (let pos = 0; pos < carries.length; pos += 1) {
+      if (carries[pos]) cols.push(divisorDigits - 2 - pos);
+    }
+    return cols;
+  });
 }
