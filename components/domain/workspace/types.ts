@@ -62,12 +62,10 @@ export interface WorkspaceCore {
   ) => void;
   onUndo?: () => void;
   canUndo: boolean;
-  onLayoutChange?: (layout: ProblemLayout) => void;
 
   /* --- Derived once per render --- */
   shape: AnswerShape;
   isLongDivision: boolean;
-  inlineLayout: ProblemLayout;
   expectedCarries: boolean[] | null;
   multInfo: MultiplicationInfo | null;
   partialShape: number[] | null;

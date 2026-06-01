@@ -40,7 +40,9 @@ import {
   digitCount,
   longDivisionDivisorCarries,
   longDivisionStepMinuends,
+  multiplicationDigitOperands,
   partialWidths,
+  verticalGeometry,
 } from '../../../domain/layout';
 import type { ScratchCanvasHandle } from '../../../domain/ScratchCanvas';
 import {
@@ -62,7 +64,6 @@ import { SubtractionPanel } from './SubtractionPanel';
 export interface OperationsWorkspaceProps {
   question: Question;
   layout: ProblemLayout;
-  onLayoutChange?: (layout: ProblemLayout) => void;
   answerInk: AnswerInk;
   onAnswerInkChange: (ink: AnswerInk) => void;
   scratchInk?: InkStroke[];
@@ -117,7 +118,6 @@ export const OperationsWorkspace = forwardRef<
   const {
     question,
     layout,
-    onLayoutChange,
     answerInk,
     onAnswerInkChange,
     scratchInk,
@@ -147,16 +147,13 @@ export const OperationsWorkspace = forwardRef<
   const shape = answerShape(question);
   const isLongDivision = layout === 'divisionLong';
   const isDivision = question.operation === 'division';
-  const inlineLayout: ProblemLayout =
-    question.answer.kind === 'decimal'
-      ? 'divisionDecimal'
-      : 'divisionHorizontal';
 
   /* ----------------------------- state ------------------------------ */
   const [padCollapsed, setPadCollapsed] = useState(false);
   const [activeBox, setActiveBox] = useState<string | null>(() => {
     if (question.operation === 'multiplication') {
-      const widths = partialWidths(question.operands[0], question.operands[1]);
+      const [a1, a2] = multiplicationDigitOperands(question);
+      const widths = partialWidths(a1, a2);
       if (widths && widths.length > 0) return `pp-0-${widths[0] - 1}`;
     }
     return frontierBox(answerInk, shape, layout);
@@ -262,27 +259,38 @@ export const OperationsWorkspace = forwardRef<
   /* -------------- per-column expected-carries flags -------------- */
   const expectedCarries = useMemo<boolean[] | null>(() => {
     if (question.operation === 'addition') {
+      // Over the full (integer + decimal) grid: scale operands to their digit
+      // strings so carries — including across the decimal point — are covered.
+      // Integer questions have decCols 0, so this matches the old behavior.
+      const { intCols, decCols } = verticalGeometry(question);
+      const scale = 10 ** decCols;
       return multiOperandCarries(
-        [question.operands[0], question.operands[1]],
-        shape.integerBoxes,
+        [
+          Math.round(Math.abs(question.operands[0]) * scale),
+          Math.round(Math.abs(question.operands[1]) * scale),
+        ],
+        intCols + decCols,
       );
     }
     if (question.operation === 'multiplication') {
+      // Partials/carries run on the operand digit strings (decimal × multiplies
+      // the digits as integers); the sum spans the product's digit width.
+      const [a1, a2] = multiplicationDigitOperands(question);
       return multiOperandCarries(
-        partialProductValues(question.operands[0], question.operands[1]),
-        shape.integerBoxes,
+        partialProductValues(a1, a2),
+        digitCount(a1 * a2),
       );
     }
     return null;
-  }, [question.operation, question.operands, shape.integerBoxes]);
+  }, [question, shape.integerBoxes]);
 
   const multInfo = useMemo<MultiplicationInfo | null>(() => {
     if (question.operation !== 'multiplication') return null;
-    const [op1, op2] = question.operands;
-    const partials = partialWidths(op1, op2);
+    const [a1, a2] = multiplicationDigitOperands(question);
+    const partials = partialWidths(a1, a2);
     if (!partials) return null;
-    return { op1, op2, op1Cols: digitCount(op1), partials };
-  }, [question.operation, question.operands]);
+    return { op1: a1, op2: a2, op1Cols: digitCount(a1), partials };
+  }, [question]);
   const partialShape = multInfo?.partials ?? null;
 
   const { width: windowWidth } = useWindowDimensions();
@@ -539,11 +547,9 @@ export const OperationsWorkspace = forwardRef<
     onDivisionCarryInkChange,
     onUndo,
     canUndo,
-    onLayoutChange,
 
     shape,
     isLongDivision,
-    inlineLayout,
     expectedCarries,
     multInfo,
     partialShape,

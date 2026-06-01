@@ -27,7 +27,6 @@ import {
 } from '../layout';
 import { lastDraftInkRow } from './draftInk';
 import { fillSequence } from './fillSequence';
-import { LayoutToggle } from './LayoutToggle';
 import { nextEmptyBox } from './nextEmptyBox';
 import { PadRegion } from './PadRegion';
 import type { WorkspaceCore } from './types';
@@ -50,7 +49,6 @@ export function DivisionBody({ core }: DivisionBodyProps) {
     onAnswerInkChange,
     onUndo,
     canUndo,
-    onLayoutChange,
     divisionDraftInk,
     onDivisionDraftInkChange,
     divisionCarryInk,
@@ -66,7 +64,6 @@ export function DivisionBody({ core }: DivisionBodyProps) {
     draftLabels,
     currentDivisionStep,
     isLongDivision,
-    inlineLayout,
     activeBox,
     activeDivisionDraft,
     activeDivisionCarry,
@@ -180,15 +177,6 @@ export function DivisionBody({ core }: DivisionBodyProps) {
 
   return (
     <View style={styles.container}>
-      {onLayoutChange ? (
-        <LayoutToggle
-          isLongDivision={isLongDivision}
-          tone={tone}
-          onChange={onLayoutChange}
-          inlineLayout={inlineLayout}
-        />
-      ) : null}
-
       {isLongDivision ? (
         <View style={[styles.longArea, styles.longBody]}>
           <ProblemDisplay

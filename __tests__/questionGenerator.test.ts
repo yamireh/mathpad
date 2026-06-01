@@ -22,6 +22,7 @@ function additionSettings(over: Partial<AdditionSettings> = {}): AdditionSetting
     questionCount: 20,
     timer,
     carrying: 'random',
+    decimals: 'off',
     ...over,
   };
 }
@@ -35,6 +36,7 @@ function subtractionSettings(
     timer,
     borrowing: 'random',
     allowNegative: 'off',
+    decimals: 'off',
     ...over,
   };
 }
@@ -47,6 +49,7 @@ function multiplicationSettings(
     questionCount: 20,
     timer,
     regrouping: 'random',
+    decimals: 'off',
     ...over,
   };
 }
@@ -57,6 +60,7 @@ function divisionSettings(over: Partial<DivisionSettings> = {}): DivisionSetting
     questionCount: 20,
     timer,
     answerType: 'random',
+    divisionType: 'long',
     dividendDigits: 3,
     divisorDigits: 2,
     ...over,

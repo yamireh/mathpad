@@ -32,7 +32,6 @@ import {
 } from '../lib/scoring';
 import { historyStore } from '../lib/storage';
 import type {
-  ProblemLayout,
   Question,
   QuestionResult,
   SessionResult,
@@ -49,8 +48,6 @@ export interface SessionData {
   answerInk: Record<string, AnswerInk>;
   /** Scratch-canvas ink keyed by question id. */
   scratchInk: Record<string, InkStroke[]>;
-  /** User-chosen layout overrides keyed by question id (division toggle). */
-  layoutOverrides: Record<string, ProblemLayout>;
   /** Tapped borrow-lender columns keyed by question id (subtraction). */
   borrowMarks: Record<string, number[]>;
   /**
@@ -132,8 +129,6 @@ export interface PracticeSessionContextValue {
   updateAnswerInk: (questionId: string, ink: AnswerInk) => void;
   /** Replace the scratch ink for one question. */
   updateScratchInk: (questionId: string, strokes: InkStroke[]) => void;
-  /** Override the problem layout for one question (division toggle). */
-  setLayoutOverride: (questionId: string, layout: ProblemLayout) => void;
   /** Toggle a borrow on a top-operand digit column (subtraction). */
   toggleBorrowMark: (questionId: string, column: number) => void;
   /** Toggle a borrow lender for one long-division step's subtraction. */
@@ -242,7 +237,6 @@ export function PracticeSessionProvider({
         questions,
         answerInk,
         scratchInk: {},
-        layoutOverrides: {},
         borrowMarks: {},
         divisionBorrowMarks: {},
         carryInk: {},
@@ -322,18 +316,6 @@ export function PracticeSessionProvider({
       });
     },
     [pushHistoryAndCommit],
-  );
-
-  const setLayoutOverride = useCallback(
-    (questionId: string, layout: ProblemLayout) => {
-      const data = sessionRef.current;
-      if (!data) return;
-      commit({
-        ...data,
-        layoutOverrides: { ...data.layoutOverrides, [questionId]: layout },
-      });
-    },
-    [commit],
   );
 
   const toggleBorrowMark = useCallback(
@@ -549,10 +531,7 @@ export function PracticeSessionProvider({
       if (!data) throw new Error('No active session');
       const submissions = await Promise.all(
         data.questions.map((q) =>
-          recognize(
-            data.answerInk[q.id],
-            data.layoutOverrides[q.id] ?? q.layout,
-          ),
+          recognize(data.answerInk[q.id], q.layout),
         ),
       );
       // Downgrade any Auto-Solved question that recognises as correct from
@@ -584,7 +563,7 @@ export function PracticeSessionProvider({
 
       const submitted = await recognize(
         data.answerInk[questionId],
-        data.layoutOverrides[questionId] ?? question.layout,
+        question.layout,
       );
       const nowCorrect = isAnswerCorrect(question, submitted);
       const results = data.results.map((r) =>
@@ -612,7 +591,6 @@ export function PracticeSessionProvider({
       start,
       updateAnswerInk,
       updateScratchInk,
-      setLayoutOverride,
       toggleBorrowMark,
       toggleDivisionBorrowMark,
       updateCarryInk,
@@ -632,7 +610,6 @@ export function PracticeSessionProvider({
       start,
       updateAnswerInk,
       updateScratchInk,
-      setLayoutOverride,
       toggleBorrowMark,
       toggleDivisionBorrowMark,
       updateCarryInk,

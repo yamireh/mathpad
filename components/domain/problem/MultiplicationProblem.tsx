@@ -15,12 +15,12 @@ import { CarryBox } from '../CarryBox';
 import { type InkStroke } from '../ink';
 import {
   type ProblemSizing,
-  answerShape,
   digitCount,
+  multiplicationDigitOperands,
   operatorSymbol,
   partialWidths,
 } from '../layout';
-import { CarryRow, DigitCells, sharedStyles } from './shared';
+import { CarryRow, DigitCells, ThinDotDigits, sharedStyles } from './shared';
 
 export interface MultiplicationProblemProps {
   question: Question;
@@ -61,9 +61,12 @@ export function MultiplicationProblem({
   sizing,
 }: MultiplicationProblemProps) {
   const [op1, op2] = question.operands;
-  const shape = answerShape(question);
-  const answerColumns = shape.integerBoxes + (shape.hasSign ? 1 : 0);
-  const columns = Math.max(digitCount(op1), digitCount(op2), answerColumns);
+  const [p1, p2] = question.operandDecimals ?? [0, 0];
+  // Decimal × multiplies the operand DIGIT STRINGS as integers (the point is
+  // placed in the product). So the column grid is integer (the product's digit
+  // width); operands render their digit strings with a thin decimal-point mark.
+  const [a1, a2] = multiplicationDigitOperands(question);
+  const columns = Math.max(digitCount(a1), digitCount(a2), digitCount(a1 * a2));
   const {
     cellWidth,
     boxHeight,
@@ -75,14 +78,25 @@ export function MultiplicationProblem({
   const columnAreaWidth = columns * cellWidth;
   // Multi-digit multipliers render their partial products as separate rows
   // between the two rules. The sum carry row then sits above the sum.
-  const partials = partialWidths(op1, op2);
+  const partials = partialWidths(a1, a2);
+  const operand = (value: number, places: number) =>
+    places > 0 ? (
+      <ThinDotDigits
+        value={value}
+        places={places}
+        cellWidth={cellWidth}
+        digitSize={digitSize}
+      />
+    ) : (
+      <DigitCells value={value} cellWidth={cellWidth} digitSize={digitSize} />
+    );
 
   return (
     <View>
       {partials && timesCarryInk && onSelectBox && onClearBox ? (
         <TimesCarryRow
           columns={columns}
-          op1Cols={digitCount(op1)}
+          op1Cols={digitCount(a1)}
           partialRow={currentPartialRow}
           ink={timesCarryInk}
           selectedBox={selectedBox}
@@ -99,7 +113,7 @@ export function MultiplicationProblem({
       <View style={sharedStyles.problemRow}>
         <View style={[sharedStyles.operatorColumn, { width: operatorWidth }]} />
         <View style={[sharedStyles.columnArea, { width: columnAreaWidth }]}>
-          <DigitCells value={op1} cellWidth={cellWidth} digitSize={digitSize} />
+          {operand(op1, p1)}
         </View>
       </View>
       <View style={sharedStyles.problemRow}>
@@ -109,7 +123,7 @@ export function MultiplicationProblem({
           </Text>
         </View>
         <View style={[sharedStyles.columnArea, { width: columnAreaWidth }]}>
-          <DigitCells value={op2} cellWidth={cellWidth} digitSize={digitSize} />
+          {operand(op2, p2)}
         </View>
       </View>
       <View

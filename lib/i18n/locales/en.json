@@ -54,7 +54,13 @@
     "borrowing": "Borrowing",
     "allowNegative": "Allow negative answers",
     "regrouping": "Regrouping",
+    "decimals": "Decimals",
     "answerType": "Answer type",
+    "divisionType": "Division type",
+    "divisionFormat": {
+      "row": "In a row",
+      "long": "Long division"
+    },
     "mode": {
       "with": "With",
       "without": "Without",
@@ -65,10 +71,16 @@
       "on": "On",
       "random": "Random"
     },
+    "decimal": {
+      "off": "Off",
+      "on": "On",
+      "random": "Random"
+    },
     "divisionAnswer": {
       "noRemainder": "Without remainders",
       "remainder": "With remainders",
       "decimal": "With decimals",
+      "all": "All types",
       "random": "Random"
     },
     "summaryDigits": "{{list}}-digit numbers",
@@ -97,8 +109,6 @@
       "tapToBorrow": "Need to borrow? Tap a top number"
     },
     "showTipsAgain": "Show tips again",
-    "layoutLong": "Long division",
-    "layoutInline": "In a row",
     "remainderLabel": "R",
     "leaveTitle": "Leave practice?",
     "leaveMessage": "Your progress on this session will be lost.",

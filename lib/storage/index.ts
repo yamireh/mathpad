@@ -59,22 +59,31 @@ function baseSettings(): BaseSettings {
 /** The default Settings for an operation when nothing has been saved yet. */
 export function defaultSettings(operation: Operation): Settings {
   switch (operation) {
+    // Mode defaults are On ('with') now that the UI shows them as On/Off
+    // toggles (random is not exposed for now).
     case 'addition':
-      return { operation, ...baseSettings(), carrying: 'random' };
+      return { operation, ...baseSettings(), carrying: 'with', decimals: 'off' };
     case 'subtraction':
       return {
         operation,
         ...baseSettings(),
-        borrowing: 'random',
+        borrowing: 'with',
         allowNegative: 'off',
+        decimals: 'off',
       };
     case 'multiplication':
-      return { operation, ...baseSettings(), regrouping: 'random' };
+      return {
+        operation,
+        ...baseSettings(),
+        regrouping: 'with',
+        decimals: 'off',
+      };
     case 'division':
       return {
         operation,
         ...baseSettings(),
         answerType: 'noRemainder',
+        divisionType: 'long',
         dividendDigits: 3,
         divisorDigits: 2,
       };

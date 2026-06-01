@@ -45,20 +45,34 @@ Unlike worksheet apps that only check the final answer, MathPad preserves the ki
 
 **Operation-specific:**
 
-- **Addition:** Carrying — With / Without / Random
+- **Addition:**
+  - Carrying — With / Without / Random
+  - **Decimals** — Off (default) / On / Random
 - **Subtraction:**
   - Borrowing — With / Without / Random
   - **Allow negative answers** — Off (default) / On / Random
     - *Off:* bigger operand always on top
     - *On:* smaller operand may be on top, producing negative answers (e.g. `5 − 8 = −3`)
     - *Random:* mix of positive and negative answer problems
-- **Multiplication:** Regrouping — With / Without / Random
+  - **Decimals** — Off (default) / On / Random
+- **Multiplication:**
+  - Regrouping — With / Without / Random
+  - **Decimals** — Off (default) / On / Random
+
+- **Decimals (Off / On / Random)** for +/−/×: operands carry 1–2 decimal places
+  (× capped so the product stays ≤ 3 places). The vertical layout aligns operands
+  and answer on a **pre-printed decimal point** (a fixed column), and the
+  carrying / borrowing / regrouping scaffolds work across the fractional columns —
+  a carry/borrow crosses the decimal point like any other column. *Random* mixes
+  decimal and integer questions in a session.
 - **Division:**
-  - Answer type — Without remainders / With remainders / **With decimals** / Random
+  - Division type — **In a row** (`a ÷ b = `) or **Long division** (bracket staircase).
+    Chosen up front in settings and fixed for the whole session (no mid-solution toggle).
+  - Answer type — Without remainders / With remainders / **With decimals** / **All types**
     - *Without remainders:* clean integer division (`12 ÷ 4 = 3`)
     - *With remainders:* (`13 ÷ 4 = 3 R 1`)
     - *With decimals:* answer has up to 3 decimal places (`15 ÷ 4 = 3.75`). Generator only picks problems with terminating decimals — no infinite repeating answers
-    - *Random:* mix
+    - *All types:* mixes the three across the session
 - **Mix:** All four operations; each question randomly picks an operation; respects digit range. No regrouping/borrowing/remainder/negative/decimal constraints (mix stays simpler intentionally).
 
 **Live summary line** at the bottom updates as user changes settings.
@@ -73,10 +87,9 @@ Unlike worksheet apps that only check the final answer, MathPad preserves the ki
 
 **Problem display:**
 - Vertical math format for +, −, × (right-aligned monospace digits, operator on the left of second row, horizontal line below)
-- Division layout auto-picked by digit count and answer type:
-  - 1-digit ÷ 1-digit → horizontal: `8 ÷ 2 = [ ]`
-  - 2+ digit dividend, integer answer → long division (bracket) layout with intermediate work zones
-  - Decimal answer mode → horizontal layout with decimal-aware answer area (see below)
+- Division layout set by the **Division type** setting (fixed for the session):
+  - *In a row* → horizontal `a ÷ b = [ ]` (decimal-aware answer area when the answer is a decimal — see below)
+  - *Long division* → bracket staircase layout with intermediate work zones
 
 **Answer area — standard (integers, remainders):**
 - One constrained handwrite box per digit column (right-aligned)
@@ -317,7 +330,7 @@ All data stays on the device. No cloud, no sync, no external calls.
 - Cloud sync, backups, multi-device
 - Teacher dashboards, classroom features, sharing
 - Leaderboards, achievements, stars, streaks, characters, mascots
-- Word problems, fractions as input, negative answers in multiplication, decimals in operations other than division
+- Word problems, fractions as input, negative answers in multiplication
 - Sound effects, music, haptics beyond default
 - Onboarding tutorial (defer to v1.1 based on user feedback)
 - Languages other than English (structure ready, content English-only)

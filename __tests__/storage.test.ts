@@ -15,13 +15,13 @@ describe('defaultSettings', () => {
     expect(s.timer.enabled).toBe(false);
   });
   it('returns operation-specific defaults', () => {
-    expect(defaultSettings('addition')).toMatchObject({ carrying: 'random' });
+    expect(defaultSettings('addition')).toMatchObject({ carrying: 'with' });
     expect(defaultSettings('subtraction')).toMatchObject({
-      borrowing: 'random',
+      borrowing: 'with',
       allowNegative: 'off',
     });
     expect(defaultSettings('multiplication')).toMatchObject({
-      regrouping: 'random',
+      regrouping: 'with',
     });
     expect(defaultSettings('division')).toMatchObject({
       answerType: 'noRemainder',

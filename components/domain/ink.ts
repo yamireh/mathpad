@@ -273,10 +273,16 @@ export function answerBoxOrder(
 ): string[] {
   const order: string[] = [];
   if (layout === 'vertical') {
+    // Least-significant first: decimal boxes right→left, then integer
+    // right→left (units just left of the dot, on up). Focus starts at the
+    // rightmost decimal box and advances left, matching the column add/sub
+    // walk. Integer questions (decimalBoxes 0) are unchanged.
+    for (let i = shape.decimalBoxes - 1; i >= 0; i -= 1) order.push(`dec-${i}`);
     for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
-  } else {
-    for (let i = 0; i < shape.integerBoxes; i += 1) order.push(`int-${i}`);
+    for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
+    return order;
   }
+  for (let i = 0; i < shape.integerBoxes; i += 1) order.push(`int-${i}`);
   for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
   for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
   return order;

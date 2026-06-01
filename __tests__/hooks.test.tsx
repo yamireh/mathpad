@@ -50,6 +50,7 @@ describe('usePracticeSession', () => {
     questionCount: 5,
     timer: { enabled: false, durationMinutes: 5 },
     carrying: 'random',
+    decimals: 'off',
   };
 
   it('starts, finishes wrong, then fixes a question on review', async () => {

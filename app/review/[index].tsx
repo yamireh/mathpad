@@ -26,7 +26,6 @@ export default function ReviewScreen() {
     session,
     updateAnswerInk,
     updateScratchInk,
-    setLayoutOverride,
     toggleBorrowMark,
     toggleDivisionBorrowMark,
     updateCarryInk,
@@ -45,7 +44,7 @@ export default function ReviewScreen() {
   if (!question) return <Redirect href="/" />;
 
   const accent = operationColors[session.settings.operation].accent;
-  const layout = session.layoutOverrides[question.id] ?? question.layout;
+  const layout = question.layout;
 
   const submit = async () => {
     setSubmitting(true);
@@ -77,7 +76,6 @@ export default function ReviewScreen() {
         key={question.id}
         question={question}
         layout={layout}
-        onLayoutChange={(next) => setLayoutOverride(question.id, next)}
         answerInk={session.answerInk[question.id]}
         onAnswerInkChange={(ink) => updateAnswerInk(question.id, ink)}
         scratchInk={session.scratchInk[question.id]}

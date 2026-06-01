@@ -17,6 +17,7 @@ const additionSettings: AdditionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'random',
+  decimals: 'off',
 };
 
 const divisionSettings: DivisionSettings = {
@@ -25,6 +26,7 @@ const divisionSettings: DivisionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   answerType: 'noRemainder',
+  divisionType: 'long',
   dividendDigits: 2,
   divisorDigits: 1,
 };
@@ -35,6 +37,7 @@ const carryAdditionSettings: AdditionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'with',
+  decimals: 'off',
 };
 
 const subtractionSettings: SubtractionSettings = {
@@ -44,6 +47,7 @@ const subtractionSettings: SubtractionSettings = {
   timer: { enabled: false, durationMinutes: 5 },
   borrowing: 'with',
   allowNegative: 'off',
+  decimals: 'off',
 };
 
 /** Starts a session, then renders the Practice screen. */
@@ -86,15 +90,15 @@ describe('Practice screen', () => {
     expect(screen.getByLabelText('Close writing pad')).toBeOnTheScreen();
   });
 
-  it('offers a long ⇄ in-a-row layout toggle for division', async () => {
+  it('renders division in the layout chosen in settings (no mid-solution toggle)', async () => {
+    // The layout is picked up front via the "Division type" setting; the old
+    // in-practice long ⇄ in-a-row toggle is gone.
     renderPractice(divisionSettings);
     await waitFor(() =>
-      expect(screen.getByText('Long division')).toBeOnTheScreen(),
+      expect(screen.getByText('Question 1 of 5')).toBeOnTheScreen(),
     );
-    expect(screen.getByText('In a row')).toBeOnTheScreen();
-    // Switching to the long-division layout renders without error.
-    fireEvent.press(screen.getByText('Long division'));
-    expect(screen.getByText('Long division')).toBeOnTheScreen();
+    expect(screen.queryByText('Long division')).toBeNull();
+    expect(screen.queryByText('In a row')).toBeNull();
   });
 
   it('shows tap-to-write carry boxes for addition', async () => {

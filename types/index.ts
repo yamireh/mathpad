@@ -57,12 +57,19 @@ export type ModeOption = 'with' | 'without' | 'random';
 /** Off / On / Random — subtraction "allow negative answers". */
 export type NegativeAnswerOption = 'off' | 'on' | 'random';
 
-/** Division answer type. */
+/** Off / On / Random — decimal operands for addition / subtraction / multiplication. */
+export type DecimalOption = 'off' | 'on' | 'random';
+
+/** Division answer type. `all` mixes the three concrete types in a session. */
 export type DivisionAnswerType =
   | 'noRemainder'
   | 'remainder'
   | 'decimal'
+  | 'all'
   | 'random';
+
+/** Division working layout — chosen up front in settings, not mid-solution. */
+export type DivisionFormat = 'row' | 'long';
 
 /* -------------------------------------------------------------------------- */
 /* Settings (per-operation, discriminated union on `operation`)                 */
@@ -84,22 +91,30 @@ export interface BaseSettings {
 export interface AdditionSettings extends BaseSettings {
   operation: 'addition';
   carrying: ModeOption;
+  /** Decimal operands (independent of carrying). */
+  decimals: DecimalOption;
 }
 
 export interface SubtractionSettings extends BaseSettings {
   operation: 'subtraction';
   borrowing: ModeOption;
   allowNegative: NegativeAnswerOption;
+  /** Decimal operands (independent of borrowing). */
+  decimals: DecimalOption;
 }
 
 export interface MultiplicationSettings extends BaseSettings {
   operation: 'multiplication';
   regrouping: ModeOption;
+  /** Decimal operands (independent of regrouping). */
+  decimals: DecimalOption;
 }
 
 export interface DivisionSettings extends BaseSettings {
   operation: 'division';
   answerType: DivisionAnswerType;
+  /** Working layout: in-a-row (`a ÷ b = `) or the long-division bracket. */
+  divisionType: DivisionFormat;
   /**
    * Dividend digit count (single number, not a multi-select). Division
    * questions use a precise dividend / divisor digit count rather than the
@@ -155,6 +170,12 @@ export interface Question {
   operation: ConcreteOperation;
   /** `[top, bottom]` operands as displayed. */
   operands: [number, number];
+  /**
+   * Decimal places per operand for decimal +/−/× questions. Absent (or
+   * `[0, 0]`) means integer operands. Stored explicitly so the column grid
+   * doesn't have to recover places from a float.
+   */
+  operandDecimals?: [number, number];
   answer: QuestionAnswer;
   layout: ProblemLayout;
 }

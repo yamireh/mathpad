@@ -33,7 +33,6 @@ export default function PracticeScreen() {
     session,
     updateAnswerInk,
     updateScratchInk,
-    setLayoutOverride,
     toggleBorrowMark,
     toggleDivisionBorrowMark,
     updateCarryInk,
@@ -75,7 +74,7 @@ export default function PracticeScreen() {
   const judgeCurrentAnswer = useCallback(async () => {
     if (!session) return;
     const q = session.questions[index];
-    const layout = session.layoutOverrides[q.id] ?? q.layout;
+    const layout = q.layout;
     try {
       const submitted = await recognizeAnswer(session.answerInk[q.id], layout);
       if (isAnswerCorrect(q, submitted)) successFeedback();
@@ -97,7 +96,7 @@ export default function PracticeScreen() {
   const question = session.questions[index];
   const accent = operationColors[session.settings.operation].accent;
   const isLast = index === total - 1;
-  const layout = session.layoutOverrides[question.id] ?? question.layout;
+  const layout = question.layout;
 
   return (
     <ScreenContainer padded={false}>
@@ -154,7 +153,6 @@ export default function PracticeScreen() {
         key={question.id}
         question={question}
         layout={layout}
-        onLayoutChange={(next) => setLayoutOverride(question.id, next)}
         answerInk={session.answerInk[question.id]}
         onAnswerInkChange={(ink) => updateAnswerInk(question.id, ink)}
         scratchInk={session.scratchInk[question.id]}

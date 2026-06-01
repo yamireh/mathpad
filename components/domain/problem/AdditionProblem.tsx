@@ -10,11 +10,10 @@ import type { Question } from '../../../types';
 import { type InkStroke } from '../ink';
 import {
   type ProblemSizing,
-  answerShape,
-  digitCount,
   operatorSymbol,
+  verticalGeometry,
 } from '../layout';
-import { CarryRow, DigitCells, sharedStyles } from './shared';
+import { CarryRow, DigitCells, gridWidth, sharedStyles } from './shared';
 
 export interface AdditionProblemProps {
   question: Question;
@@ -46,9 +45,8 @@ export function AdditionProblem({
   sizing,
 }: AdditionProblemProps) {
   const [op1, op2] = question.operands;
-  const shape = answerShape(question);
-  const answerColumns = shape.integerBoxes + (shape.hasSign ? 1 : 0);
-  const columns = Math.max(digitCount(op1), digitCount(op2), answerColumns);
+  const { intCols, decCols } = verticalGeometry(question);
+  const columns = intCols + decCols;
   const {
     cellWidth,
     digitSize,
@@ -56,7 +54,8 @@ export function AdditionProblem({
     carryWidth: carryW,
     carryHeight: carryH,
   } = sizing;
-  const columnAreaWidth = columns * cellWidth;
+  const columnAreaWidth = gridWidth(intCols, decCols, cellWidth);
+  const dotIndex = decCols > 0 ? intCols : undefined;
 
   return (
     <View>
@@ -72,13 +71,19 @@ export function AdditionProblem({
           operatorWidth={operatorWidth}
           boxWidth={carryW}
           boxHeight={carryH}
+          dotIndex={dotIndex}
         />
       ) : null}
 
       <View style={sharedStyles.problemRow}>
         <View style={[sharedStyles.operatorColumn, { width: operatorWidth }]} />
         <View style={[sharedStyles.columnArea, { width: columnAreaWidth }]}>
-          <DigitCells value={op1} cellWidth={cellWidth} digitSize={digitSize} />
+          <DigitCells
+            value={op1}
+            cellWidth={cellWidth}
+            digitSize={digitSize}
+            decCols={decCols}
+          />
         </View>
       </View>
       <View style={sharedStyles.problemRow}>
@@ -88,7 +93,12 @@ export function AdditionProblem({
           </Text>
         </View>
         <View style={[sharedStyles.columnArea, { width: columnAreaWidth }]}>
-          <DigitCells value={op2} cellWidth={cellWidth} digitSize={digitSize} />
+          <DigitCells
+            value={op2}
+            cellWidth={cellWidth}
+            digitSize={digitSize}
+            decCols={decCols}
+          />
         </View>
       </View>
       <View

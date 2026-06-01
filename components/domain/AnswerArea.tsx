@@ -45,7 +45,14 @@ export function AnswerArea({
     boxHeight,
   };
   if (question.answer.kind === 'decimal') {
-    return <DecimalAnswerRow {...shared} />;
+    // Multiplication aligns its answer with the integer partial-product rows,
+    // so its decimal point is a thin mark, not a column (unlike +/− and ÷).
+    return (
+      <DecimalAnswerRow
+        {...shared}
+        thinDot={question.operation === 'multiplication'}
+      />
+    );
   }
   if (question.answer.kind === 'remainder') {
     return <RemainderAnswerRow {...shared} />;

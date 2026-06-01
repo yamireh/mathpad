@@ -13,6 +13,7 @@ const settings: AdditionSettings = {
   questionCount: 5,
   timer: { enabled: false, durationMinutes: 5 },
   carrying: 'random',
+  decimals: 'off',
 };
 
 const blank: SubmittedAnswer = {

@@ -4,7 +4,7 @@
  * animation), the bottom operand carries the `−` operator, then a rule and
  * the difference answer area.
  */
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -15,11 +15,16 @@ import { BorrowArrow } from '../BorrowArrow';
 import { computeBorrowDisplay, needsBorrow } from '../borrow';
 import {
   type ProblemSizing,
-  answerShape,
-  digitCount,
   operatorSymbol,
+  verticalGeometry,
 } from '../layout';
-import { DigitCells, sharedStyles } from './shared';
+import {
+  DECIMAL_SEPARATOR,
+  DigitCells,
+  decimalDotWidth,
+  gridWidth,
+  sharedStyles,
+} from './shared';
 
 export interface SubtractionProblemProps {
   question: Question;
@@ -46,13 +51,14 @@ export function SubtractionProblem({
 }: SubtractionProblemProps) {
   const { t } = useTranslation();
   const [op1, op2] = question.operands;
-  const shape = answerShape(question);
-  const answerColumns = shape.integerBoxes + (shape.hasSign ? 1 : 0);
-  const columns = Math.max(digitCount(op1), digitCount(op2), answerColumns);
+  const { intCols, decCols } = verticalGeometry(question);
   const { cellWidth, digitSize, operatorWidth } = sizing;
-  const columnAreaWidth = columns * cellWidth;
+  const columnAreaWidth = gridWidth(intCols, decCols, cellWidth);
+  const scale = 10 ** decCols;
   const showBorrowTip =
-    !!onToggleBorrow && borrowMarks.length === 0 && needsBorrow(op1, op2);
+    !!onToggleBorrow &&
+    borrowMarks.length === 0 &&
+    needsBorrow(Math.round(Math.abs(op1) * scale), Math.round(Math.abs(op2) * scale));
 
   return (
     <View>
@@ -75,9 +81,15 @@ export function SubtractionProblem({
               tone={tone}
               cellWidth={cellWidth}
               digitSize={digitSize}
+              decCols={decCols}
             />
           ) : (
-            <DigitCells value={op1} cellWidth={cellWidth} digitSize={digitSize} />
+            <DigitCells
+              value={op1}
+              cellWidth={cellWidth}
+              digitSize={digitSize}
+              decCols={decCols}
+            />
           )}
         </View>
       </View>
@@ -88,7 +100,12 @@ export function SubtractionProblem({
           </Text>
         </View>
         <View style={[sharedStyles.columnArea, { width: columnAreaWidth }]}>
-          <DigitCells value={op2} cellWidth={cellWidth} digitSize={digitSize} />
+          <DigitCells
+            value={op2}
+            cellWidth={cellWidth}
+            digitSize={digitSize}
+            decCols={decCols}
+          />
         </View>
       </View>
       <View
@@ -120,6 +137,7 @@ function BorrowDigitRow({
   tone,
   cellWidth,
   digitSize,
+  decCols = 0,
 }: {
   value: number;
   marks: number[];
@@ -127,14 +145,28 @@ function BorrowDigitRow({
   tone: string;
   cellWidth: number;
   digitSize: number;
+  decCols?: number;
 }) {
-  const digits = String(Math.abs(value)).split('').map(Number);
+  // Combined digit array (integer then decimal), with the dot at `dotAt`.
+  // Borrowing operates on this array, so a borrow can cross the decimal point
+  // (units lending into the tenths) just like any other column.
+  const abs = Math.abs(value);
+  const intDigits = String(Math.trunc(abs)).split('').map(Number);
+  const decDigits =
+    decCols > 0
+      ? String(Math.round((abs - Math.trunc(abs)) * 10 ** decCols))
+          .padStart(decCols, '0')
+          .slice(-decCols)
+          .split('')
+          .map(Number)
+      : [];
+  const digits = [...intDigits, ...decDigits];
+  const dotAt = decCols > 0 ? intDigits.length : -1;
   const display = computeBorrowDisplay(digits, marks);
+  const dotWidth = decimalDotWidth(cellWidth);
 
   // The borrow arrow plays EVERY time the kid taps a digit to borrow —
-  // it's a teaching aid, not a one-time tip. (Previously it was gated by
-  // `useTip('borrow-arrow')` which dismissed itself after the first
-  // borrow, hiding the animation for the rest of the session.)
+  // it's a teaching aid, not a one-time tip.
   const prevCount = useRef(marks.length);
   const [arrow, setArrow] = useState<{ column: number; key: number } | null>(
     null,
@@ -182,9 +214,8 @@ function BorrowDigitRow({
             </View>
           </View>
         );
-        return tappable ? (
+        const cellNode = tappable ? (
           <Pressable
-            key={i}
             accessibilityRole="button"
             accessibilityLabel={`Borrow from ${digit}`}
             onPress={() => onToggle(i)}
@@ -192,18 +223,40 @@ function BorrowDigitRow({
             {inner}
           </Pressable>
         ) : (
-          <View key={i}>{inner}</View>
+          inner
+        );
+        return (
+          <Fragment key={i}>
+            {i === dotAt ? (
+              <View style={[styles.dotCell, { width: dotWidth }]}>
+                <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>
+                  {DECIMAL_SEPARATOR}
+                </Text>
+              </View>
+            ) : null}
+            {cellNode}
+          </Fragment>
         );
       })}
       {arrow ? (
-        <BorrowArrow
-          key={arrow.key}
-          column={arrow.column}
-          cellCount={digits.length}
-          cellWidth={cellWidth}
-          tone={tone}
-          onDone={() => setArrow(null)}
-        />
+        <View
+          pointerEvents="none"
+          style={[
+            styles.arrowAnchor,
+            // Shift right by the dot column when the lender sits in the
+            // decimal part, so the arc lands over the right cells.
+            { left: dotAt >= 0 && arrow.column >= dotAt ? dotWidth : 0 },
+          ]}
+        >
+          <BorrowArrow
+            key={arrow.key}
+            column={arrow.column}
+            cellCount={digits.length}
+            cellWidth={cellWidth}
+            tone={tone}
+            onDone={() => setArrow(null)}
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -212,6 +265,10 @@ function BorrowDigitRow({
 const styles = StyleSheet.create({
   borrowTip: { marginBottom: spacing.xs },
   borrowRowAnchor: { position: 'relative', overflow: 'visible' },
+  // Decimal point column — aligns its dot at the digit baseline (bottom) so it
+  // sits level with the digits despite the annotation slot above them.
+  dotCell: { alignItems: 'center', justifyContent: 'flex-end' },
+  arrowAnchor: { position: 'absolute', top: 0 },
   cell: { alignItems: 'center' },
   annotationSlot: {
     height: 28,

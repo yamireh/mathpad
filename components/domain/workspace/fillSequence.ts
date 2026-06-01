@@ -55,15 +55,25 @@ function verticalSequence(
 ): string[] {
   const seq: string[] = [];
   if (mult) seq.push(...multiplicationPartials(mult));
-  for (let r = 0; r < shape.integerBoxes; r += 1) {
-    const intCol = shape.integerBoxes - 1 - r;
-    seq.push(`int-${intCol}`);
-    const carryCol = intCol - 1;
+  // Walk the integer + decimal grid least-significant first (rightmost column
+  // → left), interleaving each column's carry box. The grid column maps to an
+  // answer box: columns < integerBoxes are `int-`, the rest are `dec-` (so the
+  // decimal places sit to the right of the units, and a carry can cross the
+  // decimal point into the units box). Integer questions have decimalBoxes 0,
+  // so this is unchanged for them.
+  const total = shape.integerBoxes + shape.decimalBoxes;
+  for (let r = 0; r < total; r += 1) {
+    const gridCol = total - 1 - r;
+    seq.push(
+      gridCol < shape.integerBoxes
+        ? `int-${gridCol}`
+        : `dec-${gridCol - shape.integerBoxes}`,
+    );
+    const carryCol = gridCol - 1;
     if (carryCol >= 0 && expectedCarries[carryCol]) {
       seq.push(`carry-${carryCol}`);
     }
   }
-  for (let i = 0; i < shape.decimalBoxes; i += 1) seq.push(`dec-${i}`);
   for (let i = 0; i < shape.remainderBoxes; i += 1) seq.push(`rem-${i}`);
   return seq;
 }
@@ -107,11 +117,15 @@ function nonVerticalSequence(
   }
   if (isDivision) {
     for (let i = 0; i < shape.integerBoxes; i += 1) order.push(`int-${i}`);
-  } else {
-    // Vertical layout with no expected carries (subtraction) — right-to-left.
-    for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
+    for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
+    for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
+    return order;
   }
-  for (let i = 0; i < shape.decimalBoxes; i += 1) order.push(`dec-${i}`);
+  // Vertical layout with no expected carries (subtraction) — least-significant
+  // first: decimal boxes right→left, then integer right→left. Integer
+  // questions (decimalBoxes 0) are unchanged.
+  for (let i = shape.decimalBoxes - 1; i >= 0; i -= 1) order.push(`dec-${i}`);
+  for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) order.push(`int-${i}`);
   for (let i = 0; i < shape.remainderBoxes; i += 1) order.push(`rem-${i}`);
   return order;
 }

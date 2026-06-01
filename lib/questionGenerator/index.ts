@@ -8,8 +8,10 @@
  */
 import type {
   ConcreteOperation,
+  DecimalOption,
   DigitCount,
   DivisionAnswerType,
+  DivisionFormat,
   ModeOption,
   NegativeAnswerOption,
   ProblemLayout,
@@ -169,12 +171,44 @@ function resolveMode(mode: ModeOption, rng: RNG): 'with' | 'without' | 'any' {
   return mode;
 }
 
+/** Resolve a decimals option to a concrete boolean for one question. */
+function resolveDecimal(option: DecimalOption, rng: RNG): boolean {
+  if (option === 'random') return rng() < 0.5;
+  return option === 'on';
+}
+
+/** A decimal operand with `intDigits` integer digits and `places` decimal places. */
+function decimalOperand(
+  intDigits: DigitCount,
+  places: number,
+  rng: RNG,
+): number {
+  const intPart = operandWithDigits(intDigits, rng);
+  const frac = randInt(0, 10 ** places - 1, rng);
+  return intPart + frac / 10 ** places;
+}
+
+/** Round `value` to `places` decimal places (kills float noise). */
+function roundTo(value: number, places: number): number {
+  const f = 10 ** places;
+  return Math.round(value * f) / f;
+}
+
+/** Integer formed by `value`'s digits over `places` decimal places (e.g. 12.5,2 → 1250). */
+function scaleToInt(value: number, places: number): number {
+  return Math.round(Math.abs(value) * 10 ** places);
+}
+
 function generateAddition(
   counts: DigitCount[],
   carrying: ModeOption,
+  decimals: DecimalOption,
   rng: RNG,
 ): QuestionCore {
   const want = resolveMode(carrying, rng);
+  if (resolveDecimal(decimals, rng)) {
+    return generateAdditionDecimal(counts, want, rng);
+  }
   let last: [number, number] = [0, 0];
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     const a = operandWithDigits(pickDigitCount(counts, rng), rng);
@@ -198,10 +232,40 @@ function generateAddition(
   };
 }
 
+/** Decimal addition: 1–2 place operands; carrying checked on the scaled digits. */
+function generateAdditionDecimal(
+  counts: DigitCount[],
+  want: 'with' | 'without' | 'any',
+  rng: RNG,
+): QuestionCore {
+  let last: QuestionCore | null = null;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const p1 = randInt(1, 2, rng);
+    const p2 = randInt(1, 2, rng);
+    const a = decimalOperand(pickDigitCount(counts, rng), p1, rng);
+    const b = decimalOperand(pickDigitCount(counts, rng), p2, rng);
+    const decCols = Math.max(p1, p2);
+    const core: QuestionCore = {
+      operation: 'addition',
+      operands: [a, b],
+      operandDecimals: [p1, p2],
+      answer: { kind: 'decimal', value: roundTo(a + b, decCols), decimalPlaces: decCols },
+      layout: 'vertical',
+    };
+    last ??= core;
+    const carry = additionHasCarry(scaleToInt(a, decCols), scaleToInt(b, decCols));
+    if (want === 'with' && !carry) continue;
+    if (want === 'without' && carry) continue;
+    return core;
+  }
+  return last as QuestionCore;
+}
+
 function generateSubtraction(
   counts: DigitCount[],
   borrowing: ModeOption,
   allowNegative: NegativeAnswerOption,
+  decimals: DecimalOption,
   rng: RNG,
 ): QuestionCore {
   const wantBorrow = resolveMode(borrowing, rng);
@@ -212,6 +276,12 @@ function generateSubtraction(
       : allowNegative === 'off'
         ? false
         : rng() < 0.5;
+
+  if (resolveDecimal(decimals, rng)) {
+    // Decimal subtraction stays non-negative for now (the decimal answer area
+    // has no sign box yet); `negative` is intentionally ignored here.
+    return generateSubtractionDecimal(counts, wantBorrow, rng);
+  }
 
   let fallback: QuestionCore | null = null;
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
@@ -239,12 +309,58 @@ function generateSubtraction(
   return fallback as QuestionCore;
 }
 
+/** Decimal subtraction (non-negative): borrow checked on the scaled digits. */
+function generateSubtractionDecimal(
+  counts: DigitCount[],
+  wantBorrow: 'with' | 'without' | 'any',
+  rng: RNG,
+): QuestionCore {
+  let fallback: QuestionCore | null = null;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const p1 = randInt(1, 2, rng);
+    const p2 = randInt(1, 2, rng);
+    const a = decimalOperand(pickDigitCount(counts, rng), p1, rng);
+    const b = decimalOperand(pickDigitCount(counts, rng), p2, rng);
+    if (a === b) continue;
+    const decCols = Math.max(p1, p2);
+    // Larger on top → non-negative difference.
+    const top = Math.max(a, b);
+    const bottom = Math.min(a, b);
+    const topPlaces = top === a ? p1 : p2;
+    const bottomPlaces = bottom === a ? p1 : p2;
+    const core: QuestionCore = {
+      operation: 'subtraction',
+      operands: [top, bottom],
+      operandDecimals: [topPlaces, bottomPlaces],
+      answer: {
+        kind: 'decimal',
+        value: roundTo(top - bottom, decCols),
+        decimalPlaces: decCols,
+      },
+      layout: 'vertical',
+    };
+    fallback ??= core;
+    const borrow = subtractionHasBorrow(
+      scaleToInt(top, decCols),
+      scaleToInt(bottom, decCols),
+    );
+    if (wantBorrow === 'with' && !borrow) continue;
+    if (wantBorrow === 'without' && borrow) continue;
+    return core;
+  }
+  return fallback as QuestionCore;
+}
+
 function generateMultiplication(
   counts: DigitCount[],
   regrouping: ModeOption,
+  decimals: DecimalOption,
   rng: RNG,
 ): QuestionCore {
   const want = resolveMode(regrouping, rng);
+  if (resolveDecimal(decimals, rng)) {
+    return generateMultiplicationDecimal(counts, want, rng);
+  }
   let last: [number, number] = [0, 0];
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     const a = operandWithDigits(pickDigitCount(counts, rng), rng);
@@ -268,6 +384,36 @@ function generateMultiplication(
   };
 }
 
+/** Decimal multiplication: operand places capped so the product stays ≤ 3. */
+function generateMultiplicationDecimal(
+  counts: DigitCount[],
+  want: 'with' | 'without' | 'any',
+  rng: RNG,
+): QuestionCore {
+  let last: QuestionCore | null = null;
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    const p1 = randInt(1, 2, rng);
+    const p2 = randInt(1, Math.max(1, 3 - p1), rng); // p1 + p2 ≤ 3
+    const a = decimalOperand(pickDigitCount(counts, rng), p1, rng);
+    const b = decimalOperand(pickDigitCount(counts, rng), p2, rng);
+    const places = p1 + p2;
+    const core: QuestionCore = {
+      operation: 'multiplication',
+      operands: [a, b],
+      operandDecimals: [p1, p2],
+      answer: { kind: 'decimal', value: roundTo(a * b, places), decimalPlaces: places },
+      layout: 'vertical',
+    };
+    last ??= core;
+    // Regrouping is a property of multiplying the scaled-integer digit strings.
+    const regroup = multiplicationHasRegroup(scaleToInt(a, p1), scaleToInt(b, p2));
+    if (want === 'with' && !regroup) continue;
+    if (want === 'without' && regroup) continue;
+    return core;
+  }
+  return last as QuestionCore;
+}
+
 /** Divisors of 1000 (≥ 2) by digit count — these always yield ≤3-place decimals. */
 const TERMINATING_DIVISORS: Record<DigitCount, number[]> = {
   1: [2, 4, 5, 8],
@@ -287,17 +433,11 @@ function decimalPlacesOf(dividend: number, divisor: number): number {
   return places;
 }
 
-function divisionLayout(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _dividendDigits: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _divisorDigits: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _decimal: boolean,
-): ProblemLayout {
-  // Long division is the default for every division question — even the
-  // simple 1-digit ÷ 1-digit and decimal-answer cases. The kid can switch
-  // to the in-a-row layout via the toggle chip on the practice screen.
+function divisionLayout(decimal: boolean, format: DivisionFormat): ProblemLayout {
+  // The working layout is chosen up front in settings (no mid-solution
+  // toggle). `row` is the inline `a ÷ b = ` layout — decimal-aware when the
+  // answer is a decimal; `long` is the bracket staircase for every case.
+  if (format === 'row') return decimal ? 'divisionDecimal' : 'divisionHorizontal';
   return 'divisionLong';
 }
 
@@ -305,10 +445,11 @@ function generateDivision(
   dividendDigits: DigitCount,
   divisorDigits: DigitCount,
   answerType: DivisionAnswerType,
+  format: DivisionFormat,
   rng: RNG,
 ): QuestionCore {
-  const resolved: Exclude<DivisionAnswerType, 'random'> =
-    answerType === 'random'
+  const resolved: 'noRemainder' | 'remainder' | 'decimal' =
+    answerType === 'random' || answerType === 'all'
       ? pick(['noRemainder', 'remainder', 'decimal'] as const, rng)
       : answerType;
 
@@ -330,7 +471,7 @@ function generateDivision(
           value: dividend / divisor,
           decimalPlaces: decimalPlacesOf(dividend, divisor),
         },
-        layout: divisionLayout(dividendDigits, divisorDigits, true),
+        layout: divisionLayout(true, format),
       };
     }
 
@@ -347,7 +488,7 @@ function generateDivision(
         operation: 'division',
         operands: [dividend, divisor],
         answer: { kind: 'integer', value: quotient },
-        layout: divisionLayout(dividendDigits, divisorDigits, false),
+        layout: divisionLayout(false, format),
       };
     }
 
@@ -363,7 +504,7 @@ function generateDivision(
       operation: 'division',
       operands: [dividend, divisor],
       answer: { kind: 'remainder', quotient, remainder },
-      layout: divisionLayout(dividendDigits, divisorDigits, false),
+      layout: divisionLayout(false, format),
     };
   }
 
@@ -372,7 +513,7 @@ function generateDivision(
     operation: 'division',
     operands: [12, 4],
     answer: { kind: 'integer', value: 3 },
-    layout: 'divisionHorizontal',
+    layout: divisionLayout(false, format),
   };
 }
 
@@ -392,6 +533,8 @@ function generateForOperation(
       return generateAddition(
         digitCounts,
         settings.operation === 'addition' ? settings.carrying : 'random',
+        // Mix mode stays integer-only (SPEC).
+        settings.operation === 'addition' ? settings.decimals : 'off',
         rng,
       );
     case 'subtraction':
@@ -399,6 +542,7 @@ function generateForOperation(
         digitCounts,
         settings.operation === 'subtraction' ? settings.borrowing : 'random',
         settings.operation === 'subtraction' ? settings.allowNegative : 'off',
+        settings.operation === 'subtraction' ? settings.decimals : 'off',
         rng,
       );
     case 'multiplication':
@@ -407,6 +551,7 @@ function generateForOperation(
         settings.operation === 'multiplication'
           ? settings.regrouping
           : 'random',
+        settings.operation === 'multiplication' ? settings.decimals : 'off',
         rng,
       );
     case 'division':
@@ -419,6 +564,8 @@ function generateForOperation(
         settings.operation === 'division'
           ? settings.answerType
           : 'noRemainder',
+        // Mix mode uses the long-division layout (its richer scaffold).
+        settings.operation === 'division' ? settings.divisionType : 'long',
         rng,
       );
   }

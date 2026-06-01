@@ -310,13 +310,81 @@ export function answerShape(question: Question): AnswerShape {
       };
     case 'decimal':
       return {
-        hasSign: false,
+        hasSign: answer.value < 0,
         integerBoxes: digitCount(Math.trunc(answer.value)),
-        // SPEC: up to 3 decimal boxes; the kid leaves trailing ones blank.
-        decimalBoxes: 3,
+        // Division hides the place count behind 3 boxes (kid leaves trailing
+        // blank as they expand). +/−/× answers are exact, so they show exactly
+        // the decimal places they have — keeping the dot aligned with operands.
+        decimalBoxes:
+          question.operation === 'division' ? 3 : answer.decimalPlaces,
         remainderBoxes: 0,
       };
   }
+}
+
+/** Column geometry for the vertical (+/−/×) layout. */
+export interface VerticalGeometry {
+  /** Integer-place column count (left of the dot). */
+  intCols: number;
+  /** Decimal-place column count (right of the dot). 0 = integer question. */
+  decCols: number;
+}
+
+/**
+ * Column grid for a vertical problem, spanning operands and answer. Integer
+ * questions yield `decCols: 0` (no dot) — the same grid the layout used before
+ * decimals, so this drives both modes. `digitCount` already counts a value's
+ * integer-part digits, so the integer-column formula is unchanged.
+ */
+export function verticalGeometry(question: Question): VerticalGeometry {
+  const [op1, op2] = question.operands;
+  const shape = answerShape(question);
+  const places = question.operandDecimals ?? [0, 0];
+  const answerPlaces =
+    question.answer.kind === 'decimal' ? question.answer.decimalPlaces : 0;
+  const intCols = Math.max(
+    digitCount(op1),
+    digitCount(op2),
+    shape.integerBoxes + (shape.hasSign ? 1 : 0),
+  );
+  const decCols = Math.max(places[0] ?? 0, places[1] ?? 0, answerPlaces);
+  return { intCols, decCols };
+}
+
+/**
+ * Digits of `value` laid onto an `intCols + decCols` grid (most-significant
+ * first), zero-padded on both ends so every operand/answer aligns on the
+ * decimal point. The dot sits between index `intCols-1` and `intCols`.
+ */
+export function gridDigits(
+  value: number,
+  intCols: number,
+  decCols: number,
+): number[] {
+  const total = intCols + decCols;
+  const scaled = Math.round(Math.abs(value) * 10 ** decCols);
+  return String(scaled)
+    .padStart(total, '0')
+    .slice(-total)
+    .split('')
+    .map(Number);
+}
+
+/**
+ * The operands as integer digit strings for multiplication's partial products.
+ * Decimal `×` multiplies the digit strings as integers (the dot is placed in
+ * the product afterward), so `2.5 × 1.25` → `[25, 125]`. Integer operands are
+ * returned unchanged.
+ */
+export function multiplicationDigitOperands(
+  question: Question,
+): [number, number] {
+  const [op1, op2] = question.operands;
+  const [p1, p2] = question.operandDecimals ?? [0, 0];
+  return [
+    Math.round(Math.abs(op1) * 10 ** (p1 ?? 0)),
+    Math.round(Math.abs(op2) * 10 ** (p2 ?? 0)),
+  ];
 }
 
 /**

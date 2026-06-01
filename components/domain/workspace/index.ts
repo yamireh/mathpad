@@ -3,7 +3,6 @@ export * from './CompactBody';
 export * from './DivisionBody';
 export * from './draftInk';
 export * from './fillSequence';
-export * from './LayoutToggle';
 export * from './multiOperand';
 export * from './nextEmptyBox';
 export * from './PadRegion';

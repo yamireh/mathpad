@@ -10,8 +10,10 @@ import {
   answerShape,
   digitCount,
   divisionDraftRowLayout,
+  multiplicationDigitOperands,
   partialMultiplicationCarries,
   partialWidths,
+  verticalGeometry,
 } from '../../components/domain/layout';
 import { computeBorrowDisplay } from '../../components/domain/borrow';
 import type { ProblemLayout, Question } from '../../types';
@@ -55,22 +57,30 @@ function solveAddition(question: Question): SolvePlan {
   const [op1, op2] = question.operands;
   const shape = answerShape(question);
   const values = new Map<string, number>();
-  let a = Math.abs(op1);
-  let b = Math.abs(op2);
+  const decCols = shape.decimalBoxes;
+  const total = shape.integerBoxes + decCols;
+  // Work on the scaled-integer grid (operand × 10^decCols) so decimal places
+  // are just more columns; decCols 0 → the original integer behaviour.
+  let a = Math.round(Math.abs(op1) * 10 ** decCols);
+  let b = Math.round(Math.abs(op2) * 10 ** decCols);
   let carry = 0;
-  // Column-wise sum, right → left. Each column writes its result digit and,
-  // when it generates a carry, lights up the carry box above the column to
-  // its left.
-  for (let col = shape.integerBoxes - 1; col >= 0; col -= 1) {
+  // Column-wise sum, right (least significant) → left. Each grid column writes
+  // its result digit into the matching int-/dec- box and, when it carries,
+  // lights up the carry box above the column to its left (crossing the dot).
+  for (let gridCol = total - 1; gridCol >= 0; gridCol -= 1) {
     const d1 = a % 10;
     const d2 = b % 10;
     a = Math.floor(a / 10);
     b = Math.floor(b / 10);
-    const total = d1 + d2 + carry;
-    values.set(`int-${col}`, total % 10);
-    const nextCarry = Math.floor(total / 10);
-    if (nextCarry > 0 && col - 1 >= 0) {
-      values.set(`carry-${col - 1}`, nextCarry);
+    const sum = d1 + d2 + carry;
+    const boxId =
+      gridCol < shape.integerBoxes
+        ? `int-${gridCol}`
+        : `dec-${gridCol - shape.integerBoxes}`;
+    values.set(boxId, sum % 10);
+    const nextCarry = Math.floor(sum / 10);
+    if (nextCarry > 0 && gridCol - 1 >= 0) {
+      values.set(`carry-${gridCol - 1}`, nextCarry);
     }
     carry = nextCarry;
   }
@@ -86,34 +96,48 @@ function solveSubtraction(question: Question): SolvePlan {
   const shape = answerShape(question);
   const values = new Map<string, number>();
 
-  // Top-operand digits (most-significant first), padded to integerBoxes.
-  // Assume op1 >= op2 (the generator enforces this for non-negative mode).
-  const digits = String(Math.abs(op1))
-    .padStart(shape.integerBoxes, '0')
+  // Work over the full (integer + decimal) grid. Operands are scaled to their
+  // digit strings so decimal places are just more columns; the minuend (op1 ≥
+  // op2 for non-negative mode) fills the integer columns, so it has no leading
+  // zeros. `total` columns; columns ≥ intCols are decimal places. decCols 0 →
+  // the original integer behaviour.
+  const { intCols, decCols } = verticalGeometry(question);
+  const total = intCols + decCols;
+  const scale = 10 ** decCols;
+  const digits = String(Math.round(Math.abs(op1) * scale))
+    .padStart(total, '0')
     .split('')
     .map(Number);
-  const subtrahend = String(Math.abs(op2))
-    .padStart(shape.integerBoxes, '0')
+  const subtrahend = String(Math.round(Math.abs(op2) * scale))
+    .padStart(total, '0')
     .split('')
     .map(Number);
 
   // Walk right → left, tapping the column to the left of each column that
-  // would underflow. `computeBorrowDisplay` handles cascade (e.g. tapping a
-  // 0 column drags another borrow further left), so we only ever tap the
-  // immediate left neighbour.
+  // would underflow. `computeBorrowDisplay` handles cascade (tapping a 0
+  // column drags another borrow further left). Borrow indices are grid columns
+  // (into `digits`) — the same indices the BorrowDigitRow's marks use.
   const borrows: number[] = [];
-  for (let i = shape.integerBoxes - 1; i >= 0; i -= 1) {
+  for (let i = total - 1; i >= 0; i -= 1) {
     const display = computeBorrowDisplay(digits, borrows);
     if (display[i].value < subtrahend[i] && i - 1 >= 0) {
       borrows.push(i - 1);
     }
   }
 
-  // Result digits: adjusted top digit − subtrahend digit per column.
+  // Result digit per grid column → its answer box. The answer has fewer
+  // integer digits than the grid when the difference is shorter than the
+  // minuend, so integer boxes are offset to the rightmost integer columns.
   const finalDisplay = computeBorrowDisplay(digits, borrows);
-  for (let i = 0; i < shape.integerBoxes; i += 1) {
+  const intOffset = intCols - shape.integerBoxes;
+  for (let i = 0; i < total; i += 1) {
     const r = finalDisplay[i].value - subtrahend[i];
-    if (r >= 0) values.set(`int-${i}`, r);
+    if (r < 0) continue;
+    if (i >= intCols) {
+      values.set(`dec-${i - intCols}`, r);
+    } else if (i - intOffset >= 0) {
+      values.set(`int-${i - intOffset}`, r);
+    }
   }
   return { values, borrows, bringDownCells: new Set() };
 }
@@ -122,23 +146,35 @@ function solveSubtraction(question: Question): SolvePlan {
 /* Multiplication                                                               */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The sum/answer box id for grid column `i` (0 = most significant). Columns
+ * left of `integerBoxes` are integer boxes; the rest are decimal boxes (the
+ * product's digit string split at the decimal point).
+ */
+function sumBoxId(i: number, integerBoxes: number): string {
+  return i < integerBoxes ? `int-${i}` : `dec-${i - integerBoxes}`;
+}
+
 function solveMultiplication(question: Question): SolvePlan {
-  const [op1, op2] = question.operands;
   const shape = answerShape(question);
-  const partials = partialWidths(op1, op2);
+  // Multiply the operand digit strings as integers (decimal `×` places the dot
+  // in the product afterward). Integer operands pass through unchanged.
+  const [a1, a2] = multiplicationDigitOperands(question);
+  const partials = partialWidths(a1, a2);
   if (partials) {
     return solveMultiplicationMultiDigit(question);
   }
   // Single-digit multiplier: column-wise multiply, carrying like addition.
   const values = new Map<string, number>();
-  let a = Math.abs(op1);
-  const m = Math.abs(op2);
+  const sumTotal = shape.integerBoxes + shape.decimalBoxes;
+  let a = a1;
+  const m = a2;
   let carry = 0;
-  for (let col = shape.integerBoxes - 1; col >= 0; col -= 1) {
+  for (let col = sumTotal - 1; col >= 0; col -= 1) {
     const d = a % 10;
     a = Math.floor(a / 10);
     const total = d * m + carry;
-    values.set(`int-${col}`, total % 10);
+    values.set(sumBoxId(col, shape.integerBoxes), total % 10);
     const nextCarry = Math.floor(total / 10);
     if (nextCarry > 0 && col - 1 >= 0) {
       values.set(`carry-${col - 1}`, nextCarry);
@@ -149,18 +185,18 @@ function solveMultiplication(question: Question): SolvePlan {
 }
 
 function solveMultiplicationMultiDigit(question: Question): SolvePlan {
-  const [op1, op2] = question.operands;
   const shape = answerShape(question);
-  const partials = partialWidths(op1, op2);
+  const [a1, a2] = multiplicationDigitOperands(question);
+  const partials = partialWidths(a1, a2);
   if (!partials)
     return { values: new Map(), borrows: [], bringDownCells: new Set() };
-  const op1Cols = digitCount(op1);
+  const op1Cols = digitCount(a1);
   const values = new Map<string, number>();
 
-  // Per partial row: write each digit of (op1 × digit_r) right-to-left,
-  // and place each step's carry into the `tcarry-{row}-{op1Col}` slot
-  // when the math actually produces one.
-  let m = Math.abs(op2);
+  // Per partial row: write each digit of (a1 × digit_r) right-to-left, and
+  // place each step's carry into the `tcarry-{row}-{op1Col}` slot when the
+  // math actually produces one. (Partials are integer digit-string products.)
+  let m = a2;
   for (let r = 0; r < partials.length; r += 1) {
     const width = partials[r];
     const d = m % 10;
@@ -169,8 +205,8 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
       values.set(`pp-${r}-${width - 1}`, 0);
       continue;
     }
-    const tcarries = partialMultiplicationCarries(op1, d, op1Cols);
-    let a = Math.abs(op1);
+    const tcarries = partialMultiplicationCarries(a1, d, op1Cols);
+    let a = a1;
     let carry = 0;
     for (let pos = 0; pos < op1Cols; pos += 1) {
       const digit = a % 10;
@@ -179,8 +215,6 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
       const cellCol = width - 1 - pos;
       values.set(`pp-${r}-${cellCol}`, total % 10);
       const nextCarry = Math.floor(total / 10);
-      // Times-carry slots live for positions 0..op1Cols-2; index pos's
-      // carry goes into the (op1Cols - 2 - pos) slot.
       if (pos < op1Cols - 1 && tcarries[pos]) {
         values.set(`tcarry-${r}-${op1Cols - 2 - pos}`, nextCarry);
       }
@@ -191,31 +225,29 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
     }
   }
 
-  // Final sum row: just write the digits of the answer.
-  const product = Math.abs(op1) * Math.abs(op2);
-  const sumDigits = String(product).padStart(shape.integerBoxes, '0').split('').map(Number);
-  // Compute final-sum carries between columns (across all partials).
+  // Final sum: the product's digits, split into int-/dec- boxes, plus the
+  // carry digits between sum columns.
+  const sumTotal = shape.integerBoxes + shape.decimalBoxes;
+  const product = a1 * a2;
+  const sumDigits = String(product)
+    .padStart(sumTotal, '0')
+    .split('')
+    .map(Number);
+  for (let i = 0; i < sumTotal; i += 1) {
+    values.set(sumBoxId(i, shape.integerBoxes), sumDigits[i]);
+  }
+  // Carry digits across the final sum of the shifted partial products.
   const partialValues: number[] = [];
-  let m2 = Math.abs(op2);
+  let m2 = a2;
   let shift = 1;
   while (m2 > 0) {
-    partialValues.push(Math.abs(op1) * (m2 % 10) * shift);
+    partialValues.push(a1 * (m2 % 10) * shift);
     m2 = Math.floor(m2 / 10);
     shift *= 10;
   }
-  const carries = multiOperandCarriesFromLeft(partialValues, shape.integerBoxes);
-  for (let i = 0; i < shape.integerBoxes; i += 1) {
-    values.set(`int-${i}`, sumDigits[i]);
-    if (i - 1 >= 0 && carries[i - 1]) {
-      // carries[N] = does column N receive a carry from the right?
-      // Same convention as fillSequence: carry-N is the carry above column N.
-      // We don't have the exact carry digit here; recompute it.
-    }
-  }
-  // Carry digits across final sum.
   let acc = 0;
   const remaining = partialValues.map((v) => v);
-  for (let pos = 0; pos < shape.integerBoxes; pos += 1) {
+  for (let pos = 0; pos < sumTotal; pos += 1) {
     let s = acc;
     for (let i = 0; i < remaining.length; i += 1) {
       s += remaining[i] % 10;
@@ -223,35 +255,13 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
     }
     const nextCarry = Math.floor(s / 10);
     if (nextCarry > 0) {
-      const carryCol = shape.integerBoxes - 2 - pos;
+      const carryCol = sumTotal - 2 - pos;
       if (carryCol >= 0) values.set(`carry-${carryCol}`, nextCarry);
     }
     acc = nextCarry;
   }
 
   return { values, borrows: [], bringDownCells: new Set() };
-}
-
-/** For N column-sum operands and `cols` columns, returns per-column
- *  flags marking which columns receive a non-zero carry from the right. */
-function multiOperandCarriesFromLeft(operands: number[], cols: number): boolean[] {
-  const out = new Array<boolean>(cols).fill(false);
-  const remaining = operands.map((o) => Math.abs(o));
-  let carry = 0;
-  for (let pos = 0; pos < cols; pos += 1) {
-    let s = carry;
-    for (let i = 0; i < remaining.length; i += 1) {
-      s += remaining[i] % 10;
-      remaining[i] = Math.floor(remaining[i] / 10);
-    }
-    const nextCarry = Math.floor(s / 10);
-    if (nextCarry > 0) {
-      const receiver = cols - 2 - pos;
-      if (receiver >= 0) out[receiver] = true;
-    }
-    carry = nextCarry;
-  }
-  return out;
 }
 
 /* -------------------------------------------------------------------------- */

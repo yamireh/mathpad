@@ -34,10 +34,45 @@ import { nextEmptyBox } from './nextEmptyBox';
 import { PadRegion } from './PadRegion';
 import { ScratchToolbar } from './ScratchToolbar';
 import type { WorkspaceCore } from './types';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+
+import type { AnswerShape } from '../layout';
 
 /** Idle time after the last stroke before auto-advancing to the next box. */
 const ADVANCE_DELAY_MS = 300;
+
+/**
+ * How many columns the active box sits from the right (units) edge — used to
+ * keep it on-screen as the kid auto-advances leftward. Approximate (ignores
+ * the half-cell decimal-dot column), which the scroll lead absorbs.
+ */
+function activeColsFromRight(
+  boxId: string,
+  shape: AnswerShape,
+  partialWidths: number[] | null,
+  op1Cols: number,
+): number {
+  const total = shape.integerBoxes + shape.decimalBoxes;
+  if (boxId.startsWith('dec-')) {
+    return shape.decimalBoxes - 1 - Number(boxId.slice(4));
+  }
+  if (boxId.startsWith('int-')) {
+    return shape.decimalBoxes + (shape.integerBoxes - 1 - Number(boxId.slice(4)));
+  }
+  if (boxId.startsWith('carry-')) {
+    return total - 1 - Number(boxId.slice(6));
+  }
+  const pp = /^pp-(\d+)-(\d+)$/.exec(boxId);
+  if (pp) {
+    const row = Number(pp[1]);
+    const col = Number(pp[2]);
+    const width = partialWidths?.[row] ?? 1;
+    return row + (width - 1 - col); // shifted left by `row` place-value zeros
+  }
+  const tc = /^tcarry-(\d+)-(\d+)$/.exec(boxId);
+  if (tc) return op1Cols - 1 - Number(tc[2]);
+  return 0;
+}
 
 export interface CompactBodyProps {
   core: WorkspaceCore;
@@ -45,6 +80,8 @@ export interface CompactBodyProps {
 
 export function CompactBody({ core }: CompactBodyProps) {
   const { t } = useTranslation();
+  const problemScrollRef = useRef<ScrollView>(null);
+  const contentWidthRef = useRef(0);
   const { width: windowWidth } = useWindowDimensions();
   const {
     question,
@@ -103,6 +140,27 @@ export function CompactBody({ core }: CompactBodyProps) {
     return compactSizing(columns, available);
   }, [question.operands, shape.integerBoxes, windowWidth]);
 
+  // Keep the active box on-screen, scrolling left as the kid auto-advances
+  // through the columns (initial focus is the rightmost / units box). No-op
+  // when the problem fits; RN clamps the target to the content bounds.
+  const scrollToActive = useCallback(() => {
+    const contentW = contentWidthRef.current;
+    if (!activeBox || contentW <= 0) return;
+    const cfr = activeColsFromRight(
+      activeBox,
+      shape,
+      partialShape,
+      multInfo?.op1Cols ?? 1,
+    );
+    const boxLeft = contentW - (cfr + 1) * sizing.cellWidth;
+    const x = Math.max(0, boxLeft - sizing.cellWidth * 1.5);
+    problemScrollRef.current?.scrollTo({ x, animated: true });
+  }, [activeBox, shape, partialShape, multInfo, sizing.cellWidth]);
+
+  useEffect(() => {
+    scrollToActive();
+  }, [scrollToActive]);
+
   const answer = (
     <AnswerArea
       question={question}
@@ -121,9 +179,17 @@ export function CompactBody({ core }: CompactBodyProps) {
     <View style={styles.container}>
       <View style={styles.problemArea}>
         <ScrollView
+          ref={problemScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.problemScroll}
+          // Record the content width and position on the active box (the
+          // rightmost / units column initially) once laid out, so wide
+          // problems open at the right where the kid starts writing.
+          onContentSizeChange={(w) => {
+            contentWidthRef.current = w;
+            scrollToActive();
+          }}
         >
           <ProblemDisplay
             question={question}
