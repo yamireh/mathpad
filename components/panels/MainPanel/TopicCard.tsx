@@ -19,12 +19,8 @@ export interface TopicCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   /** Solid accent colour (icon tile + chevron). */
   accent: string;
-  /** Tinted accent colour (the "Ready" badge background). */
-  tint: string;
   /** Pass `false` to swap the chevron for a "Coming soon" badge. */
   enabled?: boolean;
-  /** Badge copy when enabled (already localised, e.g. "Ready"). */
-  readyLabel?: string;
   /** Badge copy when disabled (already localised, e.g. "Coming soon"). */
   comingSoonLabel?: string;
   onPress: () => void;
@@ -33,17 +29,15 @@ export interface TopicCardProps {
 
 /**
  * A wide row-style card for the MainPanel topic chooser: a vibrant icon
- * tile, the topic name + a one-line description, and a status badge —
- * "Ready" (live) or "Coming soon" (placeholder modules).
+ * tile, the topic name + a one-line description, a chevron when live, and a
+ * "Coming soon" badge on placeholder modules.
  */
 export function TopicCard({
   label,
   description,
   icon,
   accent,
-  tint,
   enabled = true,
-  readyLabel,
   comingSoonLabel,
   onPress,
   accessibilityLabel,
@@ -66,15 +60,7 @@ export function TopicCard({
           >
             {label}
           </Text>
-          {enabled ? (
-            readyLabel ? (
-              <View style={[styles.badge, { backgroundColor: tint }]}>
-                <Text style={[styles.badgeText, { color: accent }]}>
-                  {readyLabel}
-                </Text>
-              </View>
-            ) : null
-          ) : comingSoonLabel ? (
+          {!enabled && comingSoonLabel ? (
             <View style={[styles.badge, styles.badgeSoon]}>
               <Text style={[styles.badgeText, styles.badgeSoonText]}>
                 {comingSoonLabel}

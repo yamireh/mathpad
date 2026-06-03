@@ -47,9 +47,7 @@ export function MainPanel() {
             description={t(topic.descKey)}
             icon={topic.icon}
             accent={topic.accent}
-            tint={topic.tint}
             enabled={topic.enabled}
-            readyLabel={t('home.ready')}
             comingSoonLabel={t('comingSoon.tag')}
             onPress={() => {
               tapFeedback();

@@ -33,7 +33,6 @@
   "home": {
     "greeting": "Hi, ready for math?",
     "subtitle": "Choose your practice adventure",
-    "ready": "Ready",
     "history": "History",
     "settings": "Settings",
     "support": "Help & Support"
@@ -49,13 +48,17 @@
     "operations": "Operations",
     "shapes": "Shapes",
     "clock": "Clock",
-    "axis": "Coordinates"
+    "axis": "Coordinates",
+    "patterns": "Patterns",
+    "money": "Money"
   },
   "topicsDesc": {
     "operations": "Addition, subtraction, multiplication, division",
     "shapes": "Triangles, circles, and more",
     "clock": "Reading and telling the time",
-    "axis": "Plotting points and coordinates"
+    "axis": "Plotting points and coordinates",
+    "patterns": "Spot and continue patterns",
+    "money": "Counting coins and making change"
   },
   "comingSoon": {
     "tag": "Coming soon",
@@ -169,7 +172,8 @@
   },
   "review": {
     "title": "Question {{number}}",
-    "submit": "Submit",
+    "hint": "Give it another go 💪",
+    "submit": "Check answer",
     "showErrors": "Show errors",
     "hideErrors": "Hide errors"
   },

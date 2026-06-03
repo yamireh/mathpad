@@ -23,8 +23,9 @@ describe('Home screen (MainPanel)', () => {
 
   it('flags disabled topics as coming soon', () => {
     render(<HomeScreen />);
-    // Three topics are disabled today; the same pill repeats for each.
-    expect(screen.getAllByText('Coming soon')).toHaveLength(3);
+    // Shapes, Clock, Coordinates, Patterns and Money are disabled today;
+    // the same pill repeats for each.
+    expect(screen.getAllByText('Coming soon')).toHaveLength(5);
   });
 });
 

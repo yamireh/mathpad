@@ -1,7 +1,13 @@
 import type { Ionicons } from '@expo/vector-icons';
 
 /** Top-level topic id. Each maps to a screen under `app/<id>.tsx`. */
-export type TopicId = 'operations' | 'shapes' | 'clock' | 'axis';
+export type TopicId =
+  | 'operations'
+  | 'shapes'
+  | 'clock'
+  | 'axis'
+  | 'patterns'
+  | 'money';
 
 export interface TopicDef {
   id: TopicId;
@@ -18,7 +24,13 @@ export interface TopicDef {
   /** Whether the topic is functional today; controls the "Coming soon" pill. */
   enabled: boolean;
   /** Expo Router path to navigate to on tap. */
-  route: '/operations' | '/shapes' | '/clock' | '/axis';
+  route:
+    | '/operations'
+    | '/shapes'
+    | '/clock'
+    | '/axis'
+    | '/patterns'
+    | '/money';
 }
 
 /**
@@ -66,5 +78,25 @@ export const TOPICS: TopicDef[] = [
     tint: '#FDEFD9',
     enabled: false,
     route: '/axis',
+  },
+  {
+    id: 'patterns',
+    labelKey: 'topics.patterns',
+    descKey: 'topicsDesc.patterns',
+    icon: 'extension-puzzle-outline',
+    accent: '#DB2777',
+    tint: '#FCE7F3',
+    enabled: false,
+    route: '/patterns',
+  },
+  {
+    id: 'money',
+    labelKey: 'topics.money',
+    descKey: 'topicsDesc.money',
+    icon: 'cash-outline',
+    accent: '#16A34A',
+    tint: '#DCFCE7',
+    enabled: false,
+    route: '/money',
   },
 ];
