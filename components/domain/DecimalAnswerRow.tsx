@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../constants/design';
+import type { ReviewMarks } from '../../lib/review';
 import { AnswerBox } from './AnswerBox';
 import { type AnswerInk } from './ink';
 import { ANSWER_BOX_HEIGHT, DIGIT_COLUMN_WIDTH, type AnswerShape } from './layout';
@@ -25,6 +26,8 @@ export interface DecimalAnswerRowProps {
    * with the integer partial-product rows.
    */
   thinDot?: boolean;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /**
@@ -43,6 +46,7 @@ export function DecimalAnswerRow({
   cellWidth,
   boxHeight,
   thinDot = false,
+  errorMarks,
 }: DecimalAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -66,6 +70,7 @@ export function DecimalAnswerRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}
@@ -95,6 +100,7 @@ export function DecimalAnswerRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}

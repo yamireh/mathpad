@@ -12,6 +12,7 @@ import {
 } from '../../components/ui';
 import { operationColors, spacing } from '../../constants/design';
 import { usePracticeSession, useRecognition } from '../../hooks';
+import { type ReviewMarks, computeReviewMarks } from '../../lib/review';
 
 /**
  * Question review/edit — reopens one question with its original ink preserved
@@ -37,6 +38,12 @@ export default function ReviewScreen() {
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
   const [submitting, setSubmitting] = useState(false);
+  // "Show errors": opt-in green/red box borders. Off by default so the kid can
+  // re-attempt unaided. The marks are a snapshot — any edit clears them
+  // (`markStale`) so stale highlights never linger.
+  const [showErrors, setShowErrors] = useState(false);
+  const [errorMarks, setErrorMarks] = useState<ReviewMarks | null>(null);
+  const [computing, setComputing] = useState(false);
 
   if (!session || !session.results) return <Redirect href="/" />;
   const questionIndex = Number(index);
@@ -45,6 +52,42 @@ export default function ReviewScreen() {
 
   const accent = operationColors[session.settings.operation].accent;
   const layout = question.layout;
+  const qid = question.id;
+
+  /** Drop stale highlights the moment the kid changes any ink. */
+  const markStale = () => {
+    if (showErrors) {
+      setShowErrors(false);
+      setErrorMarks(null);
+    }
+  };
+
+  const toggleErrors = async () => {
+    if (showErrors) {
+      setShowErrors(false);
+      setErrorMarks(null);
+      return;
+    }
+    setComputing(true);
+    try {
+      const marks = await computeReviewMarks({
+        question,
+        layout,
+        answerInk: session.answerInk[qid],
+        carryInk: session.carryInk[qid],
+        partialInk: session.partialInk[qid],
+        timesCarryInk: session.timesCarryInk[qid],
+        divisionDraftInk: session.divisionDraftInk[qid],
+        divisionCarryInk: session.divisionCarryInk[qid],
+      });
+      setErrorMarks(marks);
+      setShowErrors(true);
+    } catch {
+      Alert.alert(t('app.name'), t('practice.helpMessage'));
+    } finally {
+      setComputing(false);
+    }
+  };
 
   const submit = async () => {
     setSubmitting(true);
@@ -77,7 +120,10 @@ export default function ReviewScreen() {
         question={question}
         layout={layout}
         answerInk={session.answerInk[question.id]}
-        onAnswerInkChange={(ink) => updateAnswerInk(question.id, ink)}
+        onAnswerInkChange={(ink) => {
+          markStale();
+          updateAnswerInk(question.id, ink);
+        }}
         scratchInk={session.scratchInk[question.id]}
         onScratchInkChange={(strokes) =>
           updateScratchInk(question.id, strokes)
@@ -89,29 +135,42 @@ export default function ReviewScreen() {
           toggleDivisionBorrowMark(question.id, step, lenderIndex)
         }
         carryInk={session.carryInk[question.id]}
-        onCarryInkChange={(column, strokes) =>
-          updateCarryInk(question.id, column, strokes)
-        }
+        onCarryInkChange={(column, strokes) => {
+          markStale();
+          updateCarryInk(question.id, column, strokes);
+        }}
         partialInk={session.partialInk[question.id]}
-        onPartialInkChange={(row, column, strokes) =>
-          updatePartialInk(question.id, row, column, strokes)
-        }
+        onPartialInkChange={(row, column, strokes) => {
+          markStale();
+          updatePartialInk(question.id, row, column, strokes);
+        }}
         timesCarryInk={session.timesCarryInk[question.id]}
-        onTimesCarryInkChange={(partialRow, op1Col, strokes) =>
-          updateTimesCarryInk(question.id, partialRow, op1Col, strokes)
-        }
+        onTimesCarryInkChange={(partialRow, op1Col, strokes) => {
+          markStale();
+          updateTimesCarryInk(question.id, partialRow, op1Col, strokes);
+        }}
         divisionDraftInk={session.divisionDraftInk[question.id]}
-        onDivisionDraftInkChange={(row, col, strokes) =>
-          updateDivisionDraftInk(question.id, row, col, strokes)
-        }
+        onDivisionDraftInkChange={(row, col, strokes) => {
+          markStale();
+          updateDivisionDraftInk(question.id, row, col, strokes);
+        }}
         divisionCarryInk={session.divisionCarryInk[question.id]}
-        onDivisionCarryInkChange={(step, col, strokes) =>
-          updateDivisionCarryInk(question.id, step, col, strokes)
-        }
+        onDivisionCarryInkChange={(step, col, strokes) => {
+          markStale();
+          updateDivisionCarryInk(question.id, step, col, strokes);
+        }}
+        errorMarks={showErrors ? errorMarks : null}
+        cascadeClear
         tone={accent}
       />
 
       <View style={styles.bottom}>
+        <Button
+          label={showErrors ? t('review.hideErrors') : t('review.showErrors')}
+          variant="secondary"
+          disabled={computing || submitting}
+          onPress={toggleErrors}
+        />
         <Button
           label={t('review.submit')}
           tone={accent}
@@ -125,5 +184,5 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   top: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  bottom: { padding: spacing.lg },
+  bottom: { padding: spacing.lg, gap: spacing.sm },
 });

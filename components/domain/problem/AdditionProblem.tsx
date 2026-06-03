@@ -6,6 +6,7 @@
 import { type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 
+import type { ReviewMarks } from '../../../lib/review';
 import type { Question } from '../../../types';
 import { type InkStroke } from '../ink';
 import {
@@ -31,6 +32,8 @@ export interface AdditionProblemProps {
   tone: string;
   /** Column / box / digit sizing. */
   sizing: ProblemSizing;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Vertical addition layout. */
@@ -43,6 +46,7 @@ export function AdditionProblem({
   onClearBox,
   tone,
   sizing,
+  errorMarks,
 }: AdditionProblemProps) {
   const [op1, op2] = question.operands;
   const { intCols, decCols } = verticalGeometry(question);
@@ -72,6 +76,7 @@ export function AdditionProblem({
           boxWidth={carryW}
           boxHeight={carryH}
           dotIndex={dotIndex}
+          errorMarks={errorMarks}
         />
       ) : null}
 

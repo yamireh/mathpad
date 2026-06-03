@@ -32,11 +32,16 @@ void setIsAudioActiveAsync(true);
 const PRIMARY_PLAYER = createAudioPlayer(require('../../assets/sounds/primary.m4a'));
 const SUCCESS_PLAYER = createAudioPlayer(require('../../assets/sounds/success.mp3'));
 const ERROR_PLAYER = createAudioPlayer(require('../../assets/sounds/error.mp3'));
+const SCRATCH_PLAYER = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 PRIMARY_PLAYER.volume = 0.8;
 SUCCESS_PLAYER.volume = 0.9;
 ERROR_PLAYER.volume = 0.9;
+// Looped pencil sound for the auto-solve demo. Warm at module load (like the
+// SFX above) so the first solve after opening a question isn't a cold start.
+SCRATCH_PLAYER.loop = true;
+SCRATCH_PLAYER.volume = 0;
 
 function blip(player: AudioPlayer): void {
   try {
@@ -75,4 +80,37 @@ export function successFeedback(): void {
 export function errorFeedback(): void {
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   blip(ERROR_PLAYER);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Demo "scratch" (auto-solve hand writing)                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Make the looped pencil sound audible (starting the loop if idle). */
+export function scratchAudible(): void {
+  try {
+    if (!SCRATCH_PLAYER.playing) SCRATCH_PLAYER.play();
+    SCRATCH_PLAYER.volume = 1;
+  } catch {
+    // Not ready yet — the next call retries.
+  }
+}
+
+/** Silence the pencil loop without stopping it (between digits). */
+export function scratchMute(): void {
+  try {
+    SCRATCH_PLAYER.volume = 0;
+  } catch {
+    /* not ready */
+  }
+}
+
+/** Silence and pause the pencil loop (end of solve). */
+export function scratchStop(): void {
+  try {
+    SCRATCH_PLAYER.volume = 0;
+    SCRATCH_PLAYER.pause();
+  } catch {
+    /* not ready */
+  }
 }

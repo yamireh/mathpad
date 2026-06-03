@@ -7,6 +7,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../../constants/design';
+import type { ReviewMarks } from '../../../lib/review';
 import type { ProblemLayout, Question } from '../../../types';
 import { BorrowArrow } from '../BorrowArrow';
 import { computeBorrowDisplay } from '../borrow';
@@ -52,6 +53,8 @@ export interface DivisionProblemProps {
   divisionBorrowLenders?: number[];
   /** Toggle a borrow lender on the current step's minuend. */
   onDivisionBorrow?: (lenderIndex: number) => void;
+  /** Review error-highlight marks keyed by box id (divisor-carry boxes). */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Division layout dispatcher: long bracket vs inline row. */
@@ -72,6 +75,7 @@ export function DivisionProblem({
   dividendMinuend,
   divisionBorrowLenders,
   onDivisionBorrow,
+  errorMarks,
 }: DivisionProblemProps) {
   if (layout === 'divisionLong') {
     return (
@@ -91,6 +95,7 @@ export function DivisionProblem({
         dividendMinuend={dividendMinuend ?? null}
         borrowLenders={divisionBorrowLenders ?? []}
         onBorrow={onDivisionBorrow}
+        errorMarks={errorMarks}
       />
     );
   }
@@ -211,6 +216,7 @@ function DivisorCarryRow({
   onClearBox,
   tone,
   cellWidth,
+  errorMarks,
 }: {
   divisorDigits: number;
   carryCols: number[];
@@ -221,6 +227,7 @@ function DivisorCarryRow({
   onClearBox: (boxId: string) => void;
   tone: string;
   cellWidth: number;
+  errorMarks?: ReviewMarks | null;
 }) {
   const carrySet = new Set(carryCols);
   const boxWidth = Math.max(20, cellWidth - 20);
@@ -242,6 +249,7 @@ function DivisorCarryRow({
                 width={boxWidth}
                 height={boxHeight}
                 clearAbove
+                status={errorMarks?.get(id) ?? null}
               />
             ) : null}
           </View>
@@ -313,6 +321,7 @@ function LongDivision({
   dividendMinuend,
   borrowLenders,
   onBorrow,
+  errorMarks,
 }: {
   question: Question;
   answerSlot: ReactNode;
@@ -329,6 +338,7 @@ function LongDivision({
   dividendMinuend: LongDivisionStepMinuend | null;
   borrowLenders: number[];
   onBorrow?: (lenderIndex: number) => void;
+  errorMarks?: ReviewMarks | null;
 }) {
   const [dividend, divisor] = question.operands;
   const divisorDigits = digitCount(divisor);
@@ -393,6 +403,7 @@ function LongDivision({
             onClearBox={onClearBox!}
             tone={tone}
             cellWidth={cellWidth}
+            errorMarks={errorMarks}
           />
         ) : divisorDigits > 1 ? (
           <View style={[styles.divisorWrap, styles.hidden]}>
@@ -412,17 +423,19 @@ function LongDivision({
         )}
         <View style={styles.longQuotient}>{answerSlot}</View>
       </View>
-      {/* Dividend row — pinned. Top + left borders form the bracket's "├" header. */}
+      {/* Dividend row — pinned. Top + left borders form the bracket's "├" header.
+          The divisor uses the header-specific padding so it drops level with the
+          dividend digits even with the borrow headroom above them. */}
       <View style={styles.longHeaderRow}>
         {divisorDigits > 1 ? (
-          <View style={[styles.divisorWrap, styles.divisorPadTop]}>
+          <View style={[styles.divisorWrap, styles.divisorHeaderPadTop]}>
             <DigitCells value={divisor} cellWidth={cellWidth} digitSize={digitSize} />
           </View>
         ) : (
           <Text
             style={[
               styles.problemText,
-              styles.longDivisor,
+              styles.longDivisorHeader,
               { fontSize: digitSize },
             ]}
           >
@@ -441,11 +454,13 @@ function LongDivision({
               tone={tone}
             />
           ) : (
-            <DigitCells
-              value={dividend}
-              cellWidth={cellWidth}
-              digitSize={digitSize}
-            />
+            <View style={styles.dividendPlainPad}>
+              <DigitCells
+                value={dividend}
+                cellWidth={cellWidth}
+                digitSize={digitSize}
+              />
+            </View>
           )}
         </View>
       </View>
@@ -511,6 +526,13 @@ function LongDivision({
   );
 }
 
+/**
+ * Reserved space between the dividend's vinculum (top line) and its digits, so
+ * a borrowed digit's crossed-out reduced value has room above it without
+ * cramping the line or shoving the digits down when it appears.
+ */
+const DIVIDEND_BORROW_HEADROOM = 20;
+
 const styles = StyleSheet.create({
   problemText: {
     fontSize: PROBLEM_DIGIT_SIZE,
@@ -521,12 +543,17 @@ const styles = StyleSheet.create({
   // Dividend rendered as a borrow row (step 0): annotation slot above each
   // digit + the digit, with a relative anchor for the +10 arrow overlay.
   dividendBorrowRow: { flexDirection: 'row', position: 'relative' },
-  // No fixed height: empty (no borrow) → 0, so the dividend hugs the top
-  // line; only a borrow's reduced-value number gives it height.
+  // Fixed headroom reserved above every dividend digit so a borrow's
+  // reduced-value number has room below the top line without shifting the
+  // digits when it appears.
   dividendAnnotation: {
+    height: DIVIDEND_BORROW_HEADROOM,
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  // Same headroom for the plain (non-borrow-step) dividend, so the dividend
+  // sits at the same height whichever renderer is used.
+  dividendPlainPad: { paddingTop: DIVIDEND_BORROW_HEADROOM },
   dividendAnnotationText: {
     fontWeight: typography.weight.medium,
     fontVariant: ['tabular-nums'],
@@ -596,12 +623,21 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   longDivisor: { paddingRight: spacing.sm, paddingTop: spacing.xs },
+  // Header variant: drops the single-digit divisor by the borrow headroom too,
+  // so it stays level with the dividend digits below the top line.
+  longDivisorHeader: {
+    paddingRight: spacing.sm,
+    paddingTop: spacing.xs + DIVIDEND_BORROW_HEADROOM,
+  },
   // Cell-based divisor (multi-digit): same right gap as `longDivisor` so the
   // bracket/quotient/dividend stay aligned, applied around `DigitCells`.
   divisorWrap: { paddingRight: spacing.sm },
   // Drops the divisor digits to sit level with the bracketed dividend, the
   // same way `longDivisor`'s paddingTop does for the single-digit text path.
   divisorPadTop: { paddingTop: spacing.xs },
+  // Header variant: adds the borrow headroom so the multi-digit divisor stays
+  // level with the dividend digits below the top line.
+  divisorHeaderPadTop: { paddingTop: spacing.xs + DIVIDEND_BORROW_HEADROOM },
   // The carry lane sits in the (bottom-aligned) quotient row, just above the
   // divisor digits.
   divisorCarryRow: { flexDirection: 'row', alignItems: 'flex-end' },

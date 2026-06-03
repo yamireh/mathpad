@@ -8,6 +8,7 @@ import { Fragment } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../../constants/design';
+import type { ReviewMarks } from '../../../lib/review';
 import { CarryBox } from '../CarryBox';
 import { type InkStroke } from '../ink';
 import { OPERATOR_COLUMN_WIDTH, PROBLEM_DIGIT_SIZE } from '../layout';
@@ -138,6 +139,7 @@ export function CarryRow({
   boxWidth,
   boxHeight,
   dotIndex,
+  errorMarks,
 }: {
   columns: number;
   carryInk: InkStroke[][];
@@ -151,6 +153,8 @@ export function CarryRow({
   boxHeight: number;
   /** Insert the decimal-point spacer before this grid column (= intCols). */
   dotIndex?: number;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }) {
   return (
     <View style={[sharedStyles.carryRow, { marginLeft: operatorWidth }]}>
@@ -172,6 +176,7 @@ export function CarryRow({
                   tone={tone}
                   width={boxWidth}
                   height={boxHeight}
+                  status={errorMarks?.get(id) ?? null}
                 />
               ) : null}
             </View>

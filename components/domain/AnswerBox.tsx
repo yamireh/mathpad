@@ -3,6 +3,7 @@ import { Canvas, Path } from '@shopify/react-native-skia';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../constants/design';
+import type { BoxStatus } from '../../lib/review';
 import { ANSWER_BOX_HEIGHT, DIGIT_COLUMN_WIDTH } from './layout';
 import {
   type InkStroke,
@@ -34,6 +35,11 @@ export interface AnswerBoxProps {
    * to read as scratch-like overflow space.
    */
   muted?: boolean;
+  /**
+   * Review error-highlight: green border when `'correct'`, coral when
+   * `'incorrect'`. Overrides the selected/idle border. Null = no highlight.
+   */
+  status?: BoxStatus | null;
 }
 
 const FIT_PADDING = 8;
@@ -77,10 +83,17 @@ export function AnswerBox({
   cellWidth = DIGIT_COLUMN_WIDTH,
   boxHeight = ANSWER_BOX_HEIGHT,
   muted = false,
+  status = null,
 }: AnswerBoxProps) {
   const boxInnerWidth = cellWidth - 12;
   const transform = fitTransform(strokes, boxInnerWidth, boxHeight);
   const hasInk = strokes.length > 0;
+  const statusColor =
+    status === 'incorrect'
+      ? colors.wrong
+      : status === 'correct'
+        ? colors.correct
+        : null;
 
   // Compact (smaller) boxes get a tighter clear-button slot — but the
   // round X button itself is 18pt, so the slot must be at least that tall
@@ -112,10 +125,10 @@ export function AnswerBox({
           {
             width: boxInnerWidth,
             height: boxHeight,
-            borderColor: selected ? tone : colors.border,
+            borderColor: statusColor ?? (selected ? tone : colors.border),
           },
           muted && styles.boxMuted,
-          selected && styles.boxSelected,
+          (selected || statusColor) && styles.boxSelected,
           locked && styles.boxLocked,
         ]}
       >

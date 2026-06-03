@@ -12,6 +12,7 @@ import { TipBubble } from '../../ui';
 import { spacing, typography } from '../../../constants/design';
 import type { Question } from '../../../types';
 import { BorrowArrow } from '../BorrowArrow';
+import { useCursorTarget } from '../cursorTarget';
 import { computeBorrowDisplay, needsBorrow } from '../borrow';
 import {
   type ProblemSizing,
@@ -171,6 +172,9 @@ function BorrowDigitRow({
   const [arrow, setArrow] = useState<{ column: number; key: number } | null>(
     null,
   );
+  // Demo solver: register each lender cell so the hand can move there before
+  // the borrow is triggered.
+  const { registerBorrowCell } = useCursorTarget();
   useEffect(() => {
     if (marks.length > prevCount.current) {
       const lastColumn = marks[marks.length - 1];
@@ -216,6 +220,7 @@ function BorrowDigitRow({
         );
         const cellNode = tappable ? (
           <Pressable
+            ref={(el) => registerBorrowCell(i, el)}
             accessibilityRole="button"
             accessibilityLabel={`Borrow from ${digit}`}
             onPress={() => onToggle(i)}

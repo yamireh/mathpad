@@ -101,6 +101,7 @@ export function CompactBody({ core }: CompactBodyProps) {
     onTimesCarryInkChange,
     onUndo,
     canUndo,
+    errorMarks,
     shape,
     expectedCarries,
     multInfo,
@@ -172,6 +173,7 @@ export function CompactBody({ core }: CompactBodyProps) {
       isBoxWritable={(boxId) => isBoxWritable(answerInk, shape, layout, boxId)}
       cellWidth={sizing.cellWidth}
       boxHeight={sizing.boxHeight}
+      errorMarks={errorMarks}
     />
   );
 
@@ -215,6 +217,7 @@ export function CompactBody({ core }: CompactBodyProps) {
             onClearBox={clearBox}
             tone={tone}
             sizing={sizing}
+            errorMarks={errorMarks}
           />
         </ScrollView>
       </View>

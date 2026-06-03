@@ -3,6 +3,7 @@ import { Canvas, Path } from '@shopify/react-native-skia';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../constants/design';
+import type { BoxStatus } from '../../lib/review';
 import { fitStrokes, type InkStroke, strokeToPath } from './ink';
 
 export interface CarryBoxProps {
@@ -24,12 +25,18 @@ export interface CarryBoxProps {
    * button would cover the digit.
    */
   clearAbove?: boolean;
+  /**
+   * Review error-highlight: green border when `'correct'`, coral when
+   * `'incorrect'`. Overrides the selected/idle border. Null = no highlight.
+   */
+  status?: BoxStatus | null;
 }
 
 /**
  * A small carry box above a problem column. Tapping it focuses the writing
  * pad (same as an answer box); the kid's carry digit shows here scaled. It is
- * the kid's own working — never recognised, never used for marking.
+ * the kid's own working — only recognised on the review screen's "Show
+ * errors" pass (never for scoring).
  */
 export function CarryBox({
   strokes,
@@ -41,9 +48,16 @@ export function CarryBox({
   width,
   height,
   clearAbove = false,
+  status = null,
 }: CarryBoxProps) {
   const transform = fitStrokes(strokes, width, height, 5);
   const hasInk = strokes.length > 0;
+  const statusColor =
+    status === 'incorrect'
+      ? colors.wrong
+      : status === 'correct'
+        ? colors.correct
+        : null;
 
   return (
     <View style={{ width, height }}>
@@ -55,8 +69,8 @@ export function CarryBox({
         style={[
           styles.box,
           StyleSheet.absoluteFill,
-          { borderColor: selected ? tone : colors.border },
-          selected && styles.boxSelected,
+          { borderColor: statusColor ?? (selected ? tone : colors.border) },
+          (selected || statusColor) && styles.boxSelected,
         ]}
       >
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">

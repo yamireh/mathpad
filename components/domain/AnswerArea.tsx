@@ -1,4 +1,5 @@
 import type { Question } from '../../types';
+import type { ReviewMarks } from '../../lib/review';
 import { DecimalAnswerRow } from './DecimalAnswerRow';
 import { RemainderAnswerRow } from './RemainderAnswerRow';
 import { SignedAnswerRow } from './SignedAnswerRow';
@@ -19,6 +20,8 @@ export interface AnswerAreaProps {
   cellWidth?: number;
   /** Answer box height — defaults to the full grid. */
   boxHeight?: number;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Picks and renders the answer area matching a question's answer kind. */
@@ -32,6 +35,7 @@ export function AnswerArea({
   isBoxWritable,
   cellWidth,
   boxHeight,
+  errorMarks,
 }: AnswerAreaProps) {
   const shared = {
     shape: answerShape(question),
@@ -43,6 +47,7 @@ export function AnswerArea({
     isBoxWritable,
     cellWidth,
     boxHeight,
+    errorMarks,
   };
   if (question.answer.kind === 'decimal') {
     // Multiplication aligns its answer with the integer partial-product rows,

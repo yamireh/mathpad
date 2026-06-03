@@ -24,12 +24,27 @@ export interface SolvePlan {
   /** Top-operand column indices (left → right) to tap as borrow lenders. */
   borrows: number[];
   /**
+   * Borrow taps to fire just before a given answer box is written, so the
+   * auto-solver borrows in sequence (reach a column → borrow if needed → write
+   * it) instead of doing every borrow up front. Keyed by answer box id, values
+   * are lender column indices in tap order. Empty for non-subtraction.
+   */
+  borrowBefore: Map<string, number[]>;
+  /**
    * Long-division draft cells that receive a brought-down digit (rather
    * than a product/diff digit). Used by the auto-solver to animate the
    * digit visibly dropping down from the dividend instead of just popping
    * into place. Empty for non-long-division questions.
    */
   bringDownCells: Set<string>;
+  /**
+   * Per long-division step, the borrow-lender indices to tap while computing
+   * that step's `minuend − product` subtraction (in tap order), so the solver
+   * borrows like a kid instead of writing the difference outright. Keyed by
+   * step; lender indices are into the step's minuend digits. Empty unless the
+   * question is long division with a borrowing step.
+   */
+  divisionBorrows: Map<number, number[]>;
 }
 
 /** Build the full Solve plan for a question, given its current layout. */
@@ -84,7 +99,13 @@ function solveAddition(question: Question): SolvePlan {
     }
     carry = nextCarry;
   }
-  return { values, borrows: [], bringDownCells: new Set() };
+  return {
+    values,
+    borrows: [],
+    borrowBefore: new Map(),
+    bringDownCells: new Set(),
+    divisionBorrows: new Map(),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,33 +134,53 @@ function solveSubtraction(question: Question): SolvePlan {
     .split('')
     .map(Number);
 
+  // Result digit per grid column → its answer box. The answer has fewer
+  // integer digits than the grid when the difference is shorter than the
+  // minuend, so integer boxes are offset to the rightmost integer columns.
+  const intOffset = intCols - shape.integerBoxes;
+  // Answer box for the (receiving) grid column being subtracted, or null when
+  // that column's result is a dropped leading zero (no box).
+  const boxForColumn = (i: number): string | null => {
+    if (i >= intCols) return `dec-${i - intCols}`;
+    if (i - intOffset >= 0) return `int-${i - intOffset}`;
+    return null;
+  };
+  const leftmostBoxId = shape.integerBoxes > 0 ? 'int-0' : 'dec-0';
+
   // Walk right → left, tapping the column to the left of each column that
   // would underflow. `computeBorrowDisplay` handles cascade (tapping a 0
   // column drags another borrow further left). Borrow indices are grid columns
-  // (into `digits`) — the same indices the BorrowDigitRow's marks use.
+  // (into `digits`) — the same indices the BorrowDigitRow's marks use. Each
+  // borrow is attached to the box of the column it serves so the solver fires
+  // it in sequence; leading-zero columns (no box) fall back to the leftmost
+  // box, written last.
   const borrows: number[] = [];
+  const borrowBefore = new Map<string, number[]>();
   for (let i = total - 1; i >= 0; i -= 1) {
     const display = computeBorrowDisplay(digits, borrows);
     if (display[i].value < subtrahend[i] && i - 1 >= 0) {
       borrows.push(i - 1);
+      const boxId = boxForColumn(i) ?? leftmostBoxId;
+      const arr = borrowBefore.get(boxId);
+      if (arr) arr.push(i - 1);
+      else borrowBefore.set(boxId, [i - 1]);
     }
   }
 
-  // Result digit per grid column → its answer box. The answer has fewer
-  // integer digits than the grid when the difference is shorter than the
-  // minuend, so integer boxes are offset to the rightmost integer columns.
   const finalDisplay = computeBorrowDisplay(digits, borrows);
-  const intOffset = intCols - shape.integerBoxes;
   for (let i = 0; i < total; i += 1) {
     const r = finalDisplay[i].value - subtrahend[i];
     if (r < 0) continue;
-    if (i >= intCols) {
-      values.set(`dec-${i - intCols}`, r);
-    } else if (i - intOffset >= 0) {
-      values.set(`int-${i - intOffset}`, r);
-    }
+    const boxId = boxForColumn(i);
+    if (boxId) values.set(boxId, r);
   }
-  return { values, borrows, bringDownCells: new Set() };
+  return {
+    values,
+    borrows,
+    borrowBefore,
+    bringDownCells: new Set(),
+    divisionBorrows: new Map(),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -181,7 +222,13 @@ function solveMultiplication(question: Question): SolvePlan {
     }
     carry = nextCarry;
   }
-  return { values, borrows: [], bringDownCells: new Set() };
+  return {
+    values,
+    borrows: [],
+    borrowBefore: new Map(),
+    bringDownCells: new Set(),
+    divisionBorrows: new Map(),
+  };
 }
 
 function solveMultiplicationMultiDigit(question: Question): SolvePlan {
@@ -189,7 +236,13 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
   const [a1, a2] = multiplicationDigitOperands(question);
   const partials = partialWidths(a1, a2);
   if (!partials)
-    return { values: new Map(), borrows: [], bringDownCells: new Set() };
+    return {
+      values: new Map(),
+      borrows: [],
+      borrowBefore: new Map(),
+      bringDownCells: new Set(),
+      divisionBorrows: new Map(),
+    };
   const op1Cols = digitCount(a1);
   const values = new Map<string, number>();
 
@@ -261,7 +314,13 @@ function solveMultiplicationMultiDigit(question: Question): SolvePlan {
     acc = nextCarry;
   }
 
-  return { values, borrows: [], bringDownCells: new Set() };
+  return {
+    values,
+    borrows: [],
+    borrowBefore: new Map(),
+    bringDownCells: new Set(),
+    divisionBorrows: new Map(),
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -307,6 +366,7 @@ function solveDivision(question: Question, layout: ProblemLayout): SolvePlan {
 
   // For long-division layout, also populate the staircase draft grid.
   const bringDownCells = new Set<string>();
+  const divisionBorrows = new Map<number, number[]>();
   if (layout === 'divisionLong') {
     fillLongDivisionDraft({
       dividend: absD,
@@ -315,9 +375,16 @@ function solveDivision(question: Question, layout: ProblemLayout): SolvePlan {
       decimalQuotientDigits: decimalDigits,
       values,
       bringDownCells,
+      divisionBorrows,
     });
   }
-  return { values, borrows: [], bringDownCells };
+  return {
+    values,
+    borrows: [],
+    borrowBefore: new Map(),
+    bringDownCells,
+    divisionBorrows,
+  };
 }
 
 function fillLongDivisionDraft(args: {
@@ -327,6 +394,7 @@ function fillLongDivisionDraft(args: {
   decimalQuotientDigits: number[];
   values: Map<string, number>;
   bringDownCells: Set<string>;
+  divisionBorrows: Map<number, number[]>;
 }) {
   const {
     dividend,
@@ -335,6 +403,7 @@ function fillLongDivisionDraft(args: {
     decimalQuotientDigits,
     values,
     bringDownCells,
+    divisionBorrows,
   } = args;
   const dividendDigits = String(dividend).split('').map(Number);
   const offset = dividendDigits.length - integerQuotientDigits.length;
@@ -363,8 +432,30 @@ function fillLongDivisionDraft(args: {
 
     const qDigit = allQDigits[q];
     const product = qDigit * divisor;
+    const minuend = chunk;
     const diff = chunk - product;
     chunk = diff;
+
+    // Borrows for this step's `minuend − product` subtraction — same right→left
+    // walk as the Subtraction feature, so the solver taps the lenders a kid
+    // would instead of writing the difference outright. Lender indices are into
+    // the minuend's digits (most-significant first), matching the step's
+    // borrowable cells.
+    {
+      const minuendDigits = String(minuend).split('').map(Number);
+      const subDigits = String(product)
+        .padStart(minuendDigits.length, '0')
+        .split('')
+        .map(Number);
+      const lenders: number[] = [];
+      for (let i = minuendDigits.length - 1; i >= 0; i -= 1) {
+        const display = computeBorrowDisplay(minuendDigits, lenders);
+        if (display[i].value < subDigits[i] && i - 1 >= 0) {
+          lenders.push(i - 1);
+        }
+      }
+      if (lenders.length > 0) divisionBorrows.set(q, lenders);
+    }
 
     // Divisor-carry boxes: the carries generated while multiplying
     // `qDigit × divisor` digit-by-digit (units → leftward). The carry out of

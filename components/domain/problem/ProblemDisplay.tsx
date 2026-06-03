@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 
 import { colors } from '../../../constants/design';
+import type { ReviewMarks } from '../../../lib/review';
 import type { ProblemLayout, Question } from '../../../types';
 import { type InkStroke } from '../ink';
 import {
@@ -75,6 +76,8 @@ export interface ProblemDisplayProps {
   divisionCellWidth?: number;
   /** Paired digit font size for the long-division dividend. */
   divisionDigitSize?: number;
+  /** Review error-highlight marks keyed by box id (carry / partial / dcarry). */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Renders a math problem and places its answer area, per question layout. */
@@ -102,6 +105,7 @@ export function ProblemDisplay({
   sizing,
   divisionCellWidth,
   divisionDigitSize,
+  errorMarks,
 }: ProblemDisplayProps) {
   const resolvedSizing = sizing ?? regularSizing();
   const effective = layout ?? question.layout;
@@ -119,6 +123,7 @@ export function ProblemDisplay({
             onClearBox={onClearBox}
             tone={tone}
             sizing={resolvedSizing}
+            errorMarks={errorMarks}
           />
         );
       case 'subtraction':
@@ -146,6 +151,7 @@ export function ProblemDisplay({
             onClearBox={onClearBox}
             tone={tone}
             sizing={resolvedSizing}
+            errorMarks={errorMarks}
           />
         );
       case 'division':
@@ -172,6 +178,7 @@ export function ProblemDisplay({
       onSelectBox={onSelectBox}
       onClearBox={onClearBox}
       tone={tone}
+      errorMarks={errorMarks}
     />
   );
 }

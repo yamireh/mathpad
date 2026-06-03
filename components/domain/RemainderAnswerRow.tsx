@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, spacing, typography } from '../../constants/design';
+import type { ReviewMarks } from '../../lib/review';
 import { AnswerBox } from './AnswerBox';
 import { type AnswerInk } from './ink';
 import { ANSWER_BOX_HEIGHT, type AnswerShape } from './layout';
@@ -18,6 +19,8 @@ export interface RemainderAnswerRowProps {
   cellWidth?: number;
   /** Answer box height — defaults to the full grid. */
   boxHeight?: number;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
@@ -30,6 +33,7 @@ export function RemainderAnswerRow({
   isBoxWritable,
   cellWidth,
   boxHeight,
+  errorMarks,
 }: RemainderAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -51,6 +55,7 @@ export function RemainderAnswerRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}
@@ -73,6 +78,7 @@ export function RemainderAnswerRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}

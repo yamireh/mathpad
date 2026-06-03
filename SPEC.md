@@ -132,7 +132,8 @@ Example decimal layout for `15 ÷ 4 = ?`:[ ] . [ ][ ][ ]
 
 - Reopens the original Practice layout for that single question
 - **Original ink fully preserved** — scratch work and answer boxes restored exactly as the kid left them
-- Kid can edit any answer box and modify scratch work
+- Kid can edit any answer box and modify scratch work. Clearing a box (its ✕) also clears every box solved *after* it (carries, partials, long-division staircase) — fixing an upstream digit invalidates everything downstream.
+- **"Show errors" (opt-in toggle):** highlights every box — final answer *and* working (carries, partial products, long-division staircase) — with a green border when correct and a red border when wrong, so the kid can see *where* the mistake started. Off by default (re-attempt unaided first); recognises each written box and compares to the correct digit. A required answer box left blank reads red; blank working cells stay neutral. Any edit clears the highlights until re-tapped.
 - "Submit" re-runs recognition, updates the question's status, updates final score
 - Returns to Score screen
 

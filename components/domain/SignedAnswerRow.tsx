@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { colors } from '../../constants/design';
+import type { ReviewMarks } from '../../lib/review';
 import { AnswerBox } from './AnswerBox';
 import { type AnswerInk } from './ink';
 import type { AnswerShape } from './layout';
@@ -18,6 +19,8 @@ export interface SignedAnswerRowProps {
   cellWidth?: number;
   /** Answer box height — defaults to the full grid. */
   boxHeight?: number;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /**
@@ -34,6 +37,7 @@ export function SignedAnswerRow({
   isBoxWritable,
   cellWidth,
   boxHeight,
+  errorMarks,
 }: SignedAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -52,6 +56,7 @@ export function SignedAnswerRow({
           onClear={() => onClearBox('sign')}
           cellWidth={cellWidth}
           boxHeight={boxHeight}
+          status={errorMarks?.get('sign') ?? null}
         />
       ) : null}
 
@@ -69,6 +74,7 @@ export function SignedAnswerRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}

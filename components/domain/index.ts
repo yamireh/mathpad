@@ -40,6 +40,14 @@ export { AnswerArea, type AnswerAreaProps } from './AnswerArea';
 export { AnswerBox, type AnswerBoxProps } from './AnswerBox';
 export { AnswerPad, type AnswerPadProps } from './AnswerPad';
 export { CarryBox, type CarryBoxProps } from './CarryBox';
+export {
+  CursorTargetProvider,
+  useCursorTarget,
+  type CursorTarget,
+  type CursorTargetValue,
+  type MeasurableNode,
+} from './cursorTarget';
+export { HandCursor, type HandCursorProps } from './HandCursor';
 export { DirectAnswerRow, type DirectAnswerRowProps } from './DirectAnswerRow';
 export { DirectInkBox, type DirectInkBoxProps } from './DirectInkBox';
 export {

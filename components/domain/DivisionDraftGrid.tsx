@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '../../constants/design';
+import type { BoxStatus, ReviewMarks } from '../../lib/review';
 import { AnswerBox } from './AnswerBox';
 import { BorrowArrow } from './BorrowArrow';
 import { computeBorrowDisplay } from './borrow';
@@ -51,6 +52,7 @@ function DraftCell({
   onClear,
   cellWidth,
   dropKey,
+  status,
 }: {
   id: string;
   rowIdx: number;
@@ -61,6 +63,7 @@ function DraftCell({
   onClear: () => void;
   cellWidth: number;
   dropKey: number;
+  status?: BoxStatus | null;
 }) {
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -87,6 +90,7 @@ function DraftCell({
         strokes={strokes}
         cellWidth={cellWidth}
         boxHeight={DIVISION_DRAFT_CELL_HEIGHT}
+        status={status}
       />
     </Animated.View>
   );
@@ -146,6 +150,8 @@ export interface DivisionDraftGridProps {
   borrowLenders?: number[];
   /** Toggle a borrow lender on the active minuend. */
   onBorrow?: (lenderIndex: number) => void;
+  /** Review error-highlight marks keyed by box id (`dd-{row}-{col}`). */
+  errorMarks?: ReviewMarks | null;
 }
 
 /**
@@ -280,6 +286,7 @@ export function DivisionDraftGrid({
   activeMinuend = null,
   borrowLenders,
   onBorrow,
+  errorMarks,
 }: DivisionDraftGridProps) {
   if (columns <= 0 || rows <= 0) return null;
   const layoutOptions =
@@ -362,6 +369,7 @@ export function DivisionDraftGrid({
                     strokes={ink[row]?.[col] ?? []}
                     cellWidth={cellWidth}
                     dropKey={dropKey}
+                    status={errorMarks?.get(id) ?? null}
                   />
                 );
               })}

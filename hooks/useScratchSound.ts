@@ -21,9 +21,19 @@ export interface ScratchSoundHandle {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const SCRATCH_SOURCE = require('../assets/sounds/scratch.m4a');
+const SCRATCH_SOURCE = require('../assets/sounds/scratch.wav');
 
 const FULL_VOLUME = 1.0;
+
+/** Master switch for the pencil sound while writing. Off for now. */
+const SCRATCH_SOUND_ENABLED = false;
+
+const NOOP_HANDLE: ScratchSoundHandle = {
+  arm: () => {},
+  audible: () => {},
+  mute: () => {},
+  release: () => {},
+};
 
 export function useScratchSound(): ScratchSoundHandle {
   const player = useAudioPlayer(SCRATCH_SOURCE);
@@ -45,6 +55,8 @@ export function useScratchSound(): ScratchSoundHandle {
       }
     };
   }, [player]);
+
+  if (!SCRATCH_SOUND_ENABLED) return NOOP_HANDLE;
 
   return {
     arm: () => {

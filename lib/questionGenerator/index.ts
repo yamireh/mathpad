@@ -475,14 +475,20 @@ function generateDivision(
       };
     }
 
-    // Integer-answer modes need a divisor ≥ 2.
-    const divisor = Math.max(2, operandWithDigits(divisorDigits, rng));
-
     if (resolved === 'noRemainder') {
-      const kLo = Math.ceil(lo / divisor);
-      const kHi = Math.floor(hi / divisor);
-      if (kHi < 1 || kLo > kHi) continue;
-      const quotient = randInt(Math.max(1, kLo), kHi, rng);
+      const dLo = Math.max(2, lowerBound(divisorDigits));
+      const dHi = upperBound(divisorDigits);
+      // Pick the quotient first (≥ 2, so the dividend is never equal to the
+      // divisor) for an even spread of answers, then a divisor that keeps the
+      // dividend within its digit range. Picking the divisor first would bias
+      // hard toward quotient 2, which fits almost every divisor.
+      const qMax = Math.floor(hi / dLo);
+      if (qMax < 2) continue;
+      const quotient = randInt(2, qMax, rng);
+      const divLo = Math.max(dLo, Math.ceil(lo / quotient));
+      const divHi = Math.min(dHi, Math.floor(hi / quotient));
+      if (divHi < divLo) continue;
+      const divisor = randInt(divLo, divHi, rng);
       const dividend = quotient * divisor;
       return {
         operation: 'division',
@@ -492,7 +498,8 @@ function generateDivision(
       };
     }
 
-    // remainder
+    // remainder — divisor ≥ 2, then a quotient that fits the dividend range.
+    const divisor = Math.max(2, operandWithDigits(divisorDigits, rng));
     const kHi = Math.floor((hi - 1) / divisor);
     const kLo = Math.max(1, Math.ceil((lo - (divisor - 1)) / divisor));
     if (kHi < kLo) continue;

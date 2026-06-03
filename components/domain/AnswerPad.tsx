@@ -1,4 +1,5 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type GestureResponderEvent,
@@ -8,6 +9,7 @@ import {
 
 import { IconButton, TipBubble } from '../ui';
 import { colors, radius, spacing } from '../../constants/design';
+import { useCursorTarget } from './cursorTarget';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
 
 export interface AnswerPadProps {
@@ -50,6 +52,17 @@ export function AnswerPad({
   const { t } = useTranslation();
   const ink = useInkCapture(strokes, onStrokesChange);
 
+  // Demo solver: report the drawing surface so the hand can scribble over it.
+  // Inert during normal practice (`enabled` is false).
+  const canvasRef = useRef<View>(null);
+  const { enabled: cursorEnabled, reportPad } = useCursorTarget();
+  useEffect(() => {
+    if (!cursorEnabled || collapsed) return;
+    // One frame in, so the pad has laid out before we measure it.
+    const id = setTimeout(() => reportPad(canvasRef.current), 60);
+    return () => clearTimeout(id);
+  }, [cursorEnabled, collapsed, reportPad]);
+
   return (
     <View style={[styles.container, collapsed && styles.containerCollapsed]}>
       <View style={styles.header}>
@@ -78,6 +91,7 @@ export function AnswerPad({
       </View>
 
       <View
+        ref={canvasRef}
         style={[styles.canvas, collapsed && styles.canvasCollapsed]}
         accessibilityLabel={t('a11y.answerPad')}
         onStartShouldSetResponder={() => !collapsed}

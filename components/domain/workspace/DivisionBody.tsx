@@ -55,6 +55,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
     onDivisionCarryInkChange,
     divisionBorrowMarks,
     onToggleDivisionBorrow,
+    errorMarks,
     shape,
     expectedCarries,
     multInfo,
@@ -149,6 +150,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
         isBoxWritable={(boxId) => isBoxWritable(answerInk, shape, layout, boxId)}
         cellWidth={dCellWidth}
         boxHeight={DIVISION_QUOTIENT_HEIGHT}
+        errorMarks={errorMarks}
       />
     </View>
   );
@@ -172,6 +174,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
         activeMinuend={draftMinuend}
         borrowLenders={stepLenders}
         onBorrow={onBorrowCurrentStep}
+        errorMarks={errorMarks}
       />
     ) : null;
 
@@ -196,6 +199,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
             onSelectBox={selectBox}
             onClearBox={clearBox}
             tone={tone}
+            errorMarks={errorMarks}
           />
         </View>
       ) : (
@@ -207,6 +211,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
             divisionCellWidth={dCellWidth}
             divisionDigitSize={dDigitSize}
             selectedBox={activeBox}
+            errorMarks={errorMarks}
           />
         </View>
       )}

@@ -19,6 +19,7 @@ import type {
   ScratchCanvasHandle,
 } from './workspaceImports';
 import type { LongDivisionStepMinuend } from '../layout';
+import type { ReviewMarks } from '../../../lib/review';
 import type { ProblemLayout, Question } from '../../../types';
 
 export interface WorkspaceCore {
@@ -62,6 +63,11 @@ export interface WorkspaceCore {
   ) => void;
   onUndo?: () => void;
   canUndo: boolean;
+  /**
+   * Review error-highlight marks keyed by box id. Present only on the review
+   * screen's "Show errors" pass; null/absent during normal practice.
+   */
+  errorMarks?: ReviewMarks | null;
 
   /* --- Derived once per render --- */
   shape: AnswerShape;

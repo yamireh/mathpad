@@ -21,9 +21,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import {
+  scratchAudible,
+  scratchMute,
+  scratchStop,
+} from '../../../../lib/feedback';
 import { digitInk } from '../../../../lib/solver/digitInk';
+import type { ReviewMarks } from '../../../../lib/review';
 import { computeSolvePlan } from '../../../../lib/solver/solveValues';
 import type { ProblemLayout, Question } from '../../../../types';
 import {
@@ -38,14 +44,24 @@ import {
 import {
   answerShape,
   digitCount,
+  divisionDraftSize,
   longDivisionDivisorCarries,
   longDivisionStepMinuends,
   multiplicationDigitOperands,
   partialWidths,
   verticalGeometry,
 } from '../../../domain/layout';
+import {
+  CursorTargetProvider,
+  type CursorTarget,
+  type CursorTargetValue,
+  type MeasurableNode,
+} from '../../../domain/cursorTarget';
+import { HandCursor } from '../../../domain/HandCursor';
 import type { ScratchCanvasHandle } from '../../../domain/ScratchCanvas';
 import {
+  type DivisionDraftMeta,
+  fillSequence,
   type MultiplicationInfo,
   multiOperandCarries,
   parseDivisionCarryId,
@@ -103,6 +119,18 @@ export interface OperationsWorkspaceProps {
   onClearUndoHistory?: () => void;
   /** Flag the current question as Auto-Solved (shows Fixed badge on Results). */
   onSolved?: () => void;
+  /**
+   * Review error-highlight marks keyed by box id. When set, boxes render
+   * green/red borders and long-division draft rows stop locking into correct
+   * labels so the kid's own ink stays visible. Null/absent during practice.
+   */
+  errorMarks?: ReviewMarks | null;
+  /**
+   * When true, clearing a box (its little ✕) also clears every box that comes
+   * AFTER it in the solving order — once an upstream digit changes, everything
+   * downstream is stale. Used on the review/fix screen; off during practice.
+   */
+  cascadeClear?: boolean;
   tone: string;
 }
 
@@ -110,6 +138,9 @@ export interface OperationsWorkspaceHandle {
   /** Auto-solve the current question, animating digit-by-digit. */
   solve: () => void;
 }
+
+/** Demo pencil sound during auto-solve. Off for now; flip to re-enable. */
+const DEMO_SCRATCH_SOUND = false;
 
 export const OperationsWorkspace = forwardRef<
   OperationsWorkspaceHandle,
@@ -140,6 +171,8 @@ export const OperationsWorkspace = forwardRef<
     canUndo = false,
     onClearUndoHistory,
     onSolved,
+    errorMarks,
+    cascadeClear = false,
     tone,
   } = props;
 
@@ -164,6 +197,101 @@ export const OperationsWorkspace = forwardRef<
     nonce: number;
   } | null>(null);
   const scratchRef = useRef<ScratchCanvasHandle | null>(null);
+
+  /* ---------------- demo hand cursor (auto-solve only) ---------------- */
+  const rootRef = useRef<View>(null);
+  const [cursorActive, setCursorActive] = useState(false);
+  // Where the hand writes (pad) and where it taps (a borrowed digit), kept
+  // separate so switching modes springs between the two.
+  const [padTarget, setPadTarget] = useState<CursorTarget | null>(null);
+  const [borrowTarget, setBorrowTarget] = useState<CursorTarget | null>(null);
+  const [handMode, setHandMode] = useState<'write' | 'tap'>('write');
+  const [traceDigit, setTraceDigit] = useState(0);
+  // Bumped once per action; also gates the hand visible (0 until the first
+  // borrow tap or digit write).
+  const [actionNonce, setActionNonce] = useState(0);
+  // Measure a host node into root-relative coordinates (the overlay fills the
+  // root) and hand its centre to `cb`.
+  const measureToRoot = useCallback(
+    (node: MeasurableNode | null, cb: (p: CursorTarget) => void) => {
+      if (!node || !rootRef.current) return;
+      rootRef.current.measureInWindow((rootX, rootY) => {
+        node.measureInWindow((x, y, w, h) => {
+          cb({ x: x - rootX + w / 2, y: y - rootY + h / 2 });
+        });
+      });
+    },
+    [],
+  );
+  const reportPad = useCallback(
+    (node: MeasurableNode | null) => {
+      if (!node) return setPadTarget(null);
+      measureToRoot(node, setPadTarget);
+    },
+    [measureToRoot],
+  );
+  // Borrow-lender cells register their host node by column so the hand can be
+  // moved there ahead of the borrow being triggered.
+  const borrowCellsRef = useRef(new Map<number, MeasurableNode>());
+  const registerBorrowCell = useCallback(
+    (column: number, node: MeasurableNode | null) => {
+      if (node) borrowCellsRef.current.set(column, node);
+      else borrowCellsRef.current.delete(column);
+    },
+    [],
+  );
+  // Glide the hand up to the lender digit (the borrow is triggered separately,
+  // once the hand has arrived — see useSolver's HAND_MOVE_MS gap).
+  const onBorrowApproach = useCallback(
+    (column: number) => {
+      const node = borrowCellsRef.current.get(column);
+      if (!node) return;
+      measureToRoot(node, (p) => {
+        // Drop the hand below the digit so it doesn't cover the cross-out,
+        // the "+10" annotation, or the borrow arrow above it.
+        setBorrowTarget({ x: p.x, y: p.y + 26 });
+        setHandMode('tap');
+        setActionNonce((n) => n + 1);
+      });
+    },
+    [measureToRoot],
+  );
+  const cursorValue = useMemo<CursorTargetValue>(
+    () => ({ enabled: cursorActive, reportPad, registerBorrowCell }),
+    [cursorActive, reportPad, registerBorrowCell],
+  );
+
+  // Play the same looping pencil sound the kid hears, for the span of each
+  // traced digit (the auto-solver writes via writeBox, which never touches the
+  // pad's own stroke capture, so we drive the sound here).
+  const scratchMuteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopScratch = useCallback(() => {
+    if (scratchMuteRef.current) {
+      clearTimeout(scratchMuteRef.current);
+      scratchMuteRef.current = null;
+    }
+    scratchStop();
+  }, []);
+  const startScratch = useCallback(() => {
+    if (!DEMO_SCRATCH_SOUND) return;
+    if (scratchMuteRef.current) clearTimeout(scratchMuteRef.current);
+    scratchAudible();
+    // Mute (but keep the loop running) when the digit's strokes are done.
+    scratchMuteRef.current = setTimeout(() => {
+      scratchMuteRef.current = null;
+      scratchMute();
+    }, 1100);
+  }, []);
+
+  // Reset the hand whenever the question changes.
+  useEffect(() => {
+    setCursorActive(false);
+    setPadTarget(null);
+    setBorrowTarget(null);
+    setActionNonce(0);
+    stopScratch();
+  }, [question.id, stopScratch]);
+  useEffect(() => stopScratch, [stopScratch]);
 
   /* ---------------------- active-box box-id splits ---------------------- */
   const activeCarryColumn =
@@ -238,6 +366,9 @@ export const OperationsWorkspace = forwardRef<
   const lockedDraftRows = useMemo(() => {
     const set = new Set<number>();
     if (!isLongDivision) return set;
+    // In review's "Show errors" pass, never lock rows into correct labels —
+    // the kid's own (possibly wrong) ink must stay visible to be marked.
+    if (errorMarks) return set;
     const dInk = divisionDraftInk ?? [];
     const expected = new Map<number, number[]>();
     for (const key of draftLabels.keys()) {
@@ -254,7 +385,7 @@ export const OperationsWorkspace = forwardRef<
       if (cols.every((c) => (dInk[row]?.[c] ?? []).length > 0)) set.add(row);
     }
     return set;
-  }, [isLongDivision, activeDraftRow, draftLabels, divisionDraftInk]);
+  }, [isLongDivision, activeDraftRow, draftLabels, divisionDraftInk, errorMarks]);
 
   /* -------------- per-column expected-carries flags -------------- */
   const expectedCarries = useMemo<boolean[] | null>(() => {
@@ -446,20 +577,73 @@ export const OperationsWorkspace = forwardRef<
     setPadNonce((n) => n + 1);
   };
 
+  // Clear a set of boxes in one pass: answer boxes fold into a single
+  // AnswerInk update, the rest route through their per-cell handlers. Each
+  // clear is guarded on actual ink so empty cells don't churn state/undo.
+  const clearBoxes = (ids: string[]) => {
+    let nextAnswer = answerInk;
+    for (const id of ids) {
+      if (id.startsWith('carry-')) {
+        const c = Number(id.slice(6));
+        if (carryInk?.[c]?.length) onCarryInkChange?.(c, []);
+        continue;
+      }
+      const pp = parsePartialId(id);
+      if (pp) {
+        if (partialInk?.[pp.row]?.[pp.col]?.length) {
+          onPartialInkChange?.(pp.row, pp.col, []);
+        }
+        continue;
+      }
+      const tc = parseTimesCarryId(id);
+      if (tc) {
+        if (timesCarryInk?.[tc.row]?.[tc.col]?.length) {
+          onTimesCarryInkChange?.(tc.row, tc.col, []);
+        }
+        continue;
+      }
+      const dd = parseDivisionDraftId(id);
+      if (dd) {
+        if (divisionDraftInk?.[dd.row]?.[dd.col]?.length) {
+          onDivisionDraftInkChange?.(dd.row, dd.col, []);
+        }
+        continue;
+      }
+      const dc = parseDivisionCarryId(id);
+      if (dc) {
+        if (divisionCarryInk?.[dc.row]?.[dc.col]?.length) {
+          onDivisionCarryInkChange?.(dc.row, dc.col, []);
+        }
+        continue;
+      }
+      if (getBoxStrokes(nextAnswer, id).length) {
+        nextAnswer = setBoxStrokes(nextAnswer, id, []);
+      }
+    }
+    if (nextAnswer !== answerInk) onAnswerInkChange(nextAnswer);
+  };
+
   const clearBox = (boxId: string) => {
     cancelAdvance();
-    if (boxId.startsWith('carry-')) {
-      onCarryInkChange?.(Number(boxId.slice(6)), []);
+    if (cascadeClear) {
+      // Fixing flow: clear this box and everything downstream of it, since an
+      // upstream change invalidates every box solved after it.
+      const draftMeta: DivisionDraftMeta | null = (() => {
+        if (!isLongDivision) return null;
+        const ds = divisionDraftSize(question.operands[0]);
+        if (ds.rows === 0) return null;
+        return {
+          columns: ds.columns,
+          rows: 2 * (shape.integerBoxes + shape.decimalBoxes),
+          divisorDigits: digitCount(question.operands[1]),
+          divisorCarryCols: divisionStepCarryCols,
+        };
+      })();
+      const seq = fillSequence(shape, layout, expectedCarries, multInfo, draftMeta);
+      const idx = seq.indexOf(boxId);
+      clearBoxes(idx >= 0 ? seq.slice(idx) : [boxId]);
     } else {
-      const pp = parsePartialId(boxId);
-      const tc = parseTimesCarryId(boxId);
-      const dd = parseDivisionDraftId(boxId);
-      const dc = parseDivisionCarryId(boxId);
-      if (pp) onPartialInkChange?.(pp.row, pp.col, []);
-      else if (tc) onTimesCarryInkChange?.(tc.row, tc.col, []);
-      else if (dd) onDivisionDraftInkChange?.(dd.row, dd.col, []);
-      else if (dc) onDivisionCarryInkChange?.(dc.row, dc.col, []);
-      else onAnswerInkChange(setBoxStrokes(answerInk, boxId, []));
+      clearBoxes([boxId]);
     }
     lastStrokeCountRef.current = 0;
     setActiveBox(boxId);
@@ -516,11 +700,37 @@ export const OperationsWorkspace = forwardRef<
     cancelAdvance,
     writeBox,
     setActiveBox,
+    // Each digit step: start the hand writing this digit on the pad, with the
+    // pencil sound for the span of the trace.
+    onFocusBox: (_id, digit) => {
+      setTraceDigit(digit);
+      setHandMode('write');
+      setActionNonce((n) => n + 1);
+      startScratch();
+    },
     onToggleBorrow,
+    onBorrowApproach,
+    onDivisionBorrow: onToggleDivisionBorrow,
     setBringDownPulse,
     onSolved,
+    onComplete: () => {
+      setCursorActive(false);
+      setPadTarget(null);
+      setBorrowTarget(null);
+      setActionNonce(0);
+      stopScratch();
+    },
+    // Let the hand finish writing before the digit reflects into the box, and
+    // give each step room to play out at a calm pace.
+    writeLeadMs: 1080,
+    stepMs: 1700,
   });
-  useImperativeHandle(ref, () => ({ solve }), [solve]);
+  // Show the hand cursor for the duration of an auto-solve.
+  const runSolve = useCallback(() => {
+    setCursorActive(true);
+    solve();
+  }, [solve]);
+  useImperativeHandle(ref, () => ({ solve: runSolve }), [runSolve]);
 
   /* --------------------------- core bundle --------------------------- */
   const core: WorkspaceCore = {
@@ -547,6 +757,7 @@ export const OperationsWorkspace = forwardRef<
     onDivisionCarryInkChange,
     onUndo,
     canUndo,
+    errorMarks,
 
     shape,
     isLongDivision,
@@ -593,14 +804,46 @@ export const OperationsWorkspace = forwardRef<
   };
 
   /* ----------------------- per-operation dispatch ---------------------- */
-  switch (question.operation) {
-    case 'addition':
-      return <AdditionPanel core={core} />;
-    case 'subtraction':
-      return <SubtractionPanel core={core} />;
-    case 'multiplication':
-      return <MultiplicationPanel core={core} />;
-    case 'division':
-      return <DivisionPanel core={core} />;
-  }
+  const panel = (() => {
+    switch (question.operation) {
+      case 'addition':
+        return <AdditionPanel core={core} />;
+      case 'subtraction':
+        return <SubtractionPanel core={core} />;
+      case 'multiplication':
+        return <MultiplicationPanel core={core} />;
+      case 'division':
+        return <DivisionPanel core={core} />;
+    }
+  })();
+
+  return (
+    <CursorTargetProvider value={cursorValue}>
+      <View ref={rootRef} collapsable={false} style={styles.root}>
+        {panel}
+        {cursorActive ? (
+          <HandCursor
+            target={
+              !activeBox
+                ? null
+                : actionNonce === 0
+                  ? // Start parked at the pad (the touch surface) before the
+                    // first action, then glide wherever it's needed.
+                    padTarget
+                  : handMode === 'write'
+                    ? padTarget
+                    : borrowTarget
+            }
+            mode={handMode}
+            digit={traceDigit}
+            actionNonce={actionNonce}
+          />
+        ) : null}
+      </View>
+    </CursorTargetProvider>
+  );
+});
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
 });

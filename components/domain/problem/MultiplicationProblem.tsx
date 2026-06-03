@@ -9,6 +9,7 @@ import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, typography } from '../../../constants/design';
+import type { ReviewMarks } from '../../../lib/review';
 import type { Question } from '../../../types';
 import { AnswerBox } from '../AnswerBox';
 import { CarryBox } from '../CarryBox';
@@ -44,6 +45,8 @@ export interface MultiplicationProblemProps {
   tone: string;
   /** Column / box / digit sizing. */
   sizing: ProblemSizing;
+  /** Review error-highlight marks keyed by box id. */
+  errorMarks?: ReviewMarks | null;
 }
 
 /** Vertical multiplication layout. */
@@ -59,6 +62,7 @@ export function MultiplicationProblem({
   onClearBox,
   tone,
   sizing,
+  errorMarks,
 }: MultiplicationProblemProps) {
   const [op1, op2] = question.operands;
   const [p1, p2] = question.operandDecimals ?? [0, 0];
@@ -107,6 +111,7 @@ export function MultiplicationProblem({
           operatorWidth={operatorWidth}
           boxWidth={carryW}
           boxHeight={carryH}
+          errorMarks={errorMarks}
         />
       ) : null}
 
@@ -153,6 +158,7 @@ export function MultiplicationProblem({
               boxHeight={boxHeight}
               digitSize={digitSize}
               operatorWidth={operatorWidth}
+              errorMarks={errorMarks}
             />
           ))}
           <View
@@ -180,6 +186,7 @@ export function MultiplicationProblem({
           operatorWidth={operatorWidth}
           boxWidth={carryW}
           boxHeight={carryH}
+          errorMarks={errorMarks}
         />
       ) : null}
 
@@ -213,6 +220,7 @@ function PartialProductRow({
   boxHeight,
   digitSize,
   operatorWidth,
+  errorMarks,
 }: {
   rowIndex: number;
   width: number;
@@ -227,6 +235,7 @@ function PartialProductRow({
   digitSize: number;
   /** Width of the left operator gutter where the "+" sign sits. */
   operatorWidth: number;
+  errorMarks?: ReviewMarks | null;
 }) {
   // Total `columns` cells: leading empties on the left, `width` digit cells,
   // then `rowIndex` placeholder-zero cells on the right (the partial-product
@@ -259,6 +268,7 @@ function PartialProductRow({
             onClear={() => onClearBox(id)}
             cellWidth={cellWidth}
             boxHeight={boxHeight}
+            status={errorMarks?.get(id) ?? null}
           />
         );
       })}
@@ -322,6 +332,7 @@ function TimesCarryRow({
   operatorWidth,
   boxWidth,
   boxHeight,
+  errorMarks,
 }: {
   columns: number;
   op1Cols: number;
@@ -335,6 +346,7 @@ function TimesCarryRow({
   operatorWidth: number;
   boxWidth: number;
   boxHeight: number;
+  errorMarks?: ReviewMarks | null;
 }) {
   const offsetCols = columns - op1Cols;
   return (
@@ -358,6 +370,7 @@ function TimesCarryRow({
                 tone={tone}
                 width={boxWidth}
                 height={boxHeight}
+                status={errorMarks?.get(id) ?? null}
               />
             ) : null}
           </View>

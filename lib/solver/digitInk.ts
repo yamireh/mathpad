@@ -85,3 +85,103 @@ export function digitInk(digit: number): InkStroke[] {
     });
   });
 }
+
+/**
+ * A timed fingertip path for "writing" a digit, used by the demo HandCursor.
+ *
+ * Returns offsets relative to a centre point (so the caller adds them to the
+ * pad centre), plus a per-segment duration so the hand moves at a steady
+ * writing pace and slows for nothing. The path eases in from rest, traces each
+ * stroke, makes a quick pen-up hop between multi-stroke digits, and returns to
+ * rest at the end.
+ */
+/** One stroke of a digit: its points plus when it's drawn within the trace. */
+export interface DigitStroke {
+  /** Points (centred offsets, px) of this stroke. */
+  pts: Array<[number, number]>;
+  /** Ms from trace start until this stroke begins drawing. */
+  delay: number;
+  /** Ms spent drawing this stroke. */
+  duration: number;
+}
+
+export interface DigitWriting {
+  /** Fingertip X offsets through the path, starting and ending at 0 (rest). */
+  xs: number[];
+  /** Fingertip Y offsets, paired with `xs`. */
+  ys: number[];
+  /** Ms to travel from point i to i+1. Length is `xs.length - 1`. */
+  durations: number[];
+  /** Sum of `durations`. */
+  total: number;
+  /** Per-stroke geometry + timing, for revealing the ink under the fingertip. */
+  strokes: DigitStroke[];
+}
+
+/** Duration of a pen-up move (lead-in, stroke break, trail-out). */
+const MOVE_MS = 130;
+
+/**
+ * Plan how the demo hand writes `digit`: the fingertip path (`xs`/`ys`/
+ * `durations`) and the per-stroke ink reveal (`strokes`), both derived from the
+ * same shape so the black lines appear exactly under the moving fingertip. The
+ * glyph is ~`size` px tall and the drawing shares `drawMs` by stroke length.
+ */
+export function digitWriting(
+  digit: number,
+  size = 64,
+  drawMs = 900,
+): DigitWriting | null {
+  const polylines = SHAPES[digit];
+  if (!polylines) return null;
+  const scale = size / 100;
+  const at = ([x, y]: readonly [number, number]): [number, number] => [
+    (x - 50) * scale,
+    (y - 50) * scale,
+  ];
+
+  // Per-stroke points + length, to split drawMs and time each stroke.
+  const strokePts = polylines.map((line) => line.map(at));
+  const strokeLen = strokePts.map((pts) => {
+    let len = 0;
+    for (let i = 1; i < pts.length; i += 1) {
+      len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+    }
+    return len;
+  });
+  const totalLen = strokeLen.reduce((a, b) => a + b, 0) || 1;
+
+  const strokes: DigitStroke[] = [];
+  let cursor = MOVE_MS; // lead-in move to the first point
+  strokePts.forEach((pts, i) => {
+    const duration = (strokeLen[i] / totalLen) * drawMs;
+    strokes.push({ pts, delay: cursor, duration });
+    cursor += duration + MOVE_MS; // + pen-up hop to the next stroke / trail-out
+  });
+
+  // Fingertip path: rest → first point (lead-in), the strokes (with a quick
+  // hop between them), last point → rest.
+  const xs = [0];
+  const ys = [0];
+  const durations: number[] = [];
+  strokePts.forEach((pts, si) => {
+    pts.forEach((p, pi) => {
+      const isHop = si > 0 && pi === 0; // jump to a later stroke's start
+      const isLead = si === 0 && pi === 0; // first move out of rest
+      const prevX = xs[xs.length - 1];
+      const prevY = ys[ys.length - 1];
+      const segLen = Math.hypot(p[0] - prevX, p[1] - prevY);
+      xs.push(p[0]);
+      ys.push(p[1]);
+      durations.push(
+        isHop || isLead ? MOVE_MS : (segLen / totalLen) * drawMs,
+      );
+    });
+  });
+  xs.push(0);
+  ys.push(0);
+  durations.push(MOVE_MS); // trail-out back to rest
+  const total = durations.reduce((a, b) => a + b, 0);
+
+  return { xs, ys, durations, total, strokes };
+}
