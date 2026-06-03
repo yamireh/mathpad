@@ -101,6 +101,7 @@ describe('OperationCard', () => {
       <OperationCard
         operation="addition"
         label="Addition"
+        description="Practice adding numbers"
         onPress={onPress}
       />,
     );

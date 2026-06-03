@@ -22,7 +22,7 @@ describe('Settings screen', () => {
       expect(screen.getByText('Borrowing')).toBeOnTheScreen(),
     );
     expect(screen.getByText('Allow negative answers')).toBeOnTheScreen();
-    expect(screen.getByText('Start practicing')).toBeOnTheScreen();
+    expect(screen.getByText('Start Practice')).toBeOnTheScreen();
   });
 
   it('shows division answer-type options', async () => {

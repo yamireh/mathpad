@@ -1,14 +1,27 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Canvas, Path } from '@shopify/react-native-skia';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import {
   type GestureResponderEvent,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
-import { colors, radius } from '../../constants/design';
+import { colors, radius, spacing, typography } from '../../constants/design';
 import { useScratchSound } from '../../hooks/useScratchSound';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
+
+/** Notebook grid spacing, in px. */
+const GRID_STEP = 26;
+/** Faint graph-paper line colour. */
+const GRID_COLOR = 'rgba(99, 112, 121, 0.10)';
 
 export type ScratchTool = 'pen' | 'eraser';
 
@@ -26,6 +39,9 @@ export interface ScratchCanvasProps {
   accessibilityLabel?: string;
   /** Draw the surface's own border. Off when an outer frame supplies one. */
   bordered?: boolean;
+  /** Faint corner watermark (e.g. "Workspace") so the blank area reads as
+   *  intentional, like a notebook page. */
+  label?: string;
 }
 
 const STROKE_WIDTH = 3;
@@ -52,12 +68,30 @@ export const ScratchCanvas = forwardRef<
     onStrokesChange,
     accessibilityLabel,
     bordered = true,
+    label,
   },
   ref,
 ) {
   const ink = useInkCapture(initialStrokes, onStrokesChange);
   const sound = useScratchSound();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Notebook grid — rebuilt only when the surface is resized.
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const grid = useMemo(() => {
+    const { w, h } = size;
+    if (w === 0 || h === 0) return null;
+    const path = Skia.Path.Make();
+    for (let x = GRID_STEP; x < w; x += GRID_STEP) {
+      path.moveTo(x, 0);
+      path.lineTo(x, h);
+    }
+    for (let y = GRID_STEP; y < h; y += GRID_STEP) {
+      path.moveTo(0, y);
+      path.lineTo(w, y);
+    }
+    return path;
+  }, [size]);
 
   useImperativeHandle(
     ref,
@@ -125,6 +159,12 @@ export const ScratchCanvas = forwardRef<
     <View
       style={[styles.canvas, bordered ? styles.bordered : null]}
       accessibilityLabel={accessibilityLabel}
+      onLayout={(e) =>
+        setSize({
+          w: e.nativeEvent.layout.width,
+          h: e.nativeEvent.layout.height,
+        })
+      }
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
       onResponderTerminationRequest={() => false}
@@ -133,7 +173,20 @@ export const ScratchCanvas = forwardRef<
       onResponderRelease={release}
       onResponderTerminate={release}
     >
+      {label ? (
+        <Text style={styles.label} pointerEvents="none">
+          {label}
+        </Text>
+      ) : null}
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        {grid ? (
+          <Path
+            path={grid}
+            color={GRID_COLOR}
+            style="stroke"
+            strokeWidth={1}
+          />
+        ) : null}
         {ink.strokes.map((stroke, i) => (
           <Path
             key={i}
@@ -171,4 +224,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  label: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    zIndex: 1,
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
+    opacity: 0.45,
+  },
 });
+

@@ -8,8 +8,9 @@ import OperationsRoute from '../app/operations';
 describe('Home screen (MainPanel)', () => {
   it('renders the greeting', () => {
     render(<HomeScreen />);
+    expect(screen.getByText('Hi, ready for math?')).toBeOnTheScreen();
     expect(
-      screen.getByText('Hi! What shall we practice?'),
+      screen.getByText('Choose your practice adventure'),
     ).toBeOnTheScreen();
   });
 

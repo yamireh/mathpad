@@ -2,36 +2,48 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../../ui';
-import { colors, radius, spacing, typography } from '../../../constants/design';
+import {
+  colors,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '../../../constants/design';
 
 export interface TopicCardProps {
   /** Localised topic label. */
   label: string;
-  /** Ionicon shown on the badge. */
+  /** Localised one-line description. */
+  description: string;
+  /** Ionicon shown on the icon tile. */
   icon: keyof typeof Ionicons.glyphMap;
-  /** Solid accent colour (badge + label). */
+  /** Solid accent colour (icon tile + chevron). */
   accent: string;
-  /** Tinted background colour. */
+  /** Tinted accent colour (the "Ready" badge background). */
   tint: string;
-  /** Pass `false` to show a "Coming soon" pill next to the chevron. */
+  /** Pass `false` to swap the chevron for a "Coming soon" badge. */
   enabled?: boolean;
-  /** Coming-soon copy (already localised). Only shown when `enabled` is false. */
+  /** Badge copy when enabled (already localised, e.g. "Ready"). */
+  readyLabel?: string;
+  /** Badge copy when disabled (already localised, e.g. "Coming soon"). */
   comingSoonLabel?: string;
   onPress: () => void;
   accessibilityLabel?: string;
 }
 
 /**
- * A wide row-style card used on the MainPanel topic chooser. Mirrors
- * OperationCard's layout (badge / centered label / chevron) so the
- * MainPanel and OperationsPanel feel like the same family of screens.
+ * A wide row-style card for the MainPanel topic chooser: a vibrant icon
+ * tile, the topic name + a one-line description, and a status badge —
+ * "Ready" (live) or "Coming soon" (placeholder modules).
  */
 export function TopicCard({
   label,
+  description,
   icon,
   accent,
   tint,
   enabled = true,
+  readyLabel,
   comingSoonLabel,
   onPress,
   accessibilityLabel,
@@ -40,18 +52,44 @@ export function TopicCard({
     <Card
       onPress={onPress}
       accessibilityLabel={accessibilityLabel ?? label}
-      style={[styles.card, { backgroundColor: tint, borderColor: tint }]}
+      style={styles.card}
     >
-      <View style={[styles.badge, { backgroundColor: accent }]}>
-        <Ionicons name={icon} size={26} color="#FFFFFF" />
+      <View style={[styles.tile, { backgroundColor: accent }]}>
+        <Ionicons name={icon} size={30} color="#FFFFFF" />
       </View>
-      <View style={styles.labelWrap}>
-        <Text style={[styles.label, { color: accent }]}>{label}</Text>
-        {!enabled && comingSoonLabel ? (
-          <Text style={styles.comingSoon}>{comingSoonLabel}</Text>
-        ) : null}
+
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text
+            style={[styles.title, !enabled && styles.titleMuted]}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+          {enabled ? (
+            readyLabel ? (
+              <View style={[styles.badge, { backgroundColor: tint }]}>
+                <Text style={[styles.badgeText, { color: accent }]}>
+                  {readyLabel}
+                </Text>
+              </View>
+            ) : null
+          ) : comingSoonLabel ? (
+            <View style={[styles.badge, styles.badgeSoon]}>
+              <Text style={[styles.badgeText, styles.badgeSoonText]}>
+                {comingSoonLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.desc} numberOfLines={1}>
+          {description}
+        </Text>
       </View>
-      <Ionicons name="chevron-forward" size={22} color={accent} />
+
+      {enabled ? (
+        <Ionicons name="chevron-forward" size={22} color={accent} />
+      ) : null}
     </Card>
   );
 }
@@ -61,25 +99,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    borderWidth: 0,
+    ...shadows.md,
   },
-  badge: {
-    width: 48,
-    height: 48,
+  tile: {
+    width: 56,
+    height: 56,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
-  labelWrap: {
-    flex: 1,
+  body: { flex: 1, gap: 3 },
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
-  label: {
-    fontSize: typography.size.title,
+  title: {
+    flexShrink: 1,
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  titleMuted: { color: colors.textMuted },
+  badge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  badgeSoon: { backgroundColor: colors.surfaceAlt },
+  badgeText: {
+    fontSize: 11,
     fontWeight: typography.weight.medium,
   },
-  comingSoon: {
-    marginTop: 2,
+  badgeSoonText: { color: colors.textMuted },
+  desc: {
     fontSize: typography.size.caption,
     color: colors.textMuted,
   },

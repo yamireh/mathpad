@@ -52,8 +52,9 @@ export const operationColors = {
   multiplication: { accent: '#8B5CF6', tint: '#EFEAFE' },
   /** Division — teal. */
   division: { accent: '#14B8A6', tint: '#E0F6F3' },
-  /** Mix — neutral. */
-  mix: { accent: '#64748B', tint: '#EEF1F4' },
+  /** Mix — deep navy/indigo "challenge mode" (it's a live operation, not a
+   *  disabled one, so it gets an exciting colour rather than a grey). */
+  mix: { accent: '#312E81', tint: '#E9E8F7' },
 } as const;
 
 /* -------------------------------------------------------------------------- */

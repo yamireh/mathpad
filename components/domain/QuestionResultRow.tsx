@@ -24,6 +24,7 @@ export interface QuestionResultRowProps {
 const STATUS_TINT = {
   correct: '#ECFDF3',
   wrong: '#FFF1EE',
+  blank: '#EEF0F3',
 } as const;
 
 /**
@@ -42,10 +43,22 @@ export function QuestionResultRow({
   const { t } = useTranslation();
   const { question, submittedAnswer, status } = result;
   const correct = status === 'correct_first_try' || status === 'fixed';
-  const statusColor = correct ? colors.correct : colors.wrong;
-  const tint = correct ? STATUS_TINT.correct : STATUS_TINT.wrong;
   const kidAnswer = formatSubmittedAnswer(question, submittedAnswer);
   const correctAnswer = formatAnswer(question.answer);
+  // A skipped/blank question reads as neutral grey rather than alarming red —
+  // "not answered" isn't the same as "got it wrong".
+  const blank = !correct && kidAnswer === null;
+  const statusColor = correct
+    ? colors.correct
+    : blank
+      ? colors.textMuted
+      : colors.wrong;
+  const tint = correct
+    ? STATUS_TINT.correct
+    : blank
+      ? STATUS_TINT.blank
+      : STATUS_TINT.wrong;
+  const icon = correct ? 'checkmark' : blank ? 'remove' : 'close';
 
   return (
     <Card
@@ -60,11 +73,7 @@ export function QuestionResultRow({
     >
       <View style={styles.headerRow}>
         <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Ionicons
-            name={correct ? 'checkmark' : 'close'}
-            size={20}
-            color="#FFFFFF"
-          />
+          <Ionicons name={icon} size={20} color="#FFFFFF" />
         </View>
         <Text style={styles.questionTitle}>
           {t('score.questionLabel', { number })}

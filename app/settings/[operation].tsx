@@ -13,6 +13,8 @@ import {
 import {
   colors,
   operationColors,
+  radius,
+  shadows,
   spacing,
   typography,
 } from '../../constants/design';
@@ -42,6 +44,7 @@ export default function SettingsScreen() {
   const { start } = usePracticeSession();
 
   const accent = operationColors[operation].accent;
+  const tint = operationColors[operation].tint;
 
   if (!settings) {
     return (
@@ -87,7 +90,7 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Section title={t('settings.digits')} tone={accent}>
+        <Card title={t('settings.digits')} tone={accent}>
           {settings.operation === 'division' ? (
             <DivisionDigitSelectors
               dividendDigits={settings.dividendDigits}
@@ -102,9 +105,9 @@ export default function SettingsScreen() {
               tone={accent}
             />
           )}
-        </Section>
+        </Card>
 
-        <Section title={t('settings.questionCount')} tone={accent}>
+        <Card title={t('settings.questionCount')} tone={accent}>
           <View style={styles.chipRow}>
             {QUESTION_COUNTS.map((count) => (
               <Chip
@@ -116,43 +119,50 @@ export default function SettingsScreen() {
               />
             ))}
           </View>
-        </Section>
+        </Card>
 
-        <OperationOptions
-          settings={settings}
-          accent={accent}
-          onChange={patch}
-        />
+        <OperationOptions settings={settings} accent={accent} onChange={patch} />
 
-        {/* Timer is always the last setting. */}
-        <ToggleRow
+        {/* Timer is always the last setting — its own card with an inline switch. */}
+        <Card
           title={t('settings.timer')}
-          hint={t('settings.timerHint')}
-          value={settings.timer.enabled}
-          onValueChange={(enabled) =>
-            patch({ timer: { ...settings.timer, enabled } })
-          }
           tone={accent}
-        />
-        {settings.timer.enabled ? (
-          <View style={[styles.chipRow, styles.timerChips]}>
-            {TIMER_DURATIONS.map((minutes) => (
-              <Chip
-                key={minutes}
-                label={t('settings.timerDuration', { minutes })}
-                selected={settings.timer.durationMinutes === minutes}
-                onPress={() =>
-                  patch({
-                    timer: { ...settings.timer, durationMinutes: minutes },
-                  })
-                }
-                tone={accent}
-              />
-            ))}
-          </View>
-        ) : null}
+          action={
+            <Switch
+              value={settings.timer.enabled}
+              onValueChange={(enabled) =>
+                patch({ timer: { ...settings.timer, enabled } })
+              }
+              trackColor={{ true: accent, false: colors.border }}
+            />
+          }
+        >
+          <Text style={styles.hint}>{t('settings.timerHint')}</Text>
+          {settings.timer.enabled ? (
+            <View style={styles.chipRow}>
+              {TIMER_DURATIONS.map((minutes) => (
+                <Chip
+                  key={minutes}
+                  label={t('settings.timerDuration', { minutes })}
+                  selected={settings.timer.durationMinutes === minutes}
+                  onPress={() =>
+                    patch({
+                      timer: { ...settings.timer, durationMinutes: minutes },
+                    })
+                  }
+                  tone={accent}
+                />
+              ))}
+            </View>
+          ) : null}
+        </Card>
 
-        <Text style={styles.summary}>{summarise(settings, t)}</Text>
+        <View style={[styles.preview, { backgroundColor: tint }]}>
+          <Text style={[styles.previewTitle, { color: accent }]}>
+            {t('settings.preview')}
+          </Text>
+          <Text style={styles.previewSummary}>{summarise(settings, t)}</Text>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -261,7 +271,11 @@ function DivisionDigitSelectors({
   );
 }
 
-/** Operation-specific options (carrying, borrowing, etc.). */
+/**
+ * Operation-specific options. Non-division operations get a single "Options"
+ * card of On/Off toggles; division gets its own type + answer-type cards;
+ * Mix has no options.
+ */
 function OperationOptions({
   settings,
   accent,
@@ -279,7 +293,7 @@ function OperationOptions({
 
   if (settings.operation === 'addition') {
     return (
-      <>
+      <Card title={t('settings.options')} tone={accent}>
         <ToggleRow
           title={t('settings.carrying')}
           value={modeOn(settings.carrying)}
@@ -292,12 +306,12 @@ function OperationOptions({
           onValueChange={(on) => onChange({ decimals: on ? 'on' : 'off' })}
           tone={accent}
         />
-      </>
+      </Card>
     );
   }
   if (settings.operation === 'subtraction') {
     return (
-      <>
+      <Card title={t('settings.options')} tone={accent}>
         <ToggleRow
           title={t('settings.borrowing')}
           value={modeOn(settings.borrowing)}
@@ -316,12 +330,12 @@ function OperationOptions({
           onValueChange={(on) => onChange({ decimals: on ? 'on' : 'off' })}
           tone={accent}
         />
-      </>
+      </Card>
     );
   }
   if (settings.operation === 'multiplication') {
     return (
-      <>
+      <Card title={t('settings.options')} tone={accent}>
         <ToggleRow
           title={t('settings.regrouping')}
           value={modeOn(settings.regrouping)}
@@ -334,7 +348,7 @@ function OperationOptions({
           onValueChange={(on) => onChange({ decimals: on ? 'on' : 'off' })}
           tone={accent}
         />
-      </>
+      </Card>
     );
   }
   if (settings.operation === 'division') {
@@ -349,7 +363,7 @@ function OperationOptions({
     const formats: DivisionFormat[] = ['long', 'row'];
     return (
       <>
-        <Section title={t('settings.divisionType')} tone={accent}>
+        <Card title={t('settings.divisionType')} tone={accent}>
           <View style={styles.chipRow}>
             {formats.map((value) => (
               <Chip
@@ -361,8 +375,8 @@ function OperationOptions({
               />
             ))}
           </View>
-        </Section>
-        <Section title={t('settings.answerType')} tone={accent}>
+        </Card>
+        <Card title={t('settings.answerType')} tone={accent}>
           <View style={styles.chipRow}>
             {answerTypes.map((value) => (
               <Chip
@@ -374,25 +388,14 @@ function OperationOptions({
               />
             ))}
           </View>
-        </Section>
+        </Card>
       </>
     );
   }
   return null; // mix has no extra options
 }
 
-/** A labelled section title with a small accent bar for emphasis. */
-function SectionTitle({ title, tone }: { title: string; tone: string }) {
-  return (
-    <View style={styles.titleRow}>
-      <View style={[styles.titleBar, { backgroundColor: tone }]} />
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-  );
-}
-
-/** A setting rendered as an On/Off toggle (like the timer), with its title
- *  emphasized and an optional hint below. */
+/** A setting rendered as an On/Off toggle: label (+ optional hint) and a Switch. */
 function ToggleRow({
   title,
   hint,
@@ -409,8 +412,8 @@ function ToggleRow({
   return (
     <View style={styles.toggleRow}>
       <View style={styles.toggleLabel}>
-        <SectionTitle title={title} tone={tone} />
-        {hint ? <Text style={styles.toggleHint}>{hint}</Text> : null}
+        <Text style={styles.toggleTitle}>{title}</Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
       <Switch
         value={value}
@@ -421,19 +424,28 @@ function ToggleRow({
   );
 }
 
-/** A labelled settings group. */
-function Section({
+/** A soft card grouping one settings section: accent-barred title (with an
+ *  optional inline action), then its controls. */
+function Card({
   title,
   tone,
+  action,
   children,
 }: {
   title: string;
   tone: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <View style={styles.section}>
-      <SectionTitle title={title} tone={tone} />
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.titleRow}>
+          <View style={[styles.titleBar, { backgroundColor: tone }]} />
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        {action ?? null}
+      </View>
       {children}
     </View>
   );
@@ -469,7 +481,9 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl },
   scrollContent: {
     paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.lg,
+    gap: spacing.md,
     flexGrow: 1,
   },
   // Pinned Start Practice strip: top border separates it from the
@@ -482,6 +496,20 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
+  // Soft section card.
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.sm,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
   divisionDigits: { gap: spacing.md },
   divisionDigitsRow: {
     flexDirection: 'row',
@@ -493,37 +521,47 @@ const styles = StyleSheet.create({
     fontSize: typography.size.body,
     color: colors.textMuted,
   },
-  section: { marginTop: spacing.xl, gap: spacing.md },
   // Title with a short accent bar to its left for emphasis.
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   titleBar: { width: 4, height: 20, borderRadius: 2 },
   sectionTitle: {
-    fontSize: typography.size.title,
+    fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
     color: colors.text,
   },
-  // A setting shown as a toggle: emphasized title (+ optional hint) on the
-  // left, Switch on the right.
   toggleRow: {
-    marginTop: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
   },
   toggleLabel: { flex: 1, gap: spacing.xs },
-  toggleHint: {
-    marginLeft: spacing.sm + 4,
+  toggleTitle: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.regular,
+    color: colors.text,
+  },
+  hint: {
     fontSize: typography.size.body,
     color: colors.textMuted,
   },
-  timerChips: { marginTop: spacing.md },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  summary: {
-    marginTop: spacing.xxl,
-    marginBottom: spacing.lg,
-    fontSize: typography.size.body,
-    color: colors.textMuted,
-    textAlign: 'center',
+  // Preview "card" — a tinted summary of the chosen session.
+  preview: {
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  previewTitle: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewSummary: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
   },
 });

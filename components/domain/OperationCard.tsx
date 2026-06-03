@@ -2,13 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../ui';
-import { operationColors, radius, spacing, typography } from '../../constants/design';
+import {
+  colors,
+  operationColors,
+  radius,
+  shadows,
+  spacing,
+  typography,
+} from '../../constants/design';
 import type { Operation } from '../../types';
 
 export interface OperationCardProps {
   operation: Operation;
   /** Localised operation name. */
   label: string;
+  /** Localised one-line description. */
+  description: string;
   onPress: () => void;
   accessibilityLabel?: string;
 }
@@ -22,34 +31,42 @@ const SYMBOL: Record<Exclude<Operation, 'mix'>, string> = {
 };
 
 /**
- * A wide row-style topic card for the Home screen — operation badge on the
- * left, label centered, chevron on the right.
+ * A wide row-style operation card: a vibrant accent tile (the operation's
+ * symbol, or a shuffle glyph for Mix), the operation name + a one-line
+ * description, and a chevron.
  */
 export function OperationCard({
   operation,
   label,
+  description,
   onPress,
   accessibilityLabel,
 }: OperationCardProps) {
   const accent = operationColors[operation].accent;
-  const tint = operationColors[operation].tint;
 
   return (
     <Card
       onPress={onPress}
       accessibilityLabel={accessibilityLabel ?? label}
-      style={[styles.card, { backgroundColor: tint, borderColor: tint }]}
+      style={styles.card}
     >
-      <View style={[styles.badge, { backgroundColor: accent }]}>
+      <View style={[styles.tile, { backgroundColor: accent }]}>
         {operation === 'mix' ? (
-          <Ionicons name="shuffle" size={24} color="#FFFFFF" />
+          <Ionicons name="shuffle" size={26} color="#FFFFFF" />
         ) : (
           <Text style={styles.symbol}>{SYMBOL[operation]}</Text>
         )}
       </View>
-      <View style={styles.labelWrap}>
-        <Text style={[styles.label, { color: accent }]}>{label}</Text>
+
+      <View style={styles.body}>
+        <Text style={[styles.label, { color: accent }]} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={styles.desc} numberOfLines={1}>
+          {description}
+        </Text>
       </View>
+
       <Ionicons name="chevron-forward" size={22} color={accent} />
     </Card>
   );
@@ -60,28 +77,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.md,
+    borderWidth: 0,
+    ...shadows.md,
   },
-  badge: {
-    width: 48,
-    height: 48,
+  tile: {
+    width: 56,
+    height: 56,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.sm,
   },
   symbol: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: typography.weight.medium,
     color: '#FFFFFF',
   },
-  // Stretches between the badge and the chevron so the label sits centered
-  // within the available middle space regardless of label length.
-  labelWrap: {
-    flex: 1,
-    alignItems: 'center',
-  },
+  body: { flex: 1, gap: 3 },
   label: {
-    fontSize: typography.size.title,
+    fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
+  },
+  desc: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
   },
 });

@@ -7,6 +7,8 @@ export interface TopicDef {
   id: TopicId;
   /** i18n key for the card label (looked up under `topics.*`). */
   labelKey: string;
+  /** i18n key for the card description line (looked up under `topicsDesc.*`). */
+  descKey: string;
   /** Ionicon shown on the topic badge. */
   icon: keyof typeof Ionicons.glyphMap;
   /** Solid colour used for the badge background and label. */
@@ -28,6 +30,7 @@ export const TOPICS: TopicDef[] = [
   {
     id: 'operations',
     labelKey: 'topics.operations',
+    descKey: 'topicsDesc.operations',
     icon: 'calculator-outline',
     accent: '#1F6FEB',
     tint: '#E8F0FE',
@@ -37,6 +40,7 @@ export const TOPICS: TopicDef[] = [
   {
     id: 'shapes',
     labelKey: 'topics.shapes',
+    descKey: 'topicsDesc.shapes',
     icon: 'shapes-outline',
     accent: '#7C3AED',
     tint: '#F1E9FE',
@@ -46,6 +50,7 @@ export const TOPICS: TopicDef[] = [
   {
     id: 'clock',
     labelKey: 'topics.clock',
+    descKey: 'topicsDesc.clock',
     icon: 'time-outline',
     accent: '#0E8A6B',
     tint: '#E6F5EF',
@@ -55,6 +60,7 @@ export const TOPICS: TopicDef[] = [
   {
     id: 'axis',
     labelKey: 'topics.axis',
+    descKey: 'topicsDesc.axis',
     icon: 'analytics-outline',
     accent: '#D97706',
     tint: '#FDEFD9',

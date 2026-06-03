@@ -11,7 +11,12 @@ import {
   typography,
 } from '../constants/design';
 import { usePracticeSession } from '../hooks';
-import { countFinal, countFirstTry, encouragementKey } from '../lib/scoring';
+import {
+  countFinal,
+  countFirstTry,
+  encouragementKey,
+  scorePercent,
+} from '../lib/scoring';
 
 /** Score — first-try and final scores, encouragement, the question list. */
 export default function ScoreScreen() {
@@ -25,6 +30,7 @@ export default function ScoreScreen() {
   const total = results.length;
   const firstTry = countFirstTry(results);
   const final = countFinal(results);
+  const accuracy = scorePercent(final, total);
   const accent = operationColors[session.settings.operation].accent;
   const encouragement = t(
     `score.encouragement.${encouragementKey(final, total)}`,
@@ -45,16 +51,27 @@ export default function ScoreScreen() {
         <Header title={t('score.title')} />
 
         <Text style={styles.encouragement}>{encouragement}</Text>
+        <Text style={[styles.heroScore, { color: accent }]}>
+          {t('score.value', { score: final, total })}
+        </Text>
 
         <View style={styles.stats}>
-          <Stat label={t('score.firstTry')} score={firstTry} total={total} />
+          <Stat
+            label={t('score.firstTry')}
+            value={t('score.value', { score: firstTry, total })}
+          />
           <Stat
             label={t('score.final')}
-            score={final}
-            total={total}
+            value={t('score.value', { score: final, total })}
             tone={accent}
           />
+          <Stat
+            label={t('score.accuracy')}
+            value={t('score.percent', { percent: accuracy })}
+          />
         </View>
+
+        <Text style={styles.tagline}>{t('score.tagline')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -84,22 +101,19 @@ export default function ScoreScreen() {
 
 function Stat({
   label,
-  score,
-  total,
+  value,
   tone,
 }: {
   label: string;
-  score: number;
-  total: number;
+  value: string;
   tone?: string;
 }) {
-  const { t } = useTranslation();
   return (
     <Card style={styles.stat}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, tone ? { color: tone } : null]}>
-        {t('score.value', { score, total })}
+      <Text style={styles.statValue} numberOfLines={1}>
+        <Text style={tone ? { color: tone } : null}>{value}</Text>
       </Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </Card>
   );
 }
@@ -138,21 +152,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.md,
   },
+  heroScore: {
+    fontSize: typography.size.display,
+    lineHeight: typography.lineHeight.display,
+    fontWeight: typography.weight.medium,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+    marginTop: spacing.xs,
+  },
   stats: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     marginTop: spacing.lg,
   },
   stat: { flex: 1, alignItems: 'center', gap: spacing.xs },
-  statLabel: {
-    fontSize: typography.size.body,
-    color: colors.textMuted,
-  },
   statValue: {
-    fontSize: typography.size.heading,
+    fontSize: typography.size.title,
     fontWeight: typography.weight.medium,
     color: colors.text,
     fontVariant: ['tabular-nums'],
+  },
+  statLabel: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+  },
+  tagline: {
+    fontSize: typography.size.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
   list: { gap: spacing.sm },
 });

@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { TipBubble } from '../../ui';
-import { spacing } from '../../../constants/design';
+import { colors, radius, shadows, spacing } from '../../../constants/design';
 import { AnswerArea } from '../AnswerArea';
 import { ProblemDisplay } from '../problem';
 import { ScratchCanvas } from '../ScratchCanvas';
@@ -300,6 +300,7 @@ export function CompactBody({ core }: CompactBodyProps) {
             initialStrokes={scratchInk}
             onStrokesChange={onScratchInkChange}
             accessibilityLabel={t('a11y.scratchCanvas')}
+            label={t('practice.workspace')}
           />
         </View>
       )}
@@ -309,10 +310,19 @@ export function CompactBody({ core }: CompactBodyProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  // Enough headroom up top that the borrow-arrow's `+10` label (which
-  // floats ~24pt above the arc peak — itself a touch above the first
-  // digit row) doesn't get clipped by the practice top bar.
-  problemArea: { paddingTop: spacing.xl, paddingBottom: spacing.sm },
+  // The math problem's "stage": a soft white card that lifts the question
+  // off the screen background. Enough headroom up top that the borrow-arrow's
+  // `+10` label (which floats ~24pt above the arc peak) isn't clipped.
+  problemArea: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+    ...shadows.sm,
+  },
   problemScroll: {
     flexGrow: 1,
     alignItems: 'center',

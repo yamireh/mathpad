@@ -23,8 +23,17 @@
     "division": "Division",
     "mix": "Mix"
   },
+  "operationsDesc": {
+    "addition": "Practice adding numbers",
+    "subtraction": "Borrowing supported",
+    "multiplication": "Build your speed",
+    "division": "Long division practice",
+    "mix": "Challenge mode"
+  },
   "home": {
-    "greeting": "Hi! What shall we practice?",
+    "greeting": "Hi, ready for math?",
+    "subtitle": "Choose your practice adventure",
+    "ready": "Ready",
     "history": "History",
     "settings": "Settings",
     "support": "Help & Support"
@@ -42,6 +51,12 @@
     "clock": "Clock",
     "axis": "Coordinates"
   },
+  "topicsDesc": {
+    "operations": "Addition, subtraction, multiplication, division",
+    "shapes": "Triangles, circles, and more",
+    "clock": "Reading and telling the time",
+    "axis": "Plotting points and coordinates"
+  },
   "comingSoon": {
     "tag": "Coming soon",
     "headline": "Coming soon!",
@@ -50,6 +65,8 @@
   "settings": {
     "title": "{{operation}} settings",
     "digits": "Number of digits",
+    "options": "Options",
+    "preview": "Your practice",
     "digitsFrom": "From",
     "digitsTo": "To",
     "dividendDigits": "Dividend",
@@ -97,7 +114,7 @@
     "summaryQuestions_other": "{{count}} questions",
     "summaryTimed": "{{minutes}} min timer",
     "summaryUntimed": "no timer",
-    "start": "Start practicing"
+    "start": "Start Practice"
   },
   "practice": {
     "progress": "Question {{current}} of {{total}}",
@@ -109,6 +126,7 @@
     "openPad": "Open writing pad",
     "closePad": "Close writing pad",
     "clearScratch": "Clear all",
+    "workspace": "Workspace",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
     "tips": {
@@ -130,21 +148,24 @@
     "title": "Results",
     "firstTry": "First try",
     "final": "Final",
+    "accuracy": "Accuracy",
     "value": "{{score}} / {{total}}",
+    "percent": "{{percent}}%",
+    "tagline": "Practice makes you faster every time.",
     "encouragement": {
-      "perfect": "Perfect!",
-      "great": "Great job!",
-      "nice": "Nice work — keep practicing!",
-      "effort": "Good effort — let's try again!"
+      "perfect": "Amazing! Perfect score 🎉",
+      "great": "Great job! 💪",
+      "nice": "Nice work — keep going! 💪",
+      "effort": "Nice try! Keep going 💪"
     },
     "answersTitle": "Your answers",
     "fixedBadge": "Fixed",
-    "blankAnswer": "(blank)",
+    "blankAnswer": "Not answered",
     "questionLabel": "Question {{number}}",
     "yourAnswer": "Your answer",
     "correctAnswer": "Correct answer",
-    "home": "Home",
-    "again": "Again"
+    "home": "Back Home",
+    "again": "Try Again"
   },
   "review": {
     "title": "Question {{number}}",

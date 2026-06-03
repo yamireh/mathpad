@@ -51,6 +51,7 @@ export function OperationsPanel() {
             key={operation}
             operation={operation}
             label={t(`operations.${operation}`)}
+            description={t(`operationsDesc.${operation}`)}
             onPress={() => {
               tapFeedback();
               router.push(`/settings/${operation}`);

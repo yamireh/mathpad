@@ -48,11 +48,10 @@ describe('Score screen', () => {
       expect(screen.getByText('First try')).toBeOnTheScreen(),
     );
     expect(screen.getByText('Final')).toBeOnTheScreen();
+    expect(screen.getByText('Accuracy')).toBeOnTheScreen();
     // All five answers were blank → effort tier.
-    expect(
-      screen.getByText("Good effort — let's try again!"),
-    ).toBeOnTheScreen();
-    expect(screen.getByText('Again')).toBeOnTheScreen();
+    expect(screen.getByText('Nice try! Keep going 💪')).toBeOnTheScreen();
+    expect(screen.getByText('Try Again')).toBeOnTheScreen();
   });
 });
 
