@@ -79,6 +79,8 @@ export async function recognizeDigit(
       let digit = Number(text);
       if (digit === 1 || digit === 7) {
         digit = disambiguateOneAndSeven(strokes, digit);
+      } else if (digit === 0 || digit === 6) {
+        digit = disambiguateZeroAndSix(strokes, digit);
       }
       return { digit, confidence: candidate.score ?? null, raw };
     }
@@ -151,6 +153,83 @@ function disambiguateOneAndSeven(
   // and narrow; anything else is most likely a 7.
   if (aspect < 0.5) return 1;
   return 7;
+}
+
+/**
+ * Override ML Kit's `0` ↔ `6` confusion (a round, closed `6` often reads as
+ * `0`). The discriminator is *where the loop sits*:
+ *  - a `0` is a symmetric oval — its widest horizontal band is near the
+ *    vertical centre and its top is a full-width curve;
+ *  - a `6` carries a thin tail up top and a loop in the lower half — so its
+ *    widest band lands below centre and the top of the digit is narrow.
+ *
+ * Deliberately conservative (0 and 6 are closer in shape than 1 and 7): it
+ * only overrides when the shape leans clearly one way, otherwise ML Kit's
+ * pick stands. Thresholds want on-device tuning.
+ */
+function disambiguateZeroAndSix(strokes: Stroke[], guess: 0 | 6): 0 | 6 {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let anyPoint = false;
+  for (const stroke of strokes) {
+    for (const [x, y] of stroke) {
+      anyPoint = true;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (!anyPoint) return guess;
+  const width = maxX - minX;
+  const height = maxY - minY;
+  if (width <= 0 || height <= 0) return guess;
+
+  // Widest horizontal band → where the bulk of the loop sits vertically.
+  const BANDS = 12;
+  const lo = new Array<number>(BANDS).fill(Infinity);
+  const hi = new Array<number>(BANDS).fill(-Infinity);
+  for (const stroke of strokes) {
+    for (const [x, y] of stroke) {
+      let b = Math.floor(((y - minY) / height) * BANDS);
+      if (b < 0) b = 0;
+      if (b >= BANDS) b = BANDS - 1;
+      if (x < lo[b]) lo[b] = x;
+      if (x > hi[b]) hi[b] = x;
+    }
+  }
+  let widestBand = 0;
+  let widest = -1;
+  for (let i = 0; i < BANDS; i += 1) {
+    const w = hi[i] - lo[i];
+    if (w > widest) {
+      widest = w;
+      widestBand = i;
+    }
+  }
+  const widestPos = (widestBand + 0.5) / BANDS; // 0 = top, 1 = bottom
+
+  // Horizontal extent of ink in the top 28% of the box, vs the full width.
+  const topCutoff = minY + height * 0.28;
+  let topMin = Infinity;
+  let topMax = -Infinity;
+  for (const stroke of strokes) {
+    for (const [x, y] of stroke) {
+      if (y <= topCutoff) {
+        if (x < topMin) topMin = x;
+        if (x > topMax) topMax = x;
+      }
+    }
+  }
+  const topRatio = topMax > topMin ? (topMax - topMin) / width : 0;
+
+  // Loop sitting clearly below centre + a narrow top → a 6.
+  if (widestPos >= 0.58 && topRatio <= 0.7) return 6;
+  // Widest near/above centre, or a full-width top curve → a 0.
+  if (widestPos <= 0.5 || topRatio >= 0.85) return 0;
+  return guess;
 }
 
 /**
