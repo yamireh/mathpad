@@ -24,7 +24,7 @@
       "package": "com.mc.mathpad",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4F7FB"
+        "backgroundColor": "#5B74E8"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
