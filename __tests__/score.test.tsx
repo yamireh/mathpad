@@ -66,7 +66,7 @@ describe('Review screen', () => {
       </PracticeSessionProvider>,
     );
     await waitFor(() =>
-      expect(screen.getByText('Submit')).toBeOnTheScreen(),
+      expect(screen.getByText('Check answer')).toBeOnTheScreen(),
     );
     expect(screen.getByText('+')).toBeOnTheScreen();
   });

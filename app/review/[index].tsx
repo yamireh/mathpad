@@ -1,7 +1,7 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { QuestionWorkspace } from '../../components/domain';
 import {
@@ -10,7 +10,12 @@ import {
   IconButton,
   ScreenContainer,
 } from '../../components/ui';
-import { operationColors, spacing } from '../../constants/design';
+import {
+  colors,
+  operationColors,
+  spacing,
+  typography,
+} from '../../constants/design';
 import { usePracticeSession, useRecognition } from '../../hooks';
 import { type ReviewMarks, computeReviewMarks } from '../../lib/review';
 
@@ -113,6 +118,7 @@ export default function ReviewScreen() {
             />
           }
         />
+        <Text style={styles.hint}>{t('review.hint')}</Text>
       </View>
 
       <QuestionWorkspace
@@ -167,12 +173,14 @@ export default function ReviewScreen() {
       <View style={styles.bottom}>
         <Button
           label={showErrors ? t('review.hideErrors') : t('review.showErrors')}
+          icon={showErrors ? 'eye-off-outline' : 'eye-outline'}
           variant="secondary"
           disabled={computing || submitting}
           onPress={toggleErrors}
         />
         <Button
           label={t('review.submit')}
+          icon="checkmark-circle-outline"
           tone={accent}
           disabled={submitting}
           onPress={submit}
@@ -184,5 +192,11 @@ export default function ReviewScreen() {
 
 const styles = StyleSheet.create({
   top: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  hint: {
+    fontSize: typography.size.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
   bottom: { padding: spacing.lg, gap: spacing.sm },
 });
