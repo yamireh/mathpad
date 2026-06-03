@@ -26,7 +26,15 @@
   "home": {
     "greeting": "Hi! What shall we practice?",
     "history": "History",
-    "settings": "Settings"
+    "settings": "Settings",
+    "support": "Help & Support"
+  },
+  "support": {
+    "title": "Support",
+    "heading": "Need a hand?",
+    "body": "Find answers to common questions and get in touch with us on our support page.",
+    "openSite": "Visit support page",
+    "version": "MathPad v{{version}}"
   },
   "topics": {
     "operations": "Operations",
@@ -140,7 +148,9 @@
   },
   "review": {
     "title": "Question {{number}}",
-    "submit": "Submit"
+    "submit": "Submit",
+    "showErrors": "Show errors",
+    "hideErrors": "Hide errors"
   },
   "history": {
     "title": "History",

@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenContainer } from '../../ui';
 import { colors, spacing, typography } from '../../../constants/design';
@@ -41,6 +42,23 @@ export function MainPanel() {
           />
         ))}
       </View>
+
+      <Pressable
+        style={styles.support}
+        accessibilityRole="button"
+        accessibilityLabel={t('home.support')}
+        onPress={() => {
+          tapFeedback();
+          router.push('/support');
+        }}
+      >
+        <Ionicons
+          name="help-buoy-outline"
+          size={18}
+          color={colors.textMuted}
+        />
+        <Text style={styles.supportLabel}>{t('home.support')}</Text>
+      </Pressable>
     </ScreenContainer>
   );
 }
@@ -60,4 +78,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   grid: { gap: spacing.md },
+  support: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  supportLabel: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
+  },
 });
