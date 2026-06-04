@@ -1,15 +1,17 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   type GestureResponderEvent,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
 import { IconButton, TipBubble } from '../ui';
-import { colors, radius, spacing } from '../../constants/design';
+import { colors, radius, spacing, typography } from '../../constants/design';
 import { useCursorTarget } from './cursorTarget';
+import { NotebookGrid } from './NotebookGrid';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
 
 export interface AnswerPadProps {
@@ -51,6 +53,7 @@ export function AnswerPad({
 }: AnswerPadProps) {
   const { t } = useTranslation();
   const ink = useInkCapture(strokes, onStrokesChange);
+  const [size, setSize] = useState({ w: 0, h: 0 });
 
   // Demo solver: report the drawing surface so the hand can scribble over it.
   // Inert during normal practice (`enabled` is false).
@@ -94,6 +97,12 @@ export function AnswerPad({
         ref={canvasRef}
         style={[styles.canvas, collapsed && styles.canvasCollapsed]}
         accessibilityLabel={t('a11y.answerPad')}
+        onLayout={(e) =>
+          setSize({
+            w: e.nativeEvent.layout.width,
+            h: e.nativeEvent.layout.height,
+          })
+        }
         onStartShouldSetResponder={() => !collapsed}
         onMoveShouldSetResponder={() => !collapsed}
         onResponderTerminationRequest={() => false}
@@ -107,7 +116,13 @@ export function AnswerPad({
         onResponderRelease={ink.endStroke}
         onResponderTerminate={ink.endStroke}
       >
+        {!collapsed ? (
+          <Text style={styles.label} pointerEvents="none">
+            {t('practice.workspace')}
+          </Text>
+        ) : null}
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          {!collapsed ? <NotebookGrid width={size.w} height={size.h} /> : null}
           {ink.strokes.map((stroke, i) => (
             <Path
               key={i}
@@ -169,6 +184,18 @@ const styles = StyleSheet.create({
   // Collapsed: a short sliver below the toolbar so the kid can still see
   // the writing-pad surface is parked there, ready to be re-opened.
   canvasCollapsed: { flex: 0, height: 36 },
+  label: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.md,
+    zIndex: 1,
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
+    opacity: 0.45,
+  },
   tipOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

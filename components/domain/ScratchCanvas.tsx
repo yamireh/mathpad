@@ -2,11 +2,10 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+import { Canvas, Path } from '@shopify/react-native-skia';
 import {
   type GestureResponderEvent,
   StyleSheet,
@@ -16,12 +15,8 @@ import {
 
 import { colors, radius, spacing, typography } from '../../constants/design';
 import { useScratchSound } from '../../hooks/useScratchSound';
+import { NotebookGrid } from './NotebookGrid';
 import { type InkStroke, strokeToPath, useInkCapture } from './ink';
-
-/** Notebook grid spacing, in px. */
-const GRID_STEP = 26;
-/** Faint graph-paper line colour. */
-const GRID_COLOR = 'rgba(99, 112, 121, 0.10)';
 
 export type ScratchTool = 'pen' | 'eraser';
 
@@ -76,22 +71,8 @@ export const ScratchCanvas = forwardRef<
   const sound = useScratchSound();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Notebook grid — rebuilt only when the surface is resized.
+  // Surface size for the notebook grid.
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const grid = useMemo(() => {
-    const { w, h } = size;
-    if (w === 0 || h === 0) return null;
-    const path = Skia.Path.Make();
-    for (let x = GRID_STEP; x < w; x += GRID_STEP) {
-      path.moveTo(x, 0);
-      path.lineTo(x, h);
-    }
-    for (let y = GRID_STEP; y < h; y += GRID_STEP) {
-      path.moveTo(0, y);
-      path.lineTo(w, y);
-    }
-    return path;
-  }, [size]);
 
   useImperativeHandle(
     ref,
@@ -179,14 +160,7 @@ export const ScratchCanvas = forwardRef<
         </Text>
       ) : null}
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        {grid ? (
-          <Path
-            path={grid}
-            color={GRID_COLOR}
-            style="stroke"
-            strokeWidth={1}
-          />
-        ) : null}
+        <NotebookGrid width={size.w} height={size.h} />
         {ink.strokes.map((stroke, i) => (
           <Path
             key={i}
