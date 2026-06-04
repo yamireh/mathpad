@@ -40,6 +40,8 @@ export interface AnswerBoxProps {
    * `'incorrect'`. Overrides the selected/idle border. Null = no highlight.
    */
   status?: BoxStatus | null;
+  /** The digit here was filled by a hint — draw it in the hint colour. */
+  hinted?: boolean;
 }
 
 const FIT_PADDING = 8;
@@ -84,7 +86,9 @@ export function AnswerBox({
   boxHeight = ANSWER_BOX_HEIGHT,
   muted = false,
   status = null,
+  hinted = false,
 }: AnswerBoxProps) {
+  const inkColor = hinted ? colors.hint : colors.text;
   const boxInnerWidth = cellWidth - 12;
   const transform = fitTransform(strokes, boxInnerWidth, boxHeight);
   const hasInk = strokes.length > 0;
@@ -137,7 +141,7 @@ export function AnswerBox({
             <Path
               key={i}
               path={strokeToPath(stroke, transform)}
-              color={colors.text}
+              color={inkColor}
               style="stroke"
               strokeWidth={2.5}
               strokeCap="round"

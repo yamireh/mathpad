@@ -68,6 +68,8 @@ export interface WorkspaceCore {
    * screen's "Show errors" pass; null/absent during normal practice.
    */
   errorMarks?: ReviewMarks | null;
+  /** Answer-box ids whose digit a hint filled in — drawn in a hint colour. */
+  hintedBoxes?: ReadonlySet<string>;
 
   /* --- Derived once per render --- */
   shape: AnswerShape;

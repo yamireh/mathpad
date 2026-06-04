@@ -30,6 +30,8 @@ export const colors = {
   textMuted: '#6E7079',
   /** Hairline borders and dividers. */
   border: '#DDE0E5',
+  /** Ink filled in by a hint — a distinct blue so it reads as "given to you". */
+  hint: '#2563EB',
   /** Marking — correct answer. */
   correct: '#22C55E',
   /**

@@ -63,6 +63,7 @@ import {
   type DivisionDraftMeta,
   fillSequence,
   type MultiplicationInfo,
+  nextEmptyBox,
   multiOperandCarries,
   parseDivisionCarryId,
   parseDivisionDraftId,
@@ -137,6 +138,8 @@ export interface OperationsWorkspaceProps {
 export interface OperationsWorkspaceHandle {
   /** Auto-solve the current question, animating digit-by-digit. */
   solve: () => void;
+  /** Hint: animate just the next single step (the next empty cell). */
+  solveStep: () => void;
 }
 
 /** Demo pencil sound during auto-solve. Off for now; flip to re-enable. */
@@ -201,6 +204,10 @@ export const OperationsWorkspace = forwardRef<
   /* ---------------- demo hand cursor (auto-solve only) ---------------- */
   const rootRef = useRef<View>(null);
   const [cursorActive, setCursorActive] = useState(false);
+  // Answer boxes whose digit was filled by a hint — rendered in a hint colour.
+  const [hintedBoxes, setHintedBoxes] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   // Where the hand writes (pad) and where it taps (a borrowed digit), kept
   // separate so switching modes springs between the two.
   const [padTarget, setPadTarget] = useState<CursorTarget | null>(null);
@@ -689,7 +696,7 @@ export const OperationsWorkspace = forwardRef<
     ],
   );
 
-  const { solve } = useSolver({
+  const { solve, solveStep } = useSolver({
     question,
     layout,
     shape,
@@ -730,7 +737,73 @@ export const OperationsWorkspace = forwardRef<
     setCursorActive(true);
     solve();
   }, [solve]);
-  useImperativeHandle(ref, () => ({ solve: runSolve }), [runSolve]);
+
+  // Hint: animate just the next empty cell (the next solve step).
+  const runSolveStep = useCallback(() => {
+    const plan = computeSolvePlan(question, layout);
+    const draftMeta: DivisionDraftMeta | null =
+      isLongDivision && divisionDraftSize(question.operands[0]).rows > 0
+        ? {
+            columns: divisionDraftSize(question.operands[0]).columns,
+            rows: 2 * (shape.integerBoxes + shape.decimalBoxes),
+            divisorDigits: digitCount(question.operands[1]),
+            divisorCarryCols: divisionStepCarryCols,
+          }
+        : null;
+    const seq = fillSequence(shape, layout, expectedCarries, multInfo, draftMeta);
+    // First empty cell (in fill order) that has a known value.
+    let cursor = '';
+    let target: { id: string; value: number } | null = null;
+    for (;;) {
+      const empty = nextEmptyBox(
+        seq,
+        cursor,
+        latestInkRef.current,
+        latestCarryInkRef.current,
+        latestPartialInkRef.current,
+        latestTimesCarryRef.current,
+        latestDivisionDraftRef.current,
+        latestDivisionCarryRef.current,
+      );
+      if (!empty) break;
+      const value = plan.values.get(empty);
+      if (typeof value === 'number') {
+        target = { id: empty, value };
+        break;
+      }
+      cursor = empty;
+    }
+    if (!target) return;
+    // The box to focus once the digit lands — the next empty cell after it, so
+    // the kid carries on from where the hint left off.
+    const focusAfter = nextEmptyBox(
+      seq,
+      target.id,
+      latestInkRef.current,
+      latestCarryInkRef.current,
+      latestPartialInkRef.current,
+      latestTimesCarryRef.current,
+      latestDivisionDraftRef.current,
+      latestDivisionCarryRef.current,
+    );
+    setHintedBoxes((prev) => new Set(prev).add(target.id));
+    setCursorActive(true);
+    solveStep(target.id, target.value, focusAfter);
+  }, [
+    divisionStepCarryCols,
+    expectedCarries,
+    isLongDivision,
+    layout,
+    multInfo,
+    question,
+    shape,
+    solveStep,
+  ]);
+
+  useImperativeHandle(ref, () => ({ solve: runSolve, solveStep: runSolveStep }), [
+    runSolve,
+    runSolveStep,
+  ]);
 
   /* --------------------------- core bundle --------------------------- */
   const core: WorkspaceCore = {
@@ -758,6 +831,7 @@ export const OperationsWorkspace = forwardRef<
     onUndo,
     canUndo,
     errorMarks,
+    hintedBoxes,
 
     shape,
     isLongDivision,

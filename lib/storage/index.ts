@@ -185,15 +185,16 @@ export const historyStore = {
 /** Developer / QA preferences (kept off the kid's normal Settings screen). */
 export interface DevPreferences {
   /**
-   * Show the auto-solve button in the Practice top bar. Defaults to true so
-   * the build out of the box can be QA'd; flip off via Home → ⚙ before
-   * handing the device to a kid.
+   * Show the full auto-solve button in the Practice top bar. Off by default —
+   * the kid-facing helper is the progressive Hint, not the full answer. The
+   * full animated solve stays available as a QA / onboarding "Show me how"
+   * affordance, enabled via Home → ⚙.
    */
   showSolveButton: boolean;
 }
 
 export function defaultDevPreferences(): DevPreferences {
-  return { showSolveButton: true };
+  return { showSolveButton: false };
 }
 
 export const devPreferencesStore = {

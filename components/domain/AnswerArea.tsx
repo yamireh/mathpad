@@ -22,6 +22,8 @@ export interface AnswerAreaProps {
   boxHeight?: number;
   /** Review error-highlight marks keyed by box id. */
   errorMarks?: ReviewMarks | null;
+  /** Answer-box ids a hint filled in — drawn in the hint colour. */
+  hintedBoxes?: ReadonlySet<string>;
 }
 
 /** Picks and renders the answer area matching a question's answer kind. */
@@ -36,6 +38,7 @@ export function AnswerArea({
   cellWidth,
   boxHeight,
   errorMarks,
+  hintedBoxes,
 }: AnswerAreaProps) {
   const shared = {
     shape: answerShape(question),
@@ -48,6 +51,7 @@ export function AnswerArea({
     cellWidth,
     boxHeight,
     errorMarks,
+    hintedBoxes,
   };
   if (question.answer.kind === 'decimal') {
     // Multiplication aligns its answer with the integer partial-product rows,

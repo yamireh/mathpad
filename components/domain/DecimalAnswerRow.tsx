@@ -28,6 +28,8 @@ export interface DecimalAnswerRowProps {
   thinDot?: boolean;
   /** Review error-highlight marks keyed by box id. */
   errorMarks?: ReviewMarks | null;
+  /** Answer-box ids a hint filled in — drawn in the hint colour. */
+  hintedBoxes?: ReadonlySet<string>;
 }
 
 /**
@@ -47,6 +49,7 @@ export function DecimalAnswerRow({
   boxHeight,
   thinDot = false,
   errorMarks,
+  hintedBoxes,
 }: DecimalAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -71,6 +74,7 @@ export function DecimalAnswerRow({
             cellWidth={cellWidth}
             boxHeight={boxHeight}
             status={errorMarks?.get(id) ?? null}
+            hinted={hintedBoxes?.has(id) ?? false}
           />
         );
       })}
@@ -101,6 +105,7 @@ export function DecimalAnswerRow({
             cellWidth={cellWidth}
             boxHeight={boxHeight}
             status={errorMarks?.get(id) ?? null}
+            hinted={hintedBoxes?.has(id) ?? false}
           />
         );
       })}

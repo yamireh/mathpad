@@ -100,6 +100,8 @@ export interface SessionData {
    * count as a first-try success.
    */
   solvedQuestions: Record<string, true>;
+  /** Question ids on which the kid used a hint during practice. */
+  hintedQuestions: Record<string, true>;
   /** Per-question results — null until the first Finish. */
   results: QuestionResult[] | null;
   startedAt: number;
@@ -180,6 +182,8 @@ export interface PracticeSessionContextValue {
    * the session; downgrades the question's first-Finish status to `'fixed'`.
    */
   markSolved: (questionId: string) => void;
+  /** Flag that a hint was used on this question. Surfaced on the Results row. */
+  markHinted: (questionId: string) => void;
   /** Recognise and mark every question; locks the first-try score. */
   finish: (recognize: AnswerRecognizer) => Promise<QuestionResult[]>;
   /** Re-recognise and re-mark one question after an edit. */
@@ -246,6 +250,7 @@ export function PracticeSessionProvider({
         divisionCarryInk: {},
         undoStacks: {},
         solvedQuestions: {},
+        hintedQuestions: {},
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
@@ -525,6 +530,19 @@ export function PracticeSessionProvider({
     [commit],
   );
 
+  const markHinted = useCallback(
+    (questionId: string) => {
+      const data = sessionRef.current;
+      if (!data) return;
+      if (data.hintedQuestions[questionId]) return;
+      commit({
+        ...data,
+        hintedQuestions: { ...data.hintedQuestions, [questionId]: true },
+      });
+    },
+    [commit],
+  );
+
   const finish = useCallback(
     async (recognize: AnswerRecognizer) => {
       const data = sessionRef.current;
@@ -537,11 +555,16 @@ export function PracticeSessionProvider({
       // Downgrade any Auto-Solved question that recognises as correct from
       // `'correct_first_try'` to `'fixed'` so it shows the Fixed badge and is
       // excluded from the first-try score.
-      const results = markFirstAttempt(data.questions, submissions).map((r) =>
-        data.solvedQuestions[r.question.id] && r.status === 'correct_first_try'
-          ? { ...r, status: 'fixed' as const }
-          : r,
-      );
+      const results = markFirstAttempt(data.questions, submissions).map((r) => {
+        const marked =
+          data.solvedQuestions[r.question.id] &&
+          r.status === 'correct_first_try'
+            ? { ...r, status: 'fixed' as const }
+            : r;
+        return data.hintedQuestions[r.question.id]
+          ? { ...marked, hinted: true }
+          : marked;
+      });
       const finished: SessionData = {
         ...data,
         results,
@@ -601,6 +624,7 @@ export function PracticeSessionProvider({
       undoLastAction,
       clearUndoHistory,
       markSolved,
+      markHinted,
       finish,
       reviewSubmit,
       reset,
@@ -620,6 +644,7 @@ export function PracticeSessionProvider({
       undoLastAction,
       clearUndoHistory,
       markSolved,
+      markHinted,
       finish,
       reviewSubmit,
       reset,

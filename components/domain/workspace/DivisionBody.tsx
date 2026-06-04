@@ -56,6 +56,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
     divisionBorrowMarks,
     onToggleDivisionBorrow,
     errorMarks,
+    hintedBoxes,
     shape,
     expectedCarries,
     multInfo,
@@ -151,6 +152,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
         cellWidth={dCellWidth}
         boxHeight={DIVISION_QUOTIENT_HEIGHT}
         errorMarks={errorMarks}
+        hintedBoxes={hintedBoxes}
       />
     </View>
   );

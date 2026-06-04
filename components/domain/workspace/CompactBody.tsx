@@ -111,6 +111,7 @@ export function CompactBody({ core }: CompactBodyProps) {
     activeCarryColumn,
     activePartial,
     activeTimesCarry,
+    hintedBoxes,
     padCollapsed,
     padNonce,
     scratchRef,
@@ -174,6 +175,7 @@ export function CompactBody({ core }: CompactBodyProps) {
       cellWidth={sizing.cellWidth}
       boxHeight={sizing.boxHeight}
       errorMarks={errorMarks}
+      hintedBoxes={hintedBoxes}
     />
   );
 

@@ -129,7 +129,7 @@
     "openPad": "Open writing pad",
     "closePad": "Close writing pad",
     "clearScratch": "Clear all",
-    "workspace": "Workspace",
+    "workspace": "Worksheet",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
     "tips": {
@@ -163,12 +163,30 @@
     },
     "answersTitle": "Your answers",
     "fixedBadge": "Fixed",
+    "hintBadge": "Hint used",
     "blankAnswer": "Not answered",
     "questionLabel": "Question {{number}}",
     "yourAnswer": "Your answer",
     "correctAnswer": "Correct answer",
     "home": "Back Home",
     "again": "Try Again"
+  },
+  "hints": {
+    "button": "Hint",
+    "dismiss": "Dismiss hint",
+    "orient": {
+      "addition": "Start at the right — the units column — and work one column at a time.",
+      "subtraction": "Start at the right — the units column — and work one column at a time.",
+      "multiplication": "Start at the right — the units column — and work one column at a time.",
+      "division": "Start from the left. How many times does the divisor fit into the first digits?"
+    },
+    "method": {
+      "addition": "Add the digits in this column. If the total is more than 9, carry the ten to the next column.",
+      "subtraction": "Subtract the bottom digit from the top digit in this column.",
+      "subtractionBorrow": "The top digit is too small — borrow 10 from the column to its left, then subtract.",
+      "multiplication": "Multiply this digit by the bottom number, then add any carry.",
+      "division": "How many times does the divisor go in? Write it above, multiply, then subtract."
+    }
   },
   "review": {
     "title": "Question {{number}}",

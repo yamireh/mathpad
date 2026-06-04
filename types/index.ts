@@ -230,6 +230,8 @@ export interface QuestionResult {
   /** The kid's recognised answer; `null` if never attempted. */
   submittedAnswer: SubmittedAnswer | null;
   status: QuestionStatus;
+  /** The kid used a hint on this question during practice. */
+  hinted?: boolean;
 }
 
 /**

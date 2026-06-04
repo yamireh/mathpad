@@ -78,6 +78,12 @@ export function QuestionResultRow({
         <Text style={styles.questionTitle}>
           {t('score.questionLabel', { number })}
         </Text>
+        {result.hinted ? (
+          <View style={styles.hintBadge}>
+            <Ionicons name="bulb" size={12} color={colors.textMuted} />
+            <Text style={styles.hintBadgeText}>{t('score.hintBadge')}</Text>
+          </View>
+        ) : null}
         {status === 'fixed' ? (
           <View style={styles.fixedBadge}>
             <Text style={styles.fixedBadgeText}>{t('score.fixedBadge')}</Text>
@@ -161,6 +167,20 @@ const styles = StyleSheet.create({
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,
     color: colors.correct,
+  },
+  hintBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt,
+  },
+  hintBadgeText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
   },
   problemText: {
     fontSize: typography.size.bodyLarge,

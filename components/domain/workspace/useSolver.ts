@@ -112,6 +112,11 @@ export interface UseSolverArgs {
 
 export interface UseSolverResult {
   solve: () => void;
+  /**
+   * Animate just one cell (a hint's "next step"): its borrow + the digit, then
+   * focus `focusAfter` (the next empty box) so the kid can carry on writing.
+   */
+  solveStep: (id: string, value: number, focusAfter?: string | null) => void;
   cancelSolve: () => void;
 }
 
@@ -261,5 +266,66 @@ export function useSolver(args: UseSolverArgs): UseSolverResult {
     writeLeadMs,
   ]);
 
-  return { solve, cancelSolve };
+  // Animate a single cell for the Hint helper: its subtraction borrow (if
+  // any), then the hand writing the digit. Division-step borrows are skipped
+  // here (toggling them per-cell would double-fire); the digit still reveals.
+  const solveStep = useCallback(
+    (id: string, value: number, focusAfter: string | null = null) => {
+      cancelAdvance();
+      cancelSolve();
+      const plan = computeSolvePlan(question, layout);
+      let delay = HOME_DWELL_MS;
+      const schedule = (fn: () => void, ms: number) => {
+        const handle = setTimeout(fn, ms);
+        timersRef.current.push(handle);
+      };
+
+      const preBorrows = plan.borrowBefore.get(id);
+      if (preBorrows) {
+        preBorrows.forEach((column) => {
+          schedule(() => onBorrowApproach?.(column), delay);
+          schedule(() => onToggleBorrow?.(column), delay + HAND_MOVE_MS);
+          delay += HAND_MOVE_MS + SOLVE_BORROW_MS;
+        });
+      }
+      const move = preBorrows ? HAND_MOVE_MS : 0;
+      const lead = Math.min(writeLeadMs, stepMs - 1);
+      const focusAt = delay;
+      const isBringDown = plan.bringDownCells.has(id);
+      schedule(() => {
+        setActiveBox(id);
+        onFocusBox?.(id, value);
+      }, focusAt);
+      schedule(() => {
+        writeBox(id, value);
+        if (isBringDown) {
+          setBringDownPulse((prev) => ({
+            cellId: id,
+            nonce: (prev?.cellId === id ? prev.nonce : 0) + 1,
+          }));
+        }
+      }, focusAt + lead + move);
+      // Advance focus to the next empty box (or close the pad if none) so the
+      // kid can keep writing right where they left off.
+      schedule(() => setActiveBox(focusAfter), focusAt + lead + move + stepMs);
+      if (onComplete) schedule(onComplete, focusAt + lead + move + stepMs);
+    },
+    [
+      cancelAdvance,
+      cancelSolve,
+      layout,
+      onBorrowApproach,
+      onComplete,
+      onFocusBox,
+      onToggleBorrow,
+      question,
+      setActiveBox,
+      setBringDownPulse,
+      stepMs,
+      writeBox,
+      writeLeadMs,
+    ],
+  );
+
+  return { solve, solveStep, cancelSolve };
 }

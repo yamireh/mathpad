@@ -43,6 +43,7 @@ export default function PracticeScreen() {
     undoLastAction,
     clearUndoHistory,
     markSolved,
+    markHinted,
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
@@ -98,6 +99,13 @@ export default function PracticeScreen() {
   const isLast = index === total - 1;
   const layout = question.layout;
 
+  // Hint: animate the next single step (write the next digit / do its borrow),
+  // and flag the question as hinted for the Results screen.
+  const onHint = () => {
+    markHinted(question.id);
+    workspaceRef.current?.solveStep();
+  };
+
   return (
     <ScreenContainer padded={false}>
       <View style={styles.topBar}>
@@ -132,6 +140,11 @@ export default function PracticeScreen() {
             onPress={() => workspaceRef.current?.solve()}
           />
         ) : null}
+        <IconButton
+          name="bulb-outline"
+          accessibilityLabel={t('hints.button')}
+          onPress={onHint}
+        />
         <IconButton
           name="help-circle-outline"
           accessibilityLabel={t('practice.help')}

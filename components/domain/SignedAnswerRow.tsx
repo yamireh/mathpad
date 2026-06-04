@@ -21,6 +21,8 @@ export interface SignedAnswerRowProps {
   boxHeight?: number;
   /** Review error-highlight marks keyed by box id. */
   errorMarks?: ReviewMarks | null;
+  /** Answer-box ids a hint filled in — drawn in the hint colour. */
+  hintedBoxes?: ReadonlySet<string>;
 }
 
 /**
@@ -38,6 +40,7 @@ export function SignedAnswerRow({
   cellWidth,
   boxHeight,
   errorMarks,
+  hintedBoxes,
 }: SignedAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -75,6 +78,7 @@ export function SignedAnswerRow({
             cellWidth={cellWidth}
             boxHeight={boxHeight}
             status={errorMarks?.get(id) ?? null}
+            hinted={hintedBoxes?.has(id) ?? false}
           />
         );
       })}

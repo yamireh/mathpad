@@ -21,6 +21,8 @@ export interface RemainderAnswerRowProps {
   boxHeight?: number;
   /** Review error-highlight marks keyed by box id. */
   errorMarks?: ReviewMarks | null;
+  /** Answer-box ids a hint filled in — drawn in the hint colour. */
+  hintedBoxes?: ReadonlySet<string>;
 }
 
 /** Remainder-mode answer area: quotient boxes, an "R", then remainder boxes. */
@@ -34,6 +36,7 @@ export function RemainderAnswerRow({
   cellWidth,
   boxHeight,
   errorMarks,
+  hintedBoxes,
 }: RemainderAnswerRowProps) {
   const { t } = useTranslation();
   const writable = isBoxWritable ?? (() => true);
@@ -56,6 +59,7 @@ export function RemainderAnswerRow({
             cellWidth={cellWidth}
             boxHeight={boxHeight}
             status={errorMarks?.get(id) ?? null}
+            hinted={hintedBoxes?.has(id) ?? false}
           />
         );
       })}
@@ -79,6 +83,7 @@ export function RemainderAnswerRow({
             cellWidth={cellWidth}
             boxHeight={boxHeight}
             status={errorMarks?.get(id) ?? null}
+            hinted={hintedBoxes?.has(id) ?? false}
           />
         );
       })}
