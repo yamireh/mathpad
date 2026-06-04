@@ -17,6 +17,9 @@ import {
   typography,
 } from '../../constants/design';
 
+/** Coach-mark tips are disabled for now (not wanted in V1). Flip to re-enable. */
+const TIPS_ENABLED = false;
+
 export interface TipBubbleProps {
   /** Persistence id — once dismissed, this tip will not show again. */
   id: string;
@@ -42,7 +45,7 @@ export function TipBubble({
 }: TipBubbleProps) {
   const { t } = useTranslation();
   const { shouldShow, markSeen } = useTip(id);
-  if (!when || !shouldShow) return null;
+  if (!TIPS_ENABLED || !when || !shouldShow) return null;
 
   const pointerEl =
     pointer === 'none' ? null : (

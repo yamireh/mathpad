@@ -1,4 +1,5 @@
 /** UI primitives — generic, presentation-only, design-token driven. */
+export { AttentionPulse, type AttentionPulseProps } from './AttentionPulse';
 export { Button, type ButtonProps, type ButtonVariant } from './Button';
 export { Card, type CardProps } from './Card';
 export { Chip, type ChipProps } from './Chip';

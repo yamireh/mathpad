@@ -1,9 +1,10 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import { type ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import {
+  AttentionPulse,
   Button,
   Chip,
   Header,
@@ -44,6 +45,14 @@ export default function SettingsScreen() {
   const { settings, update } = useSettings(operation);
   const { start } = usePracticeSession();
   const { owned, loading: purchasesLoading } = usePurchases();
+  // Guard against a fast double-tap pushing the how-to screen twice.
+  const lastHowToTap = useRef(0);
+  const openHowTo = () => {
+    const now = Date.now();
+    if (now - lastHowToTap.current < 600) return;
+    lastHowToTap.current = now;
+    router.push(`/how-to/${operation}`);
+  };
 
   const accent = operationColors[operation].accent;
   const tint = operationColors[operation].tint;
@@ -95,12 +104,14 @@ export default function SettingsScreen() {
           }
           right={
             operation !== 'mix' ? (
-              <IconButton
-                name="bulb"
-                color={colors.amber}
-                accessibilityLabel={t('howTo.button')}
-                onPress={() => router.push(`/how-to/${operation}`)}
-              />
+              <AttentionPulse active>
+                <IconButton
+                  name="bulb"
+                  color={colors.amber}
+                  accessibilityLabel={t('howTo.button')}
+                  onPress={openHowTo}
+                />
+              </AttentionPulse>
             ) : undefined
           }
         />

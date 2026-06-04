@@ -49,6 +49,7 @@ export default function PracticeScreen() {
 
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submittedRef = useRef(false);
   const workspaceRef = useRef<QuestionWorkspaceHandle>(null);
@@ -102,6 +103,35 @@ export default function PracticeScreen() {
   const onHint = () => {
     markHinted(question.id);
     workspaceRef.current?.solveStep();
+  };
+
+  // Has the current question any answer written (ink in any answer box)?
+  const ink = session.answerInk[question.id];
+  const hasAnswer =
+    !!ink &&
+    (ink.sign.length > 0 ||
+      [ink.integer, ink.decimal, ink.remainder].some((rows) =>
+        rows.some((box) => box.length > 0),
+      ));
+
+  // Judge the current answer, then advance to the next question (or finish).
+  const advance = async () => {
+    await judgeCurrentAnswer();
+    if (isLast) {
+      stop();
+      void handleFinish();
+    } else {
+      setIndex((i) => Math.min(total - 1, i + 1));
+    }
+  };
+
+  // Next / Finish: confirm first if nothing has been written for this question.
+  const onPrimary = () => {
+    if (!hasAnswer) {
+      setConfirmSkip(true);
+      return;
+    }
+    void advance();
   };
 
   return (
@@ -196,18 +226,7 @@ export default function PracticeScreen() {
             label={isLast ? t('practice.finish') : t('common.next')}
             tone={accent}
             disabled={submitting}
-            onPress={
-              isLast
-                ? async () => {
-                    await judgeCurrentAnswer();
-                    stop();
-                    void handleFinish();
-                  }
-                : async () => {
-                    await judgeCurrentAnswer();
-                    setIndex((i) => Math.min(total - 1, i + 1));
-                  }
-            }
+            onPress={onPrimary}
           />
         </View>
       </View>
@@ -224,6 +243,19 @@ export default function PracticeScreen() {
           router.dismissAll();
         }}
         onCancel={() => setLeaving(false)}
+      />
+
+      <ConfirmDialog
+        visible={confirmSkip}
+        title={t('practice.skipTitle')}
+        message={t('practice.skipMessage')}
+        confirmLabel={t('practice.skipConfirm')}
+        cancelLabel={t('practice.skipCancel')}
+        onConfirm={() => {
+          setConfirmSkip(false);
+          void advance();
+        }}
+        onCancel={() => setConfirmSkip(false)}
       />
     </ScreenContainer>
   );
