@@ -9,7 +9,9 @@ import { colors, spacing, typography } from '../constants/design';
 import { tapFeedback } from '../lib/feedback';
 
 /** External support site (FAQs + contact). */
-const SUPPORT_URL = 'https://www.microclouds.ca/general-6';
+const SUPPORT_URL = 'https://www.microclouds.ca/mathpad-support';
+/** Hosted privacy policy. */
+const PRIVACY_URL = 'https://www.microclouds.ca/mathpad-privacy';
 
 /** Support — points the user to the external help/support page. */
 export default function SupportScreen() {
@@ -40,6 +42,15 @@ export default function SupportScreen() {
           onPress={() => {
             tapFeedback();
             void Linking.openURL(SUPPORT_URL);
+          }}
+        />
+        <Button
+          label={t('support.privacy')}
+          variant="secondary"
+          icon="lock-closed-outline"
+          onPress={() => {
+            tapFeedback();
+            void Linking.openURL(PRIVACY_URL);
           }}
         />
       </View>
