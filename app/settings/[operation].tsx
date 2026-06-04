@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
@@ -18,7 +18,8 @@ import {
   spacing,
   typography,
 } from '../../constants/design';
-import { usePracticeSession, useSettings } from '../../hooks';
+import { usePracticeSession, usePurchases, useSettings } from '../../hooks';
+import { isOperationUnlocked } from '../../lib/entitlement';
 import { primaryFeedback } from '../../lib/feedback';
 import type {
   DigitCount,
@@ -42,9 +43,15 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const { settings, update } = useSettings(operation);
   const { start } = usePracticeSession();
+  const { owned, loading: purchasesLoading } = usePurchases();
 
   const accent = operationColors[operation].accent;
   const tint = operationColors[operation].tint;
+
+  // Deep-link safety: a paid operation reached directly goes to the store.
+  if (!purchasesLoading && !isOperationUnlocked(operation, owned)) {
+    return <Redirect href="/unlock" />;
+  }
 
   if (!settings) {
     return (

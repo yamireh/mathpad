@@ -26,6 +26,7 @@ const KEYS = {
   history: 'mathpad:history:v1',
   tips: 'mathpad:tips:v1',
   dev: 'mathpad:dev:v1',
+  entitlement: 'mathpad:entitlement:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -203,6 +204,29 @@ export const devPreferencesStore = {
   },
   async save(prefs: DevPreferences): Promise<void> {
     await writeJSON(KEYS.dev, prefs);
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/* Entitlement cache                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Cached purchase entitlement. A local mirror of the StoreKit receipt so the
+ * UI knows instantly (and offline) whether the Operations bundle is owned;
+ * StoreKit remains the source of truth and reconciles this on launch.
+ */
+type EntitlementData = { operationsOwned: boolean };
+
+export const entitlementStore = {
+  async get(): Promise<boolean> {
+    const data = await readJSON<EntitlementData>(KEYS.entitlement, {
+      operationsOwned: false,
+    });
+    return data.operationsOwned;
+  },
+  async set(operationsOwned: boolean): Promise<void> {
+    await writeJSON(KEYS.entitlement, { operationsOwned });
   },
 };
 

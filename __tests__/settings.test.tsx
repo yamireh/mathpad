@@ -4,14 +4,20 @@ import { type ReactNode } from 'react';
 
 import '../lib/i18n';
 import SettingsScreen from '../app/settings/[operation]';
-import { PracticeSessionProvider } from '../hooks';
+import { PracticeSessionProvider, PurchasesProvider } from '../hooks';
+import { entitlementStore } from '../lib/storage';
 
 const wrap = (ui: ReactNode) => (
-  <PracticeSessionProvider>{ui}</PracticeSessionProvider>
+  <PurchasesProvider>
+    <PracticeSessionProvider>{ui}</PracticeSessionProvider>
+  </PurchasesProvider>
 );
 
 beforeEach(async () => {
   await AsyncStorage.clear();
+  // These tests exercise per-operation settings, including paid operations —
+  // own the bundle so the gate doesn't redirect them to the store.
+  await entitlementStore.set(true);
 });
 
 describe('Settings screen', () => {

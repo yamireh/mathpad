@@ -1,9 +1,16 @@
 import { render, screen } from '@testing-library/react-native';
+import { type ReactNode } from 'react';
 
 // Initialise i18n before the screen renders so translations resolve.
 import '../lib/i18n';
 import HomeScreen from '../app/index';
 import OperationsRoute from '../app/operations';
+import { PurchasesProvider } from '../hooks';
+
+/** Operations route reads purchase state, so it needs the provider. */
+const withPurchases = (ui: ReactNode) => (
+  <PurchasesProvider>{ui}</PurchasesProvider>
+);
 
 describe('Home screen (MainPanel)', () => {
   it('renders the greeting', () => {
@@ -31,7 +38,7 @@ describe('Home screen (MainPanel)', () => {
 
 describe('Operations route', () => {
   it('renders the five operation cards', () => {
-    render(<OperationsRoute />);
+    render(withPurchases(<OperationsRoute />));
     for (const label of [
       'Addition',
       'Subtraction',
@@ -44,7 +51,7 @@ describe('Operations route', () => {
   });
 
   it('shows the History shortcut', () => {
-    render(<OperationsRoute />);
+    render(withPurchases(<OperationsRoute />));
     expect(screen.getByText('History')).toBeOnTheScreen();
   });
 });

@@ -10,6 +10,8 @@ import {
   ScreenContainer,
 } from '../../ui';
 import { spacing } from '../../../constants/design';
+import { usePurchases } from '../../../hooks';
+import { isOperationUnlocked } from '../../../lib/entitlement';
 import { tapFeedback } from '../../../lib/feedback';
 import type { Operation } from '../../../types';
 
@@ -31,6 +33,7 @@ const OPERATIONS: Operation[] = [
 export function OperationsPanel() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { owned, devSetOwned } = usePurchases();
 
   return (
     <ScreenContainer scroll>
@@ -46,18 +49,26 @@ export function OperationsPanel() {
       />
 
       <View style={styles.grid}>
-        {OPERATIONS.map((operation) => (
-          <OperationCard
-            key={operation}
-            operation={operation}
-            label={t(`operations.${operation}`)}
-            description={t(`operationsDesc.${operation}`)}
-            onPress={() => {
-              tapFeedback();
-              router.push(`/settings/${operation}`);
-            }}
-          />
-        ))}
+        {OPERATIONS.map((operation) => {
+          const locked = !isOperationUnlocked(operation, owned);
+          const label = t(`operations.${operation}`);
+          return (
+            <OperationCard
+              key={operation}
+              operation={operation}
+              label={label}
+              description={t(`operationsDesc.${operation}`)}
+              locked={locked}
+              accessibilityLabel={
+                locked ? t('unlock.lockedCard', { operation: label }) : label
+              }
+              onPress={() => {
+                tapFeedback();
+                router.push(locked ? '/unlock' : `/settings/${operation}`);
+              }}
+            />
+          );
+        })}
       </View>
 
       <View style={styles.footer}>
@@ -66,6 +77,13 @@ export function OperationsPanel() {
           icon="time-outline"
           onPress={() => router.push('/history')}
         />
+        {__DEV__ ? (
+          <Pill
+            label={owned ? 'DEV: owned ✓' : 'DEV: locked'}
+            icon="bug-outline"
+            onPress={() => devSetOwned(!owned)}
+          />
+        ) : null}
       </View>
     </ScreenContainer>
   );
@@ -73,5 +91,5 @@ export function OperationsPanel() {
 
 const styles = StyleSheet.create({
   grid: { gap: spacing.md, marginTop: spacing.lg },
-  footer: { marginTop: spacing.xxl, alignItems: 'center' },
+  footer: { marginTop: spacing.xxl, alignItems: 'center', gap: spacing.md },
 });

@@ -20,6 +20,8 @@ export interface OperationCardProps {
   description: string;
   onPress: () => void;
   accessibilityLabel?: string;
+  /** Paid operation that isn't unlocked yet — shows a lock instead of a chevron. */
+  locked?: boolean;
 }
 
 /** Symbol shown on the badge for each operation. */
@@ -41,6 +43,7 @@ export function OperationCard({
   description,
   onPress,
   accessibilityLabel,
+  locked = false,
 }: OperationCardProps) {
   const accent = operationColors[operation].accent;
 
@@ -67,7 +70,11 @@ export function OperationCard({
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={22} color={accent} />
+      <Ionicons
+        name={locked ? 'lock-closed' : 'chevron-forward'}
+        size={locked ? 20 : 22}
+        color={locked ? colors.textMuted : accent}
+      />
     </Card>
   );
 }

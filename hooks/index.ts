@@ -17,6 +17,11 @@ export {
   type SessionData,
 } from './usePracticeSession';
 export {
+  PurchasesProvider,
+  usePurchases,
+  type PurchasesContextValue,
+} from './usePurchases';
+export {
   TipsProvider,
   useTip,
   useResetTips,
