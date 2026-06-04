@@ -8,7 +8,7 @@
 import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius, typography } from '../../../constants/design';
+import { colors, radius, spacing, typography } from '../../../constants/design';
 import type { ReviewMarks } from '../../../lib/review';
 import type { Question } from '../../../types';
 import { AnswerBox } from '../AnswerBox';
@@ -175,19 +175,24 @@ export function MultiplicationProblem({
       ) : null}
 
       {carryInk && onSelectBox && onClearBox ? (
-        <CarryRow
-          columns={columns}
-          carryInk={carryInk}
-          selectedBox={selectedBox}
-          onSelectBox={onSelectBox}
-          onClearBox={onClearBox}
-          tone={tone}
-          cellWidth={cellWidth}
-          operatorWidth={operatorWidth}
-          boxWidth={carryW}
-          boxHeight={carryH}
-          errorMarks={errorMarks}
-        />
+        // A gap above the carry row so the lifted clear ✕ clears the rule line
+        // and partial products above it.
+        <View style={styles.sumCarryWrap}>
+          <CarryRow
+            columns={columns}
+            carryInk={carryInk}
+            selectedBox={selectedBox}
+            onSelectBox={onSelectBox}
+            onClearBox={onClearBox}
+            tone={tone}
+            cellWidth={cellWidth}
+            operatorWidth={operatorWidth}
+            boxWidth={carryW}
+            boxHeight={carryH}
+            clearAbove
+            errorMarks={errorMarks}
+          />
+        </View>
       ) : null}
 
       <View
@@ -370,6 +375,7 @@ function TimesCarryRow({
                 tone={tone}
                 width={boxWidth}
                 height={boxHeight}
+                clearAbove
                 status={errorMarks?.get(id) ?? null}
               />
             ) : null}
@@ -381,6 +387,7 @@ function TimesCarryRow({
 }
 
 const styles = StyleSheet.create({
+  sumCarryWrap: { marginTop: spacing.lg },
   partialRow: { flexDirection: 'row', marginTop: 2 },
   partialPlus: { alignItems: 'center', justifyContent: 'center' },
   zeroClearSlot: { height: 14 },

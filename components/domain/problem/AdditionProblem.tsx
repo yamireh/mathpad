@@ -76,6 +76,7 @@ export function AdditionProblem({
           boxWidth={carryW}
           boxHeight={carryH}
           dotIndex={dotIndex}
+          clearAbove
           errorMarks={errorMarks}
         />
       ) : null}

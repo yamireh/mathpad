@@ -19,7 +19,6 @@ import {
   useDevPreferences,
   usePracticeSession,
   useRecognition,
-  useResetTips,
   useTimer,
 } from '../hooks';
 import { errorFeedback, successFeedback } from '../lib/feedback';
@@ -47,7 +46,6 @@ export default function PracticeScreen() {
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
-  const resetTips = useResetTips();
 
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -142,22 +140,9 @@ export default function PracticeScreen() {
         ) : null}
         <IconButton
           name="bulb-outline"
+          color={colors.amber}
           accessibilityLabel={t('hints.button')}
           onPress={onHint}
-        />
-        <IconButton
-          name="help-circle-outline"
-          accessibilityLabel={t('practice.help')}
-          onPress={() =>
-            Alert.alert(
-              t('practice.helpTitle'),
-              t('practice.helpMessage'),
-              [
-                { text: t('common.close'), style: 'cancel' },
-                { text: t('practice.showTipsAgain'), onPress: resetTips },
-              ],
-            )
-          }
         />
       </View>
 

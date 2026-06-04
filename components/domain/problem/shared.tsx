@@ -140,6 +140,7 @@ export function CarryRow({
   boxHeight,
   dotIndex,
   errorMarks,
+  clearAbove = false,
 }: {
   columns: number;
   carryInk: InkStroke[][];
@@ -155,6 +156,8 @@ export function CarryRow({
   dotIndex?: number;
   /** Review error-highlight marks keyed by box id. */
   errorMarks?: ReviewMarks | null;
+  /** Float the clear ✕ above each box instead of inside it (small boxes). */
+  clearAbove?: boolean;
 }) {
   return (
     <View style={[sharedStyles.carryRow, { marginLeft: operatorWidth }]}>
@@ -176,6 +179,7 @@ export function CarryRow({
                   tone={tone}
                   width={boxWidth}
                   height={boxHeight}
+                  clearAbove={clearAbove}
                   status={errorMarks?.get(id) ?? null}
                 />
               ) : null}

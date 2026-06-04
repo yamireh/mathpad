@@ -86,6 +86,16 @@ export default function SettingsScreen() {
               onPress={() => router.back()}
             />
           }
+          right={
+            operation !== 'mix' ? (
+              <IconButton
+                name="bulb"
+                color={colors.amber}
+                accessibilityLabel={t('howTo.button')}
+                onPress={() => router.push(`/how-to/${operation}`)}
+              />
+            ) : undefined
+          }
         />
       </View>
 

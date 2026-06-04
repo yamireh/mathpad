@@ -32,6 +32,8 @@ export const colors = {
   border: '#DDE0E5',
   /** Ink filled in by a hint — a distinct blue so it reads as "given to you". */
   hint: '#2563EB',
+  /** Warm amber — the eye-catching "How to solve" lightbulb. */
+  amber: '#F59E0B',
   /** Marking — correct answer. */
   correct: '#22C55E',
   /**

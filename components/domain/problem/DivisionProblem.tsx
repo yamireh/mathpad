@@ -370,16 +370,26 @@ function LongDivision({
     const row = Number(m[1]);
     const col = Number(m[2]);
     prevDraftCellRef.current = { row, col };
-    // Always anchor the active draft cell near the top-left of the
-    // viewport (with a small lead-in so the kid sees a bit of context
-    // above/left). RN clamps automatically when there's no more room to
-    // scroll, and scrollTo is a no-op when the target equals the current
-    // offset, so cells in the same row/step don't jitter.
+    // Scroll the active draft cell *into view* using the live viewport height
+    // rather than always pinning it to the top. When the cell is below the
+    // fold (the staircase growing down), bring its bottom up to the viewport
+    // bottom so the row — e.g. the final answer row — is never left clipped;
+    // when it's above, bring its top down. Cells already in view don't move.
     const headroom = 16;
-    vScrollRef.current?.scrollTo({
-      y: Math.max(0, draftRowYOffset(row) - headroom),
-      animated: true,
-    });
+    const rowTop = draftRowYOffset(row);
+    const rowBottom = rowTop + (row % 2 === 0 ? 64 : 60);
+    const { y: curY, vh } = scrollStateRef.current;
+    let targetY = rowTop - headroom;
+    if (vh > 0) {
+      if (rowBottom + headroom > curY + vh) {
+        targetY = rowBottom + headroom - vh;
+      } else if (rowTop - headroom < curY) {
+        targetY = rowTop - headroom;
+      } else {
+        targetY = curY;
+      }
+    }
+    vScrollRef.current?.scrollTo({ y: Math.max(0, targetY), animated: true });
     hScrollRef.current?.scrollTo({
       x: Math.max(0, col * cellWidth - headroom),
       animated: true,

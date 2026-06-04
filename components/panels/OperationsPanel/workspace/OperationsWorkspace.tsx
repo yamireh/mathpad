@@ -115,7 +115,8 @@ export interface OperationsWorkspaceProps {
     col: number,
     strokes: InkStroke[],
   ) => void;
-  onUndo?: () => void;
+  /** Undo the last edit. May return the reverted box id so focus returns to it. */
+  onUndo?: () => string | null | void;
   canUndo?: boolean;
   onClearUndoHistory?: () => void;
   /** Flag the current question as Auto-Solved (shows Fixed badge on Results). */
@@ -805,6 +806,16 @@ export const OperationsWorkspace = forwardRef<
     runSolveStep,
   ]);
 
+  // Undo, then return focus to the box that was just reverted (it may not be
+  // the active one — auto-advance moves focus on after each write).
+  const handleUndo = useCallback(() => {
+    const box = onUndo?.();
+    if (typeof box === 'string') {
+      cancelAdvance();
+      setActiveBox(box);
+    }
+  }, [onUndo, cancelAdvance]);
+
   /* --------------------------- core bundle --------------------------- */
   const core: WorkspaceCore = {
     question,
@@ -828,7 +839,7 @@ export const OperationsWorkspace = forwardRef<
     onDivisionDraftInkChange,
     divisionCarryInk,
     onDivisionCarryInkChange,
-    onUndo,
+    onUndo: handleUndo,
     canUndo,
     errorMarks,
     hintedBoxes,

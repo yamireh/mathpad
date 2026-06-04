@@ -123,6 +123,68 @@ interface QuestionSnapshot {
 
 const UNDO_LIMIT = 50;
 
+/** Equal if both lists hold the same stroke objects (immutable updates keep
+ *  references, so identity-compare pinpoints the one box an edit touched). */
+function strokesEq(a: InkStroke[] = [], b: InkStroke[] = []): boolean {
+  return a.length === b.length && a.every((s, i) => s === b[i]);
+}
+
+/**
+ * The id of the box whose ink differs between the question's current state and
+ * the snapshot being restored — i.e. the box an undo just reverted, so focus
+ * can return to it. Null for non-box edits (scratch strokes, borrow toggles).
+ */
+function undoneBox(
+  cur: SessionData,
+  snap: QuestionSnapshot,
+  qid: string,
+): string | null {
+  const a = cur.answerInk[qid];
+  if (a) {
+    if (!strokesEq(a.sign, snap.answerInk.sign)) return 'sign';
+    for (let i = 0; i < a.integer.length; i += 1)
+      if (!strokesEq(a.integer[i], snap.answerInk.integer[i])) return `int-${i}`;
+    for (let i = 0; i < a.decimal.length; i += 1)
+      if (!strokesEq(a.decimal[i], snap.answerInk.decimal[i])) return `dec-${i}`;
+    for (let i = 0; i < a.remainder.length; i += 1)
+      if (!strokesEq(a.remainder[i], snap.answerInk.remainder[i]))
+        return `rem-${i}`;
+  }
+  const carry = cur.carryInk[qid];
+  if (carry)
+    for (let c = 0; c < carry.length; c += 1)
+      if (!strokesEq(carry[c], snap.carryInk[c])) return `carry-${c}`;
+  const find = (
+    grid: InkStroke[][][] | undefined,
+    snapGrid: InkStroke[][][],
+    id: (r: number, c: number) => string,
+  ): string | null => {
+    if (!grid) return null;
+    for (let r = 0; r < grid.length; r += 1)
+      for (let c = 0; c < (grid[r]?.length ?? 0); c += 1)
+        if (!strokesEq(grid[r][c], snapGrid[r]?.[c])) return id(r, c);
+    return null;
+  };
+  return (
+    find(cur.partialInk[qid], snap.partialInk, (r, c) => `pp-${r}-${c}`) ??
+    find(
+      cur.timesCarryInk[qid],
+      snap.timesCarryInk,
+      (r, c) => `tcarry-${r}-${c}`,
+    ) ??
+    find(
+      cur.divisionDraftInk[qid],
+      snap.divisionDraftInk,
+      (r, c) => `dd-${r}-${c}`,
+    ) ??
+    find(
+      cur.divisionCarryInk[qid],
+      snap.divisionCarryInk,
+      (r, c) => `dcarry-${r}-${c}`,
+    )
+  );
+}
+
 export interface PracticeSessionContextValue {
   session: SessionData | null;
   /** Generate a new session from settings. */
@@ -173,8 +235,12 @@ export interface PracticeSessionContextValue {
     col: number,
     strokes: InkStroke[],
   ) => void;
-  /** Undo the last ink change for a question. No-op if nothing to undo. */
-  undoLastAction: (questionId: string) => void;
+  /**
+   * Undo the last ink change for a question. No-op if nothing to undo.
+   * Returns the id of the box it reverted (so focus can return there), or
+   * null for non-box edits / nothing to undo.
+   */
+  undoLastAction: (questionId: string) => string | null;
   /** Wipe the undo history for a question (used by Clear All). */
   clearUndoHistory: (questionId: string) => void;
   /**
@@ -469,13 +535,14 @@ export function PracticeSessionProvider({
 
   // Pop the question's last snapshot and restore every input area.
   const undoLastAction = useCallback(
-    (questionId: string) => {
+    (questionId: string): string | null => {
       const data = sessionRef.current;
-      if (!data) return;
+      if (!data) return null;
       const stack = data.undoStacks[questionId] ?? [];
-      if (stack.length === 0) return;
+      if (stack.length === 0) return null;
       const snap = stack[stack.length - 1];
       const remaining = stack.slice(0, -1);
+      const box = undoneBox(data, snap, questionId);
       commit({
         ...data,
         answerInk: { ...data.answerInk, [questionId]: snap.answerInk },
@@ -501,6 +568,7 @@ export function PracticeSessionProvider({
         },
         undoStacks: { ...data.undoStacks, [questionId]: remaining },
       });
+      return box;
     },
     [commit],
   );

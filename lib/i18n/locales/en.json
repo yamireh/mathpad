@@ -171,6 +171,13 @@
     "home": "Back Home",
     "again": "Try Again"
   },
+  "howTo": {
+    "button": "How to solve",
+    "title": "How to solve {{operation}}",
+    "watch": "Watch how",
+    "replay": "Watch again",
+    "gotIt": "Got it"
+  },
   "hints": {
     "button": "Hint",
     "dismiss": "Dismiss hint",

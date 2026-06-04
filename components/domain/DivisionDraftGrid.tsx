@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '../../constants/design';
 import type { BoxStatus, ReviewMarks } from '../../lib/review';
@@ -15,15 +15,6 @@ import {
   divisionDraftRowLayout,
 } from './layout';
 
-/** Duration of the bring-down drop animation. */
-const BRING_DOWN_MS = 900;
-/**
- * Estimated distance from the top of the draft grid up to the dividend
- * digit row inside the bracket, in cell-heights. Tuned visually so the
- * drop starts in the dividend area instead of just above the target cell.
- */
-const DIVIDEND_GAP_CELLS = 2;
-
 /** Vertical gap between adjacent draft rowGroups. */
 const GRID_ROW_GAP = 2;
 /**
@@ -37,14 +28,11 @@ const DRAFT_CLEAR_SLOT = 20;
 const RULE_GAP = 8;
 
 /**
- * One draft cell. Owns a per-cell Animated.Value used for the bring-down
- * drop animation in the auto-solver: when `dropKey` changes to a positive
- * number, the cell's contents start at the dividend row (rows above)
- * fully visible and slide all the way down into the cell.
+ * One draft cell. A static box; on bring-down (`dropKey` changes), AnswerBox
+ * slides just the digit down into it.
  */
 function DraftCell({
   id,
-  rowIdx,
   strokes,
   tone,
   selected,
@@ -55,7 +43,6 @@ function DraftCell({
   status,
 }: {
   id: string;
-  rowIdx: number;
   strokes: InkStroke[];
   tone?: string;
   selected: boolean;
@@ -65,34 +52,19 @@ function DraftCell({
   dropKey: number;
   status?: BoxStatus | null;
 }) {
-  const translateY = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (dropKey <= 0) return;
-    const drop =
-      (rowIdx + DIVIDEND_GAP_CELLS) * DIVISION_DRAFT_CELL_HEIGHT;
-    translateY.setValue(-drop);
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: BRING_DOWN_MS,
-      useNativeDriver: true,
-    }).start();
-  }, [dropKey, rowIdx, translateY]);
-
   return (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      <AnswerBox
-        accessibilityLabel={`Working row ${id}`}
-        tone={tone}
-        selected={selected}
-        onSelect={onSelect}
-        onClear={onClear}
-        strokes={strokes}
-        cellWidth={cellWidth}
-        boxHeight={DIVISION_DRAFT_CELL_HEIGHT}
-        status={status}
-      />
-    </Animated.View>
+    <AnswerBox
+      accessibilityLabel={`Working row ${id}`}
+      tone={tone}
+      selected={selected}
+      onSelect={onSelect}
+      onClear={onClear}
+      strokes={strokes}
+      cellWidth={cellWidth}
+      boxHeight={DIVISION_DRAFT_CELL_HEIGHT}
+      status={status}
+      dropKey={dropKey}
+    />
   );
 }
 
@@ -361,7 +333,6 @@ export function DivisionDraftGrid({
                   <DraftCell
                     key={col}
                     id={`${row + 1}, column ${col + 1}`}
-                    rowIdx={row}
                     tone={tone}
                     selected={selectedBox === id}
                     onSelect={() => onSelect(id)}

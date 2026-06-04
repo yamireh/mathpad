@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Canvas, Path } from '@shopify/react-native-skia';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../constants/design';
 import type { BoxStatus } from '../../lib/review';
@@ -42,6 +43,12 @@ export interface AnswerBoxProps {
   status?: BoxStatus | null;
   /** The digit here was filled by a hint — draw it in the hint colour. */
   hinted?: boolean;
+  /**
+   * Bump to a positive, changing number to slide the digit *into* the box from
+   * the top (long-division bring-down). Only the ink animates; the box is
+   * static and clips it.
+   */
+  dropKey?: number;
 }
 
 const FIT_PADDING = 8;
@@ -87,8 +94,27 @@ export function AnswerBox({
   muted = false,
   status = null,
   hinted = false,
+  dropKey = 0,
 }: AnswerBoxProps) {
   const inkColor = hinted ? colors.hint : colors.text;
+
+  // Bring-down: slide just the digit down into the (static) box, visibly from
+  // above — so the box must un-clip for the duration of the drop.
+  const inkY = useRef(new Animated.Value(0)).current;
+  const [dropping, setDropping] = useState(false);
+  useEffect(() => {
+    if (dropKey <= 0) return;
+    setDropping(true);
+    inkY.setValue(-boxHeight * 2.2);
+    Animated.timing(inkY, {
+      toValue: 0,
+      duration: 800,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setDropping(false);
+    });
+  }, [dropKey, boxHeight, inkY]);
   const boxInnerWidth = cellWidth - 12;
   const transform = fitTransform(strokes, boxInnerWidth, boxHeight);
   const hasInk = strokes.length > 0;
@@ -134,21 +160,27 @@ export function AnswerBox({
           muted && styles.boxMuted,
           (selected || statusColor) && styles.boxSelected,
           locked && styles.boxLocked,
+          dropping && styles.boxDropping,
         ]}
       >
-        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {strokes.map((stroke, i) => (
-            <Path
-              key={i}
-              path={strokeToPath(stroke, transform)}
-              color={inkColor}
-              style="stroke"
-              strokeWidth={2.5}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          ))}
-        </Canvas>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { transform: [{ translateY: inkY }] }]}
+          pointerEvents="none"
+        >
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            {strokes.map((stroke, i) => (
+              <Path
+                key={i}
+                path={strokeToPath(stroke, transform)}
+                color={inkColor}
+                style="stroke"
+                strokeWidth={2.5}
+                strokeCap="round"
+                strokeJoin="round"
+              />
+            ))}
+          </Canvas>
+        </Animated.View>
       </Pressable>
     </View>
   );
@@ -174,4 +206,6 @@ const styles = StyleSheet.create({
   boxSelected: { borderWidth: 2.5 },
   boxMuted: { backgroundColor: colors.surfaceAlt },
   boxLocked: { opacity: 0.4, backgroundColor: colors.surfaceAlt },
+  // While a digit drops in, let it show above the box as it travels down.
+  boxDropping: { overflow: 'visible' },
 });
