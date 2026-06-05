@@ -1,0 +1,119 @@
+/** Clock question model + answer checking (pure). */
+import { clockPhrase, formatDigital } from './format';
+import { generateClockTime } from './generate';
+import type {
+  ClockAnswerType,
+  ClockPhrase,
+  ClockStep,
+  ClockTime,
+} from './types';
+
+/** A word that can appear on a pattern tile (numbers render as digits). */
+export type ClockWord = 'oclock' | 'quarter' | 'half' | 'past' | 'to';
+
+/** A single tile: a word, or a number (an hour or a minute amount). */
+export type ClockToken =
+  | { kind: 'word'; word: ClockWord }
+  | { kind: 'number'; value: number };
+
+const word = (w: ClockWord): ClockToken => ({ kind: 'word', word: w });
+const num = (value: number): ClockToken => ({ kind: 'number', value });
+
+/** The ordered tokens that spell out a phrase, e.g. half · past · 6. */
+export function phraseTokens(phrase: ClockPhrase): ClockToken[] {
+  switch (phrase.kind) {
+    case 'oclock':
+      return [num(phrase.hour), word('oclock')];
+    case 'quarterPast':
+      return [word('quarter'), word('past'), num(phrase.hour)];
+    case 'half':
+      return [word('half'), word('past'), num(phrase.hour)];
+    case 'quarterTo':
+      return [word('quarter'), word('to'), num(phrase.hour)];
+    case 'past':
+      return [num(phrase.minutes), word('past'), num(phrase.hour)];
+    case 'to':
+      return [num(phrase.minutes), word('to'), num(phrase.hour)];
+  }
+}
+
+/** Two token lists are equal when they match in order, kind, and value. */
+export function tokensEqual(a: ClockToken[], b: ClockToken[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((t, i) => {
+    const o = b[i];
+    if (t.kind !== o.kind) return false;
+    return t.kind === 'word'
+      ? t.word === (o as { word: ClockWord }).word
+      : t.value === (o as { value: number }).value;
+  });
+}
+
+/** Tiles offered for a pattern question: the correct tokens + plausible decoys. */
+export function patternBank(phrase: ClockPhrase): ClockToken[] {
+  const tiles: ClockToken[] = (
+    ['oclock', 'quarter', 'half', 'past', 'to'] as ClockWord[]
+  ).map(word);
+
+  const numbers = new Set<number>([phrase.hour]);
+  for (const d of [1, 4, 7, 10]) numbers.add(((phrase.hour - 1 + d) % 12) + 1);
+  if (phrase.kind === 'past' || phrase.kind === 'to') {
+    numbers.add(phrase.minutes);
+    for (const m of [5, 10, 20, 25]) numbers.add(m);
+  }
+  for (const value of numbers) tiles.push(num(value));
+  return tiles;
+}
+
+/** Check a handwritten/typed digital answer ("6:30") against the time. */
+export function checkDigital(time: ClockTime, input: string): boolean {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(input.trim());
+  if (!m) return false;
+  return Number(m[1]) === time.hour && Number(m[2]) === time.minute;
+}
+
+/** Check a built token sequence against the time's correct phrase. */
+export function checkPattern(time: ClockTime, built: ClockToken[]): boolean {
+  return tokensEqual(built, phraseTokens(clockPhrase(time)));
+}
+
+/** Convenience: the expected digital string for a time. */
+export function digitalAnswer(time: ClockTime): string {
+  return formatDigital(time);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Questions                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface ClockQuestion {
+  id: string;
+  time: ClockTime;
+  step: ClockStep;
+  /** Resolved answer surface for this question (mixed picks per question). */
+  answerWith: 'digital' | 'pattern';
+}
+
+/** Resolve the answer surface, picking randomly for "mixed". */
+export function resolveAnswerWith(
+  type: ClockAnswerType,
+  rng: () => number = Math.random,
+): 'digital' | 'pattern' {
+  if (type === 'mixed') return rng() < 0.5 ? 'digital' : 'pattern';
+  return type;
+}
+
+export function generateClockQuestions(opts: {
+  count: number;
+  step: ClockStep;
+  type: ClockAnswerType;
+  rng?: () => number;
+}): ClockQuestion[] {
+  const rng = opts.rng ?? Math.random;
+  return Array.from({ length: opts.count }, (_, i) => ({
+    id: `clock-${i}`,
+    time: generateClockTime(opts.step, rng),
+    step: opts.step,
+    answerWith: resolveAnswerWith(opts.type, rng),
+  }));
+}

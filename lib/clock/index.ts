@@ -12,3 +12,14 @@ export {
   handAngles,
   pointOnClock,
 } from './format';
+export type { ClockWord, ClockToken, ClockQuestion } from './question';
+export {
+  phraseTokens,
+  tokensEqual,
+  patternBank,
+  checkDigital,
+  checkPattern,
+  digitalAnswer,
+  resolveAnswerWith,
+  generateClockQuestions,
+} from './question';

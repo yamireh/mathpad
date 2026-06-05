@@ -192,6 +192,17 @@
     "restore": "Restore purchase",
     "lockedCard": "{{operation}}, locked — tap to unlock"
   },
+  "clock": {
+    "readPrompt": "What time is it?",
+    "patternHint": "Tap the words to build the time",
+    "words": {
+      "oclock": "o'clock",
+      "quarter": "quarter",
+      "half": "half",
+      "past": "past",
+      "to": "to"
+    }
+  },
   "hints": {
     "button": "Hint",
     "dismiss": "Dismiss hint",
