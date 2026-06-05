@@ -23,20 +23,25 @@ import {
 
 import { entitlementStore } from '../lib/storage';
 
-/** Displayed price until StoreKit provides the real, localized one (Slice 2). */
+/** Displayed prices until StoreKit provides the real, localized ones (Slice 2). */
 const FALLBACK_PRICE = '$9.99';
+const FALLBACK_COMPLETE_PRICE = '$24.99';
 
 export interface PurchasesContextValue {
   /** Whether the paid operations are unlocked. */
   owned: boolean;
   /** Localized price string for the Operations bundle. */
   price: string;
+  /** Localized price string for the "everything" Complete bundle. */
+  completePrice: string;
   /** Still loading the initial entitlement state. */
   loading: boolean;
   /** A purchase is in flight. */
   purchasing: boolean;
-  /** Buy the Operations bundle. Resolves true on success. */
+  /** Buy the Operations bundle (this module). Resolves true on success. */
   purchase: () => Promise<boolean>;
+  /** Buy the Complete bundle (everything). Resolves true on success. */
+  purchaseComplete: () => Promise<boolean>;
   /** Restore a previous purchase. Resolves true if now owned. */
   restore: () => Promise<boolean>;
   /** DEV-only: force the owned state to test both sides of the gate. */
@@ -81,6 +86,18 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
     }
   }, [apply]);
 
+  const purchaseComplete = useCallback(async () => {
+    // Slice 1 stub: the Complete bundle implies the Operations entitlement.
+    // (Slice 2 will own its own product id + per-module entitlements.)
+    setPurchasing(true);
+    try {
+      await apply(true);
+      return true;
+    } finally {
+      setPurchasing(false);
+    }
+  }, [apply]);
+
   const restore = useCallback(async () => {
     // Slice 1 stub: the cache is all we have. Slice 2 queries StoreKit.
     const value = await entitlementStore.get();
@@ -99,13 +116,15 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
     () => ({
       owned,
       price: FALLBACK_PRICE,
+      completePrice: FALLBACK_COMPLETE_PRICE,
       loading,
       purchasing,
       purchase,
+      purchaseComplete,
       restore,
       devSetOwned,
     }),
-    [owned, loading, purchasing, purchase, restore, devSetOwned],
+    [owned, loading, purchasing, purchase, purchaseComplete, restore, devSetOwned],
   );
 
   return (

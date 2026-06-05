@@ -186,9 +186,11 @@
   "unlock": {
     "title": "Unlock operations",
     "heading": "Unlock all operations",
-    "subtitle": "One purchase opens Subtraction, Multiplication, Division, and Mix — for good.",
+    "subtitle": "Open Subtraction, Multiplication, Division, and Mix — for good.",
     "freeNote": "Addition stays free, always.",
-    "cta": "Unlock all — {{price}}",
+    "watch": "Watch how it works",
+    "ctaModule": "Unlock Operations — {{price}}",
+    "ctaAll": "Unlock everything — {{price}}",
     "restore": "Restore purchase",
     "lockedCard": "{{operation}}, locked — tap to unlock"
   },

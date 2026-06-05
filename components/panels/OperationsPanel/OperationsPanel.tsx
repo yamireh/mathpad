@@ -64,7 +64,11 @@ export function OperationsPanel() {
               }
               onPress={() => {
                 tapFeedback();
-                router.push(locked ? '/unlock' : `/settings/${operation}`);
+                if (locked) {
+                  router.push({ pathname: '/unlock', params: { operation } });
+                } else {
+                  router.push(`/settings/${operation}`);
+                }
               }}
             />
           );

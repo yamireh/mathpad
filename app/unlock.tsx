@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
@@ -31,7 +31,18 @@ const UNLOCKED: Operation[] = [
 export default function UnlockScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { price, purchasing, owned, purchase, restore } = usePurchases();
+  const { operation } = useLocalSearchParams<{ operation?: Operation }>();
+  const {
+    price,
+    completePrice,
+    purchasing,
+    owned,
+    purchase,
+    purchaseComplete,
+    restore,
+  } = usePurchases();
+  // The kid can preview the tapped operation's worked-example demo before buying.
+  const canWatch = !!operation && operation !== 'mix';
 
   // Once owned (just bought or restored), the operations are unlocked — leave.
   useEffect(() => {
@@ -74,12 +85,27 @@ export default function UnlockScreen() {
       </Card>
 
       <View style={styles.actions}>
+        {canWatch ? (
+          <Button
+            label={t('unlock.watch')}
+            icon="play-circle-outline"
+            variant="secondary"
+            onPress={() => router.push(`/how-to/${operation}`)}
+          />
+        ) : null}
         <Button
-          label={t('unlock.cta', { price })}
+          label={t('unlock.ctaModule', { price })}
           icon="lock-open-outline"
           tone={operationColors.multiplication.accent}
           disabled={purchasing}
           onPress={() => void purchase()}
+        />
+        <Button
+          label={t('unlock.ctaAll', { price: completePrice })}
+          icon="sparkles-outline"
+          variant="secondary"
+          disabled={purchasing}
+          onPress={() => void purchaseComplete()}
         />
         <Button
           label={t('unlock.restore')}
