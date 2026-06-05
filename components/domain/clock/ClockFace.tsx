@@ -99,8 +99,8 @@ export function ClockFace({
   );
 
   const a = handAngles(time);
-  const gH = grabbed === 'hour' ? 1.45 : 1;
-  const gM = grabbed === 'minute' ? 1.45 : 1;
+  const gH = grabbed === 'hour' ? 1.15 : 1;
+  const gM = grabbed === 'minute' ? 1.15 : 1;
   const tail = size * 0.06;
   const hourHand = arrowHandPath(
     centre, dialR * 0.5, a.hour, size * 0.022 * gH, size * 0.06 * gH, size * 0.08, tail,
