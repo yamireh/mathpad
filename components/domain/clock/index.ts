@@ -21,9 +21,15 @@ export {
   type ClockSettingsViewProps,
 } from './ClockSettingsView';
 export {
+  ClockQuestionView,
+  type ClockQuestionViewProps,
+  type ClockQuestionHandle,
+} from './ClockQuestionView';
+export {
   ClockPracticeView,
   type ClockPracticeViewProps,
 } from './ClockPracticeView';
+export { ClockFixView, type ClockFixViewProps } from './ClockFixView';
 export {
   ClockResultsView,
   type ClockResultsViewProps,

@@ -16,4 +16,8 @@ export function defaultClockSettings(): ClockSettings {
 export interface ClockResult {
   question: ClockQuestion;
   correct: boolean;
+  /** The child's answer, formatted for display ("6:35", "half past 6", "—"). */
+  given: string;
+  /** Got it right on a later try after first being wrong. */
+  fixed?: boolean;
 }

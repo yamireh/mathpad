@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ScrollView,
@@ -8,33 +8,18 @@ import {
   View,
 } from 'react-native';
 
-import { Button, IconButton, Pill, ScreenContainer } from '../../ui';
+import { Button, IconButton, ScreenContainer } from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
 import { errorFeedback, successFeedback } from '../../../lib/feedback';
-import { prepareModel, recognizeNumber } from '../../../lib/recognition';
 import {
-  checkPattern,
-  checkSet,
-  clockPhrase,
-  formatDigital,
   generateClockQuestions,
-  patternBank,
   type ClockResult,
   type ClockSettings,
-  type ClockTime,
-  type ClockToken,
 } from '../../../lib/clock';
-import { type InkStroke } from '../ink';
-import { ClockFace } from './ClockFace';
-import { ClockLegend } from './ClockLegend';
-import { DigitalClockAnswer } from './DigitalClockAnswer';
-import { PatternBuilder } from './PatternBuilder';
-import { SetClockPrompt } from './SetClockPrompt';
-import { SettableClock } from './SettableClock';
-
-// Hands always start at 9 o'clock (hour on 9, minute on 12) — two clearly
-// separate, movable hands.
-const SET_START: ClockTime = { hour: 9, minute: 0 };
+import {
+  ClockQuestionView,
+  type ClockQuestionHandle,
+} from './ClockQuestionView';
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;
@@ -42,12 +27,7 @@ export interface ClockPracticeViewProps {
   onExit: () => void;
 }
 
-/** Reads `digits` ("05") into a number, or NaN if blank. */
-function digitsToNumber(digits: number[]): number {
-  return digits.length === 0 ? NaN : Number(digits.join(''));
-}
-
-/** The clock question loop: show the face, answer, judge, advance. */
+/** The clock question loop: show a question, answer, judge, advance. */
 export function ClockPracticeView({
   settings,
   onFinish,
@@ -69,49 +49,23 @@ export function ClockPracticeView({
 
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<ClockResult[]>([]);
-  const [built, setBuilt] = useState<ClockToken[]>([]);
-  const [setValue, setSetValue] = useState<ClockTime>(SET_START);
-  const [selectedHand, setSelectedHand] = useState<'hour' | 'minute'>('hour');
-  const [resetNonce, setResetNonce] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [drawing, setDrawing] = useState(false);
-  const hourRef = useRef<InkStroke[]>([]);
-  const minuteRef = useRef<InkStroke[]>([]);
-
-  // Warm the recognition model so the first digital check isn't a cold start.
-  useEffect(() => {
-    void prepareModel();
-  }, []);
+  const qRef = useRef<ClockQuestionHandle>(null);
 
   const q = questions[index];
   const total = questions.length;
   const isLast = index === total - 1;
-  const bank = useMemo(() => patternBank(clockPhrase(q.time)), [q]);
-  const showRing = q.step === 'quarter';
-
-  const judge = async (): Promise<boolean> => {
-    if (q.answerWith === 'pattern') return checkPattern(q.time, built);
-    if (q.answerWith === 'set') return checkSet(q.time, setValue);
-    try {
-      const [h, m] = await Promise.all([
-        recognizeNumber(hourRef.current),
-        recognizeNumber(minuteRef.current),
-      ]);
-      return (
-        digitsToNumber(h.integerDigits) === q.time.hour &&
-        digitsToNumber(m.integerDigits) === q.time.minute
-      );
-    } catch {
-      return false;
-    }
-  };
 
   const advance = async () => {
     setSubmitting(true);
-    const correct = await judge();
+    const { correct, given } = (await qRef.current?.judge()) ?? {
+      correct: false,
+      given: '—',
+    };
     if (correct) successFeedback();
     else errorFeedback();
-    const next = [...results, { question: q, correct }];
+    const next = [...results, { question: q, correct, given }];
     setSubmitting(false);
     if (isLast) {
       onFinish(next);
@@ -119,12 +73,6 @@ export function ClockPracticeView({
     }
     setResults(next);
     setIndex((i) => i + 1);
-    setBuilt([]);
-    setSetValue(SET_START);
-    setSelectedHand('hour');
-    hourRef.current = [];
-    minuteRef.current = [];
-    setResetNonce((n) => n + 1);
   };
 
   return (
@@ -143,58 +91,17 @@ export function ClockPracticeView({
 
       <ScrollView
         contentContainerStyle={styles.body}
-        // In Set mode the clock fits and must own the drag gesture, so the page
-        // never scrolls; in the write/tiles modes, lock scrolling while drawing.
         scrollEnabled={q.answerWith === 'set' ? false : !drawing}
         keyboardShouldPersistTaps="handled"
       >
-        {q.answerWith === 'set' ? (
-          <>
-            <SetClockPrompt time={formatDigital(q.time)} />
-            <SettableClock
-              value={setValue}
-              onChange={setSetValue}
-              selected={selectedHand}
-              size={clockSize}
-              step={q.step}
-              showRing={showRing}
-            />
-            <ClockLegend selected={selectedHand} onSelect={setSelectedHand} />
-            <Pill
-              label={t('clock.reset')}
-              icon="refresh-outline"
-              onPress={() => {
-                setSetValue(SET_START);
-                setSelectedHand('hour');
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <ClockFace time={q.time} size={clockSize} showRing={showRing} />
-            <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
-            {q.answerWith === 'pattern' ? (
-              <PatternBuilder
-                bank={bank}
-                built={built}
-                onAdd={(token) => setBuilt((b) => [...b, token])}
-                onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}
-              />
-            ) : (
-              <DigitalClockAnswer
-                key={resetNonce}
-                onHourChange={(s) => {
-                  hourRef.current = s;
-                }}
-                onMinuteChange={(s) => {
-                  minuteRef.current = s;
-                }}
-                onDrawStart={() => setDrawing(true)}
-                onDrawEnd={() => setDrawing(false)}
-              />
-            )}
-          </>
-        )}
+        <ClockQuestionView
+          key={q.id}
+          ref={qRef}
+          question={q}
+          clockSize={clockSize}
+          onDrawStart={() => setDrawing(true)}
+          onDrawEnd={() => setDrawing(false)}
+        />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -231,11 +138,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
-  },
-  prompt: {
-    fontSize: typography.size.title,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
   },
   footer: {
     paddingHorizontal: spacing.lg,
