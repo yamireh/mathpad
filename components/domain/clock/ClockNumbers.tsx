@@ -16,7 +16,7 @@ const NUMBERS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 export function ClockNumbers({ size, radius }: ClockNumbersProps) {
   const centre = size / 2;
   const slot = size * 0.1; // scales with the clock
-  const fontSize = size * 0.062;
+  const fontSize = size * 0.055;
   return (
     <>
       {NUMBERS.map((n) => {
