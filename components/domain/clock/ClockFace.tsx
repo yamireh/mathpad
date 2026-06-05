@@ -12,20 +12,28 @@ export interface ClockFaceProps {
   time: ClockTime;
   /** Square edge length in px. */
   size: number;
-  /** Show the "count by 5" training ring (scaffold). */
+  /** Show the "count by 5" minute numbers (scaffold). */
   showRing?: boolean;
   /** Which hand is currently active — drawn bolder to show it's selected. */
   grabbed?: 'hour' | 'minute' | null;
 }
 
-/** Tick marks as two Skia paths: thin minute ticks + bold 5-minute ticks. */
-function buildTicks(centre: number, outer: number) {
+/**
+ * Tick marks: thin light minute ticks, plus bolder, longer hour ticks (every
+ * 5). Returned as two paths so each can be stroked differently.
+ */
+function buildTicks(
+  centre: number,
+  outer: number,
+  majorLen: number,
+  minorLen: number,
+) {
   const minor = Skia.Path.Make();
   const major = Skia.Path.Make();
   for (let i = 0; i < 60; i += 1) {
     const isMajor = i % 5 === 0;
     const o = pointOnClock(centre, outer, i * 6);
-    const inner = pointOnClock(centre, outer - (isMajor ? 12 : 7), i * 6);
+    const inner = pointOnClock(centre, outer - (isMajor ? majorLen : minorLen), i * 6);
     const path = isMajor ? major : minor;
     path.moveTo(o.x, o.y);
     path.lineTo(inner.x, inner.y);
@@ -80,20 +88,25 @@ export function ClockFace({
 }: ClockFaceProps) {
   const centre = size / 2;
   const radius = size / 2;
-  const rimW = size * 0.045;
+  const rimW = size * 0.035;
   const dialR = radius - rimW; // usable radius inside the rim
 
-  const ticks = useMemo(() => buildTicks(centre, dialR - 2), [centre, dialR]);
+  // Rings from the rim inward: minute numbers → ticks → hour numbers.
+  const ticksOuter = dialR * 0.78;
+  const ticks = useMemo(
+    () => buildTicks(centre, ticksOuter, dialR * 0.11, dialR * 0.05),
+    [centre, ticksOuter, dialR],
+  );
 
   const a = handAngles(time);
   const gH = grabbed === 'hour' ? 1.45 : 1;
   const gM = grabbed === 'minute' ? 1.45 : 1;
   const tail = size * 0.06;
   const hourHand = arrowHandPath(
-    centre, dialR * 0.56, a.hour, size * 0.03 * gH, size * 0.07 * gH, size * 0.085, tail,
+    centre, dialR * 0.5, a.hour, size * 0.03 * gH, size * 0.07 * gH, size * 0.08, tail,
   );
   const minuteHand = arrowHandPath(
-    centre, dialR * 0.84, a.minute, size * 0.022 * gM, size * 0.06 * gM, size * 0.1, tail,
+    centre, dialR * 0.72, a.minute, size * 0.022 * gM, size * 0.06 * gM, size * 0.09, tail,
   );
 
   return (
@@ -108,18 +121,18 @@ export function ClockFace({
           style="stroke"
           strokeWidth={rimW}
         />
-        <Path path={ticks.minor} color={clockColors.tick} style="stroke" strokeWidth={1.5} />
-        <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={2.5} strokeCap="round" />
+        <Path path={ticks.minor} color={clockColors.tick} style="stroke" strokeWidth={1.5} strokeCap="round" />
+        <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={3.5} strokeCap="round" />
 
         <Path path={hourHand} color={clockColors.hourHand} />
         <Path path={minuteHand} color={clockColors.minuteHand} />
 
-        <Circle cx={centre} cy={centre} r={size * 0.035} color={clockColors.face} />
-        <Circle cx={centre} cy={centre} r={size * 0.016} color={clockColors.faceFill} />
+        <Circle cx={centre} cy={centre} r={size * 0.032} color={clockColors.face} />
+        <Circle cx={centre} cy={centre} r={size * 0.014} color={clockColors.faceFill} />
       </Canvas>
 
-      {showRing ? <ClockRing size={size} radius={dialR * 0.7} /> : null}
-      <ClockNumbers size={size} radius={dialR * (showRing ? 0.5 : 0.72)} />
+      {showRing ? <ClockRing size={size} radius={dialR * 0.9} /> : null}
+      <ClockNumbers size={size} radius={dialR * (showRing ? 0.56 : 0.88)} />
     </View>
   );
 }

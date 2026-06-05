@@ -28,7 +28,7 @@ import { SettableClock } from './SettableClock';
 // Hands always start at 9 o'clock (hour on 9, minute on 12) — two clearly
 // separate, movable hands.
 const SET_START: ClockTime = { hour: 9, minute: 0 };
-const CLOCK_SIZE = 264;
+const CLOCK_SIZE = 288;
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;

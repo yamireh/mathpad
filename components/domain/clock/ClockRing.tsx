@@ -15,7 +15,7 @@ export interface ClockRingProps {
  * scaffold for younger kids / easier complexity, hidden as it gets harder.
  */
 const MARKS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
-const SLOT = 24;
+const SLOT = 20;
 
 export function ClockRing({ size, radius }: ClockRingProps) {
   const centre = size / 2;
