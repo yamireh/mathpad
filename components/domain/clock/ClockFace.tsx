@@ -16,6 +16,12 @@ export interface ClockFaceProps {
   showRing?: boolean;
   /** Which hand is currently active — drawn bolder to show it's selected. */
   grabbed?: 'hour' | 'minute' | null;
+  /**
+   * Point the hour hand exactly at its number (no minute drift). Used in Set
+   * mode so moving the minute hand doesn't drag the hour hand around; Read mode
+   * keeps the realistic drifting hour hand.
+   */
+  simpleHour?: boolean;
 }
 
 /** Tick marks as two Skia paths: thin minute ticks + bold 5-minute ticks. */
@@ -77,6 +83,7 @@ export function ClockFace({
   size,
   showRing = false,
   grabbed = null,
+  simpleHour = false,
 }: ClockFaceProps) {
   const centre = size / 2;
   const radius = size / 2;
@@ -86,11 +93,12 @@ export function ClockFace({
   const ticks = useMemo(() => buildTicks(centre, dialR - 2), [centre, dialR]);
 
   const a = handAngles(time);
+  const hourAngle = simpleHour ? (time.hour % 12) * 30 : a.hour;
   const gH = grabbed === 'hour' ? 1.45 : 1;
   const gM = grabbed === 'minute' ? 1.45 : 1;
   const tail = size * 0.06;
   const hourHand = arrowHandPath(
-    centre, dialR * 0.56, a.hour, size * 0.03 * gH, size * 0.07 * gH, size * 0.085, tail,
+    centre, dialR * 0.56, hourAngle, size * 0.03 * gH, size * 0.07 * gH, size * 0.085, tail,
   );
   const minuteHand = arrowHandPath(
     centre, dialR * 0.84, a.minute, size * 0.022 * gM, size * 0.06 * gM, size * 0.1, tail,

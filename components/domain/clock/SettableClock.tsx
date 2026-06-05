@@ -56,8 +56,9 @@ export function SettableClock({
         minute: (Math.round(deg / 6 / minuteSnap) * minuteSnap) % 60,
       };
     } else {
-      // Remove the hour hand's minute-drift before snapping to a number.
-      const idx = Math.round(norm360(deg - cur.minute * 0.5) / 30) % 12;
+      // Set mode shows a non-drifting hour hand, so snap straight to the
+      // nearest number.
+      const idx = Math.round(norm360(deg) / 30) % 12;
       next = { hour: idx === 0 ? 12 : idx, minute: cur.minute };
     }
     if (next.hour !== cur.hour || next.minute !== cur.minute) {
@@ -75,7 +76,13 @@ export function SettableClock({
   return (
     <GestureDetector gesture={pan}>
       <View style={{ width: size, height: size }} collapsable={false}>
-        <ClockFace time={value} size={size} showRing={showRing} grabbed={selected} />
+        <ClockFace
+          time={value}
+          size={size}
+          showRing={showRing}
+          grabbed={selected}
+          simpleHour
+        />
       </View>
     </GestureDetector>
   );
