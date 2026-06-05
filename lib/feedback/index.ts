@@ -32,16 +32,17 @@ void setIsAudioActiveAsync(true);
 const PRIMARY_PLAYER = createAudioPlayer(require('../../assets/sounds/primary.m4a'));
 const SUCCESS_PLAYER = createAudioPlayer(require('../../assets/sounds/success.mp3'));
 const ERROR_PLAYER = createAudioPlayer(require('../../assets/sounds/error.mp3'));
-const SCRATCH_PLAYER = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
+// Two copies of the pencil loop, played in a ping-pong crossfade so there's no
+// audible seam at the loop point (native `loop` clicks; this overlaps instead).
+const SCRATCH_A = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
+const SCRATCH_B = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 PRIMARY_PLAYER.volume = 0.8;
 SUCCESS_PLAYER.volume = 0.9;
 ERROR_PLAYER.volume = 0.9;
-// Looped pencil sound for the auto-solve demo. Warm at module load (like the
-// SFX above) so the first solve after opening a question isn't a cold start.
-SCRATCH_PLAYER.loop = true;
-SCRATCH_PLAYER.volume = 0;
+SCRATCH_A.volume = 0;
+SCRATCH_B.volume = 0;
 
 function blip(player: AudioPlayer): void {
   try {
@@ -83,33 +84,86 @@ export function errorFeedback(): void {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Demo "scratch" (auto-solve hand writing)                                    */
+/* Looping pencil "scratch" sound (gapless ping-pong loop)                      */
 /* -------------------------------------------------------------------------- */
+
+// We hand-loop two players instead of using native `loop`: when the leading
+// copy nears its end, we start the standby copy from 0 so its head overlaps the
+// leader's tail, masking the seam, then hand over leadership. Result: the loop
+// "just keeps playing" with no perceptible cut.
+const SCRATCH_FADE_MS = 130; // how early to start the overlap before the seam
+const SCRATCH_TICK_MS = 25; // playhead poll cadence
+
+let scratchActive = false;
+let scratchTarget = 0; // desired volume while active (1 audible, 0 muted)
+let scratchLead: AudioPlayer = SCRATCH_A;
+let scratchStandby: AudioPlayer = SCRATCH_B;
+let scratchTimer: ReturnType<typeof setInterval> | null = null;
+
+function scratchTick(): void {
+  if (!scratchActive) return;
+  const lead = scratchLead;
+  try {
+    if (!lead.isLoaded) return;
+    const dur = lead.duration ?? 0;
+    const nearSeam = dur > 0 && (dur - lead.currentTime) * 1000 <= SCRATCH_FADE_MS;
+    // Hand off when the leader is about to end (overlap) or already stopped
+    // (recovery if a tick was missed) — whichever comes first.
+    if ((nearSeam || !lead.playing) && !scratchStandby.playing) {
+      scratchStandby.seekTo(0);
+      scratchStandby.volume = scratchTarget;
+      scratchStandby.play();
+      scratchLead = scratchStandby;
+      scratchStandby = lead;
+    }
+  } catch {
+    /* not ready — next tick retries */
+  }
+}
 
 /** Make the looped pencil sound audible (starting the loop if idle). */
 export function scratchAudible(): void {
+  scratchTarget = 1;
   try {
-    if (!SCRATCH_PLAYER.playing) SCRATCH_PLAYER.play();
-    SCRATCH_PLAYER.volume = 1;
+    scratchLead.volume = 1;
+    if (scratchStandby.playing) scratchStandby.volume = 1;
+    if (!scratchActive) {
+      scratchActive = true;
+      scratchLead.seekTo(0);
+      scratchLead.play();
+      scratchTimer = setInterval(scratchTick, SCRATCH_TICK_MS);
+    } else if (!scratchLead.playing) {
+      scratchLead.play();
+    }
   } catch {
     // Not ready yet — the next call retries.
   }
 }
 
-/** Silence the pencil loop without stopping it (between digits). */
+/** Silence the loop without stopping it, so resuming is seamless. */
 export function scratchMute(): void {
+  scratchTarget = 0;
   try {
-    SCRATCH_PLAYER.volume = 0;
+    SCRATCH_A.volume = 0;
+    SCRATCH_B.volume = 0;
   } catch {
     /* not ready */
   }
 }
 
-/** Silence and pause the pencil loop (end of solve). */
+/** Silence and pause the loop entirely (end of stroke / end of solve). */
 export function scratchStop(): void {
+  scratchActive = false;
+  scratchTarget = 0;
+  if (scratchTimer) {
+    clearInterval(scratchTimer);
+    scratchTimer = null;
+  }
   try {
-    SCRATCH_PLAYER.volume = 0;
-    SCRATCH_PLAYER.pause();
+    SCRATCH_A.pause();
+    SCRATCH_A.volume = 0;
+    SCRATCH_B.pause();
+    SCRATCH_B.volume = 0;
   } catch {
     /* not ready */
   }
