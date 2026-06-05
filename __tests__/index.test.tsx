@@ -30,9 +30,9 @@ describe('Home screen (MainPanel)', () => {
 
   it('flags disabled topics as coming soon', () => {
     render(<HomeScreen />);
-    // Shapes, Clock, Coordinates, Patterns and Money are disabled today;
-    // the same pill repeats for each.
-    expect(screen.getAllByText('Coming soon')).toHaveLength(5);
+    // Clock is enabled in dev (CLOCK_ENABLED = __DEV__); Shapes, Coordinates,
+    // Patterns and Money remain disabled, so the pill repeats four times.
+    expect(screen.getAllByText('Coming soon')).toHaveLength(4);
   });
 });
 

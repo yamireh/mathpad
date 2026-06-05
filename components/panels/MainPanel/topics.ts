@@ -1,5 +1,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 
+import { CLOCK_ENABLED } from '../../../lib/featureFlags';
+
 /** Top-level topic id. Each maps to a screen under `app/<id>.tsx`. */
 export type TopicId =
   | 'operations'
@@ -50,6 +52,16 @@ export const TOPICS: TopicDef[] = [
     route: '/operations',
   },
   {
+    id: 'clock',
+    labelKey: 'topics.clock',
+    descKey: 'topicsDesc.clock',
+    icon: 'time-outline',
+    accent: '#0E8A6B',
+    tint: '#E6F5EF',
+    enabled: CLOCK_ENABLED,
+    route: '/clock',
+  },
+  {
     id: 'shapes',
     labelKey: 'topics.shapes',
     descKey: 'topicsDesc.shapes',
@@ -58,16 +70,6 @@ export const TOPICS: TopicDef[] = [
     tint: '#F1E9FE',
     enabled: false,
     route: '/shapes',
-  },
-  {
-    id: 'clock',
-    labelKey: 'topics.clock',
-    descKey: 'topicsDesc.clock',
-    icon: 'time-outline',
-    accent: '#0E8A6B',
-    tint: '#E6F5EF',
-    enabled: false,
-    route: '/clock',
   },
   {
     id: 'axis',
