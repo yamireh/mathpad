@@ -103,7 +103,7 @@ export function ClockFace({
   const gM = grabbed === 'minute' ? 1.45 : 1;
   const tail = size * 0.06;
   const hourHand = arrowHandPath(
-    centre, dialR * 0.5, a.hour, size * 0.03 * gH, size * 0.07 * gH, size * 0.08, tail,
+    centre, dialR * 0.5, a.hour, size * 0.022 * gH, size * 0.06 * gH, size * 0.08, tail,
   );
   const minuteHand = arrowHandPath(
     centre, dialR * 0.72, a.minute, size * 0.022 * gM, size * 0.06 * gM, size * 0.09, tail,
