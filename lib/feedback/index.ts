@@ -32,6 +32,7 @@ void setIsAudioActiveAsync(true);
 const PRIMARY_PLAYER = createAudioPlayer(require('../../assets/sounds/primary.m4a'));
 const SUCCESS_PLAYER = createAudioPlayer(require('../../assets/sounds/success.mp3'));
 const ERROR_PLAYER = createAudioPlayer(require('../../assets/sounds/error.mp3'));
+const TICK_PLAYER = createAudioPlayer(require('../../assets/sounds/tick.wav'));
 // Two copies of the pencil loop, played in a ping-pong crossfade so there's no
 // audible seam at the loop point (native `loop` clicks; this overlaps instead).
 const SCRATCH_A = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
@@ -41,6 +42,7 @@ const SCRATCH_B = createAudioPlayer(require('../../assets/sounds/scratch.wav'));
 PRIMARY_PLAYER.volume = 0.8;
 SUCCESS_PLAYER.volume = 0.9;
 ERROR_PLAYER.volume = 0.9;
+TICK_PLAYER.volume = 0.5;
 SCRATCH_A.volume = 0;
 SCRATCH_B.volume = 0;
 
@@ -89,6 +91,7 @@ export function errorFeedback(): void {
  */
 export function tickFeedback(): void {
   void Haptics.selectionAsync();
+  blip(TICK_PLAYER);
 }
 
 /* -------------------------------------------------------------------------- */
