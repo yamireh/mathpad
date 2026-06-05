@@ -2,6 +2,7 @@ import { clockPhrase } from '../lib/clock';
 import {
   checkDigital,
   checkPattern,
+  checkSet,
   generateClockQuestions,
   patternBank,
   phraseTokens,
@@ -49,6 +50,12 @@ describe('clock — checking answers', () => {
     expect(checkPattern(time, right.slice(0, 2))).toBe(false);
   });
 
+  it('checkSet matches the exact hands set', () => {
+    expect(checkSet({ hour: 6, minute: 30 }, { hour: 6, minute: 30 })).toBe(true);
+    expect(checkSet({ hour: 6, minute: 30 }, { hour: 7, minute: 30 })).toBe(false);
+    expect(checkSet({ hour: 6, minute: 30 }, { hour: 6, minute: 35 })).toBe(false);
+  });
+
   it('tokensEqual is order- and value-sensitive', () => {
     const a: ClockToken[] = [{ kind: 'number', value: 6 }];
     expect(tokensEqual(a, [{ kind: 'number', value: 6 }])).toBe(true);
@@ -76,12 +83,13 @@ describe('clock — generateClockQuestions', () => {
     expect(qs).toHaveLength(8);
     for (const q of qs) {
       expect([0, 15, 30, 45]).toContain(q.time.minute);
-      expect(['digital', 'pattern']).toContain(q.answerWith);
+      expect(['digital', 'pattern', 'set']).toContain(q.answerWith);
     }
   });
 
   it('resolveAnswerWith respects a non-mixed type', () => {
     expect(resolveAnswerWith('digital')).toBe('digital');
     expect(resolveAnswerWith('pattern')).toBe('pattern');
+    expect(resolveAnswerWith('set')).toBe('set');
   });
 });

@@ -77,6 +77,11 @@ export function checkPattern(time: ClockTime, built: ClockToken[]): boolean {
   return tokensEqual(built, phraseTokens(clockPhrase(time)));
 }
 
+/** Check hands the child set against the target time. */
+export function checkSet(time: ClockTime, value: ClockTime): boolean {
+  return value.hour === time.hour && value.minute === time.minute;
+}
+
 /** Convenience: the expected digital string for a time. */
 export function digitalAnswer(time: ClockTime): string {
   return formatDigital(time);
@@ -86,20 +91,25 @@ export function digitalAnswer(time: ClockTime): string {
 /* Questions                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** A concrete answer surface (mixed resolves to one of these). */
+export type ClockAnswerSurface = 'digital' | 'pattern' | 'set';
+
 export interface ClockQuestion {
   id: string;
   time: ClockTime;
   step: ClockStep;
   /** Resolved answer surface for this question (mixed picks per question). */
-  answerWith: 'digital' | 'pattern';
+  answerWith: ClockAnswerSurface;
 }
+
+const SURFACES: readonly ClockAnswerSurface[] = ['digital', 'pattern', 'set'];
 
 /** Resolve the answer surface, picking randomly for "mixed". */
 export function resolveAnswerWith(
   type: ClockAnswerType,
   rng: () => number = Math.random,
-): 'digital' | 'pattern' {
-  if (type === 'mixed') return rng() < 0.5 ? 'digital' : 'pattern';
+): ClockAnswerSurface {
+  if (type === 'mixed') return SURFACES[Math.floor(rng() * SURFACES.length)];
   return type;
 }
 

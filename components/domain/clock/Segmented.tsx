@@ -9,19 +9,25 @@ export interface SegmentedProps<T extends string> {
   onChange: (value: T) => void;
   /** Accent for the selected segment. */
   tone?: string;
+  /** Wrap into this many columns (e.g. 2 → a 2×2 grid). Default: one row. */
+  columns?: number;
 }
 
-/** A single-select row of equal-width buttons. */
+/** A single-select set of equal-width buttons (one row, or an N-column grid). */
 export function Segmented<T extends string>({
   options,
   value,
   onChange,
   tone,
+  columns,
 }: SegmentedProps<T>) {
+  const itemStyle = columns
+    ? { flexGrow: 1, flexBasis: `${Math.floor(100 / columns) - 4}%` as const }
+    : styles.flex;
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, columns ? styles.wrap : null]}>
       {options.map((o) => (
-        <View key={o.value} style={styles.flex}>
+        <View key={o.value} style={itemStyle}>
           <Button
             label={o.label}
             variant={o.value === value ? 'primary' : 'secondary'}
@@ -36,5 +42,6 @@ export function Segmented<T extends string>({
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.sm },
+  wrap: { flexWrap: 'wrap' },
   flex: { flex: 1 },
 });

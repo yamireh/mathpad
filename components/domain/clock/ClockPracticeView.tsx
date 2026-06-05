@@ -8,17 +8,23 @@ import { errorFeedback, successFeedback } from '../../../lib/feedback';
 import { prepareModel, recognizeNumber } from '../../../lib/recognition';
 import {
   checkPattern,
+  checkSet,
   clockPhrase,
+  formatDigital,
   generateClockQuestions,
   patternBank,
   type ClockResult,
   type ClockSettings,
+  type ClockTime,
   type ClockToken,
 } from '../../../lib/clock';
 import { type InkStroke } from '../ink';
 import { ClockFace } from './ClockFace';
 import { DigitalClockAnswer } from './DigitalClockAnswer';
 import { PatternBuilder } from './PatternBuilder';
+import { SettableClock } from './SettableClock';
+
+const SET_START: ClockTime = { hour: 12, minute: 0 };
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;
@@ -51,8 +57,10 @@ export function ClockPracticeView({
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<ClockResult[]>([]);
   const [built, setBuilt] = useState<ClockToken[]>([]);
+  const [setValue, setSetValue] = useState<ClockTime>(SET_START);
   const [resetNonce, setResetNonce] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [drawing, setDrawing] = useState(false);
   const hourRef = useRef<InkStroke[]>([]);
   const minuteRef = useRef<InkStroke[]>([]);
 
@@ -69,6 +77,7 @@ export function ClockPracticeView({
 
   const judge = async (): Promise<boolean> => {
     if (q.answerWith === 'pattern') return checkPattern(q.time, built);
+    if (q.answerWith === 'set') return checkSet(q.time, setValue);
     try {
       const [h, m] = await Promise.all([
         recognizeNumber(hourRef.current),
@@ -97,6 +106,7 @@ export function ClockPracticeView({
     setResults(next);
     setIndex((i) => i + 1);
     setBuilt([]);
+    setSetValue(SET_START);
     hourRef.current = [];
     minuteRef.current = [];
     setResetNonce((n) => n + 1);
@@ -116,26 +126,51 @@ export function ClockPracticeView({
         <View style={styles.spacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.body}>
-        <ClockFace time={q.time} size={240} showRing={showRing} />
-        <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
-        {q.answerWith === 'pattern' ? (
-          <PatternBuilder
-            bank={bank}
-            built={built}
-            onAdd={(token) => setBuilt((b) => [...b, token])}
-            onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}
-          />
+      <ScrollView
+        contentContainerStyle={styles.body}
+        scrollEnabled={!drawing}
+        keyboardShouldPersistTaps="handled"
+      >
+        {q.answerWith === 'set' ? (
+          <>
+            <Text style={styles.prompt}>
+              {t('clock.setPrompt', { time: formatDigital(q.time) })}
+            </Text>
+            <SettableClock
+              value={setValue}
+              onChange={setSetValue}
+              size={240}
+              step={q.step}
+              showRing={showRing}
+              onDragStart={() => setDrawing(true)}
+              onDragEnd={() => setDrawing(false)}
+            />
+          </>
         ) : (
-          <DigitalClockAnswer
-            key={resetNonce}
-            onHourChange={(s) => {
-              hourRef.current = s;
-            }}
-            onMinuteChange={(s) => {
-              minuteRef.current = s;
-            }}
-          />
+          <>
+            <ClockFace time={q.time} size={240} showRing={showRing} />
+            <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
+            {q.answerWith === 'pattern' ? (
+              <PatternBuilder
+                bank={bank}
+                built={built}
+                onAdd={(token) => setBuilt((b) => [...b, token])}
+                onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}
+              />
+            ) : (
+              <DigitalClockAnswer
+                key={resetNonce}
+                onHourChange={(s) => {
+                  hourRef.current = s;
+                }}
+                onMinuteChange={(s) => {
+                  minuteRef.current = s;
+                }}
+                onDrawStart={() => setDrawing(true)}
+                onDrawEnd={() => setDrawing(false)}
+              />
+            )}
+          </>
         )}
       </ScrollView>
 

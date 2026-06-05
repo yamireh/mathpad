@@ -12,6 +12,7 @@ export {
   DigitalClockAnswer,
   type DigitalClockAnswerProps,
 } from './DigitalClockAnswer';
+export { SettableClock, type SettableClockProps } from './SettableClock';
 export { Segmented, type SegmentedProps } from './Segmented';
 export {
   ClockSettingsView,

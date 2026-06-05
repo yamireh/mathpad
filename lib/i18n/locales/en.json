@@ -194,6 +194,7 @@
   },
   "clock": {
     "readPrompt": "What time is it?",
+    "setPrompt": "Show {{time}} on the clock",
     "patternHint": "Tap the words to build the time",
     "words": {
       "oclock": "o'clock",
@@ -208,6 +209,7 @@
       "complexity": "Complexity",
       "typeDigital": "Digital",
       "typePattern": "Pattern",
+      "typeSet": "Set hands",
       "typeMixed": "Mixed",
       "stepQuarter": "Quarters",
       "stepFive": "5 min",

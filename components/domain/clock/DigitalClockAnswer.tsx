@@ -7,12 +7,15 @@ import { HandwritingField } from './HandwritingField';
 export interface DigitalClockAnswerProps {
   onHourChange: (strokes: InkStroke[]) => void;
   onMinuteChange: (strokes: InkStroke[]) => void;
+  /** Lock page scrolling while a field is being drawn in. */
+  onDrawStart?: () => void;
+  onDrawEnd?: () => void;
   initialHour?: InkStroke[];
   initialMinute?: InkStroke[];
 }
 
-const FIELD_W = 84;
-const FIELD_H = 108;
+const FIELD_W = 116;
+const FIELD_H = 148;
 
 /**
  * "Write the time" answer surface: an hour field and a minute field separated
@@ -22,6 +25,8 @@ const FIELD_H = 108;
 export function DigitalClockAnswer({
   onHourChange,
   onMinuteChange,
+  onDrawStart,
+  onDrawEnd,
   initialHour,
   initialMinute,
 }: DigitalClockAnswerProps) {
@@ -32,6 +37,8 @@ export function DigitalClockAnswer({
         height={FIELD_H}
         initialStrokes={initialHour}
         onStrokesChange={onHourChange}
+        onDrawStart={onDrawStart}
+        onDrawEnd={onDrawEnd}
         accessibilityLabel="Hour"
       />
       <Text style={styles.colon}>:</Text>
@@ -40,6 +47,8 @@ export function DigitalClockAnswer({
         height={FIELD_H}
         initialStrokes={initialMinute}
         onStrokesChange={onMinuteChange}
+        onDrawStart={onDrawStart}
+        onDrawEnd={onDrawEnd}
         accessibilityLabel="Minutes"
       />
     </View>

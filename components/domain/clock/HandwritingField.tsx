@@ -13,6 +13,9 @@ export interface HandwritingFieldProps {
   /** Strokes to seed with (uncontrolled after mount; reset by changing `key`). */
   initialStrokes?: InkStroke[];
   onStrokesChange: (strokes: InkStroke[]) => void;
+  /** Fired on touch-down / touch-up so a parent can lock page scrolling. */
+  onDrawStart?: () => void;
+  onDrawEnd?: () => void;
   accessibilityLabel?: string;
 }
 
@@ -27,6 +30,8 @@ export function HandwritingField({
   height,
   initialStrokes,
   onStrokesChange,
+  onDrawStart,
+  onDrawEnd,
   accessibilityLabel,
 }: HandwritingFieldProps) {
   const ink = useInkCapture(initialStrokes, onStrokesChange);
@@ -34,6 +39,10 @@ export function HandwritingField({
     e.nativeEvent.locationX,
     e.nativeEvent.locationY,
   ];
+  const endStroke = () => {
+    ink.endStroke();
+    onDrawEnd?.();
+  };
 
   return (
     <View
@@ -45,13 +54,14 @@ export function HandwritingField({
       onResponderGrant={(e) => {
         const [x, y] = at(e);
         ink.beginStroke(x, y);
+        onDrawStart?.();
       }}
       onResponderMove={(e) => {
         const [x, y] = at(e);
         ink.extendStroke(x, y);
       }}
-      onResponderRelease={ink.endStroke}
-      onResponderTerminate={ink.endStroke}
+      onResponderRelease={endStroke}
+      onResponderTerminate={endStroke}
     >
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
         <NotebookGrid width={width} height={height} />

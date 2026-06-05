@@ -15,6 +15,7 @@ import { Segmented } from './Segmented';
 const TYPES: { value: ClockAnswerType; key: string }[] = [
   { value: 'digital', key: 'typeDigital' },
   { value: 'pattern', key: 'typePattern' },
+  { value: 'set', key: 'typeSet' },
   { value: 'mixed', key: 'typeMixed' },
 ];
 const STEPS: { value: ClockStep; key: string }[] = [
@@ -84,6 +85,7 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
           value={type}
           onChange={setType}
           tone={clockColors.hourHand}
+          columns={2}
         />
       </Section>
 

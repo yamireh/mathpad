@@ -83,6 +83,14 @@ export function errorFeedback(): void {
   blip(ERROR_PLAYER);
 }
 
+/**
+ * Soft "selection changed" tick — the iOS picker-wheel feel. For each step as a
+ * clock hand snaps to a new position.
+ */
+export function tickFeedback(): void {
+  void Haptics.selectionAsync();
+}
+
 /* -------------------------------------------------------------------------- */
 /* Looping pencil "scratch" sound (gapless ping-pong loop)                      */
 /* -------------------------------------------------------------------------- */

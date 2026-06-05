@@ -12,7 +12,12 @@ export {
   handAngles,
   pointOnClock,
 } from './format';
-export type { ClockWord, ClockToken, ClockQuestion } from './question';
+export type {
+  ClockWord,
+  ClockToken,
+  ClockQuestion,
+  ClockAnswerSurface,
+} from './question';
 export type { ClockSettings, ClockResult } from './settings';
 export { defaultClockSettings } from './settings';
 export {
@@ -21,6 +26,7 @@ export {
   patternBank,
   checkDigital,
   checkPattern,
+  checkSet,
   digitalAnswer,
   resolveAnswerWith,
   generateClockQuestions,
