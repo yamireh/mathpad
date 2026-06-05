@@ -61,6 +61,23 @@ export const operationColors = {
   mix: { accent: '#312E81', tint: '#E9E8F7' },
 } as const;
 
+/**
+ * Clock module palette. The two hands are deliberately different colours so
+ * they can be colour-matched to the answer boxes/tiles (a teaching aid).
+ */
+export const clockColors = {
+  /** Dial outline, hour ticks, centre cap. */
+  face: '#1C1C28',
+  /** Thin minute ticks. */
+  tick: '#DDE0E5',
+  /** Short hour hand — teal (the Clock topic accent). */
+  hourHand: '#0E8A6B',
+  /** Long minute hand — warm orange, distinct from the hour hand. */
+  minuteHand: '#D97706',
+  /** Count-by-5 training ring labels. */
+  ring: '#6E7079',
+} as const;
+
 /* -------------------------------------------------------------------------- */
 /* Typography                                                                   */
 /* -------------------------------------------------------------------------- */
