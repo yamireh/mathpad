@@ -24,7 +24,9 @@ import { DigitalClockAnswer } from './DigitalClockAnswer';
 import { PatternBuilder } from './PatternBuilder';
 import { SettableClock } from './SettableClock';
 
-const SET_START: ClockTime = { hour: 12, minute: 0 };
+// Start the hands apart (hour near 11, minute on 1) so it's obvious there are
+// two separate, movable hands — not one overlapping pair at 12.
+const SET_START: ClockTime = { hour: 11, minute: 5 };
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;
@@ -128,7 +130,9 @@ export function ClockPracticeView({
 
       <ScrollView
         contentContainerStyle={styles.body}
-        scrollEnabled={!drawing}
+        // In Set mode the clock fits and must own the drag gesture, so the page
+        // never scrolls; in the write/tiles modes, lock scrolling while drawing.
+        scrollEnabled={q.answerWith === 'set' ? false : !drawing}
         keyboardShouldPersistTaps="handled"
       >
         {q.answerWith === 'set' ? (
