@@ -21,8 +21,8 @@ export interface ScratchSoundHandle {
   release: () => void;
 }
 
-/** Master switch for the pencil sound while writing. */
-const SCRATCH_SOUND_ENABLED = true;
+/** Master switch for the pencil sound while writing. Off for now. */
+const SCRATCH_SOUND_ENABLED = false;
 
 const HANDLE: ScratchSoundHandle = {
   arm: () => {},
