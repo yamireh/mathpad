@@ -13,6 +13,7 @@ export {
   type DigitalClockAnswerProps,
 } from './DigitalClockAnswer';
 export { SettableClock, type SettableClockProps } from './SettableClock';
+export { ClockLegend } from './ClockLegend';
 export { Segmented, type SegmentedProps } from './Segmented';
 export {
   ClockSettingsView,

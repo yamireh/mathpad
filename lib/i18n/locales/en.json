@@ -195,6 +195,8 @@
   "clock": {
     "readPrompt": "What time is it?",
     "setPrompt": "Show {{time}} on the clock",
+    "hourHand": "Hour hand",
+    "minuteHand": "Minute hand",
     "patternHint": "Tap the words to build the time",
     "words": {
       "oclock": "o'clock",

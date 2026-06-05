@@ -66,14 +66,18 @@ export const operationColors = {
  * they can be colour-matched to the answer boxes/tiles (a teaching aid).
  */
 export const clockColors = {
-  /** Dial outline, hour ticks, centre cap. */
+  /** Numbers, ticks, centre cap. */
   face: '#1C1C28',
+  /** White clock face fill. */
+  faceFill: '#FFFFFF',
+  /** Soft pastel outer ring. */
+  rim: '#E7E9FB',
   /** Thin minute ticks. */
-  tick: '#DDE0E5',
-  /** Short hour hand — teal (the Clock topic accent). */
-  hourHand: '#0E8A6B',
-  /** Long minute hand — warm orange, distinct from the hour hand. */
-  minuteHand: '#D97706',
+  tick: '#C7CBE6',
+  /** Short hour hand — blue. */
+  hourHand: '#3B82F6',
+  /** Long minute hand — orange. */
+  minuteHand: '#F2683C',
   /** Count-by-5 training ring labels. */
   ring: '#6E7079',
 } as const;

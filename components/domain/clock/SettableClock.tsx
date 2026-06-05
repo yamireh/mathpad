@@ -1,9 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { tickFeedback } from '../../../lib/feedback';
-import { STEP_MINUTES, type ClockStep, type ClockTime } from '../../../lib/clock';
+import { type ClockStep, type ClockTime } from '../../../lib/clock';
 import { ClockFace } from './ClockFace';
 
 export interface SettableClockProps {
@@ -36,6 +36,10 @@ export function SettableClock({
   const valueRef = useRef(value);
   valueRef.current = value;
   const activeHand = useRef<'hour' | 'minute'>('minute');
+  const [grabbed, setGrabbed] = useState<'hour' | 'minute' | null>(null);
+  // While setting, the minute hand moves in 5-minute steps (so the kid can sweep
+  // it smoothly even at quarter complexity), or 1-minute steps for "Minutes".
+  const minuteSnap = step === 'minute' ? 1 : 5;
 
   const angleAt = (x: number, y: number): number =>
     norm360((Math.atan2(x - centre, -(y - centre)) * 180) / Math.PI);
@@ -45,8 +49,10 @@ export function SettableClock({
     const cur = valueRef.current;
     let next: ClockTime;
     if (activeHand.current === 'minute') {
-      const s = STEP_MINUTES[step];
-      next = { hour: cur.hour, minute: (Math.round(deg / 6 / s) * s) % 60 };
+      next = {
+        hour: cur.hour,
+        minute: (Math.round(deg / 6 / minuteSnap) * minuteSnap) % 60,
+      };
     } else {
       // Remove the hour hand's minute-drift before snapping to a number.
       const idx = Math.round(norm360(deg - cur.minute * 0.5) / 30) % 12;
@@ -64,14 +70,16 @@ export function SettableClock({
     .onBegin((e) => {
       const r = Math.hypot(e.x - centre, e.y - centre);
       activeHand.current = r < size * 0.3 ? 'hour' : 'minute';
+      setGrabbed(activeHand.current);
       update(e.x, e.y);
     })
-    .onUpdate((e) => update(e.x, e.y));
+    .onUpdate((e) => update(e.x, e.y))
+    .onFinalize(() => setGrabbed(null));
 
   return (
     <GestureDetector gesture={pan}>
       <View style={{ width: size, height: size }} collapsable={false}>
-        <ClockFace time={value} size={size} showRing={showRing} />
+        <ClockFace time={value} size={size} showRing={showRing} grabbed={grabbed} />
       </View>
     </GestureDetector>
   );

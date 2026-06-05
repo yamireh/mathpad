@@ -14,105 +14,94 @@ export interface ClockFaceProps {
   size: number;
   /** Show the "count by 5" training ring (scaffold). */
   showRing?: boolean;
+  /** Which hand is currently held — drawn bolder to show it's captured. */
+  grabbed?: 'hour' | 'minute' | null;
 }
 
 /** Tick marks as two Skia paths: thin minute ticks + bold 5-minute ticks. */
-function buildTicks(centre: number, radius: number) {
+function buildTicks(centre: number, outer: number) {
   const minor = Skia.Path.Make();
   const major = Skia.Path.Make();
   for (let i = 0; i < 60; i += 1) {
     const isMajor = i % 5 === 0;
-    const outer = pointOnClock(centre, radius - 4, i * 6);
-    const inner = pointOnClock(centre, radius - (isMajor ? 14 : 9), i * 6);
+    const o = pointOnClock(centre, outer, i * 6);
+    const inner = pointOnClock(centre, outer - (isMajor ? 12 : 7), i * 6);
     const path = isMajor ? major : minor;
-    path.moveTo(outer.x, outer.y);
+    path.moveTo(o.x, o.y);
     path.lineTo(inner.x, inner.y);
   }
   return { minor, major };
 }
 
-/** A filled "arrow" hand: a slim body with a counterweight tail and an
- *  arrowhead at the tip. */
-function arrowHandPath(
-  centre: number,
-  length: number,
-  angleDeg: number,
-  bodyW: number,
-  headW: number,
-  headLen: number,
-  tailLen: number,
-) {
-  const rad = (angleDeg * Math.PI) / 180;
-  const dx = Math.sin(rad);
-  const dy = -Math.cos(rad); // outward unit vector
-  const px = Math.cos(rad);
-  const py = Math.sin(rad); // perpendicular unit vector
-  const at = (dist: number, off: number): [number, number] => [
-    centre + dx * dist + px * off,
-    centre + dy * dist + py * off,
-  ];
-  const bodyEnd = length - headLen;
-  const bh = bodyW / 2;
-  const hh = headW / 2;
+function handPath(centre: number, tip: { x: number; y: number }) {
   const path = Skia.Path.Make();
-  let p = at(-tailLen, bh);
-  path.moveTo(p[0], p[1]);
-  p = at(bodyEnd, bh);
-  path.lineTo(p[0], p[1]);
-  p = at(bodyEnd, hh);
-  path.lineTo(p[0], p[1]);
-  p = at(length, 0); // tip
-  path.lineTo(p[0], p[1]);
-  p = at(bodyEnd, -hh);
-  path.lineTo(p[0], p[1]);
-  p = at(bodyEnd, -bh);
-  path.lineTo(p[0], p[1]);
-  p = at(-tailLen, -bh);
-  path.lineTo(p[0], p[1]);
-  path.close();
+  path.moveTo(centre, centre);
+  path.lineTo(tip.x, tip.y);
   return path;
 }
 
-function buildHands(centre: number, radius: number, time: ClockTime, size: number) {
-  const a = handAngles(time);
-  const tail = size * 0.055;
-  return {
-    hour: arrowHandPath(centre, radius * 0.55, a.hour, size * 0.03, size * 0.066, size * 0.085, tail),
-    minute: arrowHandPath(centre, radius * 0.82, a.minute, size * 0.022, size * 0.054, size * 0.1, tail),
-  };
-}
-
-/** A clean analog clock face that the child reads. */
-export function ClockFace({ time, size, showRing = false }: ClockFaceProps) {
+/** A clean, friendly analog clock face. */
+export function ClockFace({
+  time,
+  size,
+  showRing = false,
+  grabbed = null,
+}: ClockFaceProps) {
   const centre = size / 2;
   const radius = size / 2;
+  const rimW = size * 0.045;
+  const dialR = radius - rimW; // usable radius inside the rim
 
-  const ticks = useMemo(() => buildTicks(centre, radius), [centre, radius]);
-  const hands = useMemo(
-    () => buildHands(centre, radius, time, size),
-    [centre, radius, time, size],
+  const ticks = useMemo(
+    () => buildTicks(centre, dialR - 2),
+    [centre, dialR],
   );
+
+  const a = handAngles(time);
+  const hourTip = pointOnClock(centre, dialR * 0.52, a.hour);
+  const minTip = pointOnClock(centre, dialR * 0.82, a.minute);
+  const gH = grabbed === 'hour' ? 1.4 : 1;
+  const gM = grabbed === 'minute' ? 1.4 : 1;
 
   return (
     <View style={{ width: size, height: size }}>
       <Canvas style={StyleSheet.absoluteFill}>
+        <Circle cx={centre} cy={centre} r={radius - 2} color={clockColors.faceFill} />
         <Circle
           cx={centre}
           cy={centre}
-          r={radius - 2}
-          color={clockColors.face}
+          r={radius - rimW / 2 - 2}
+          color={clockColors.rim}
           style="stroke"
-          strokeWidth={3}
+          strokeWidth={rimW}
         />
         <Path path={ticks.minor} color={clockColors.tick} style="stroke" strokeWidth={1.5} />
-        <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={3} strokeCap="round" />
-        <Path path={hands.hour} color={clockColors.hourHand} />
-        <Path path={hands.minute} color={clockColors.minuteHand} />
-        <Circle cx={centre} cy={centre} r={size * 0.03} color={clockColors.face} />
+        <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={2.5} strokeCap="round" />
+
+        <Path
+          path={handPath(centre, hourTip)}
+          color={clockColors.hourHand}
+          style="stroke"
+          strokeWidth={size * 0.038 * gH}
+          strokeCap="round"
+        />
+        <Circle cx={hourTip.x} cy={hourTip.y} r={size * 0.045 * gH} color={clockColors.hourHand} />
+
+        <Path
+          path={handPath(centre, minTip)}
+          color={clockColors.minuteHand}
+          style="stroke"
+          strokeWidth={size * 0.028 * gM}
+          strokeCap="round"
+        />
+        <Circle cx={minTip.x} cy={minTip.y} r={size * 0.038 * gM} color={clockColors.minuteHand} />
+
+        <Circle cx={centre} cy={centre} r={size * 0.035} color={clockColors.face} />
+        <Circle cx={centre} cy={centre} r={size * 0.016} color={clockColors.faceFill} />
       </Canvas>
 
-      {showRing ? <ClockRing size={size} radius={radius * 0.74} /> : null}
-      <ClockNumbers size={size} radius={radius * (showRing ? 0.54 : 0.74)} />
+      {showRing ? <ClockRing size={size} radius={dialR * 0.7} /> : null}
+      <ClockNumbers size={size} radius={dialR * (showRing ? 0.5 : 0.72)} />
     </View>
   );
 }

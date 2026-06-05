@@ -20,6 +20,7 @@ import {
 } from '../../../lib/clock';
 import { type InkStroke } from '../ink';
 import { ClockFace } from './ClockFace';
+import { ClockLegend } from './ClockLegend';
 import { DigitalClockAnswer } from './DigitalClockAnswer';
 import { PatternBuilder } from './PatternBuilder';
 import { SettableClock } from './SettableClock';
@@ -148,6 +149,7 @@ export function ClockPracticeView({
               step={q.step}
               showRing={showRing}
             />
+            <ClockLegend />
           </>
         ) : (
           <>
