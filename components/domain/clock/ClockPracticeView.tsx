@@ -62,6 +62,7 @@ export function ClockPracticeView({
   const [results, setResults] = useState<ClockResult[]>([]);
   const [built, setBuilt] = useState<ClockToken[]>([]);
   const [setValue, setSetValue] = useState<ClockTime>(SET_START);
+  const [selectedHand, setSelectedHand] = useState<'hour' | 'minute'>('hour');
   const [resetNonce, setResetNonce] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [drawing, setDrawing] = useState(false);
@@ -111,6 +112,7 @@ export function ClockPracticeView({
     setIndex((i) => i + 1);
     setBuilt([]);
     setSetValue(SET_START);
+    setSelectedHand('hour');
     hourRef.current = [];
     minuteRef.current = [];
     setResetNonce((n) => n + 1);
@@ -145,11 +147,12 @@ export function ClockPracticeView({
             <SettableClock
               value={setValue}
               onChange={setSetValue}
+              selected={selectedHand}
               size={CLOCK_SIZE}
               step={q.step}
               showRing={showRing}
             />
-            <ClockLegend />
+            <ClockLegend selected={selectedHand} onSelect={setSelectedHand} />
           </>
         ) : (
           <>

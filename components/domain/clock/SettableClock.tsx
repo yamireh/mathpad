@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
@@ -10,6 +10,8 @@ export interface SettableClockProps {
   /** The time the hands currently show. */
   value: ClockTime;
   onChange: (value: ClockTime) => void;
+  /** Which hand a drag moves (chosen via the hand selector). */
+  selected: 'hour' | 'minute';
   /** Square edge length in px. */
   size: number;
   /** Minute granularity the minute hand snaps to. */
@@ -20,14 +22,16 @@ export interface SettableClockProps {
 const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
 
 /**
- * An analog clock whose two hands the child drags to set a time. The nearer-to-
- * centre touch grabs the (short) hour hand, otherwise the minute hand; each
- * hand snaps — to the complexity step for minutes, to the nearest number for
- * hours (drift-aware) — with a picker-style tick on every step.
+ * An analog clock whose hands the child drags to set a time. A drag only moves
+ * the *selected* hand (picked via the hand selector) so the other never changes
+ * by accident. The minute hand snaps in 5-minute steps (1-minute at "Minutes"
+ * complexity); the hour hand snaps to the nearest number (drift-aware). Each
+ * step fires a picker-style tick.
  */
 export function SettableClock({
   value,
   onChange,
+  selected,
   size,
   step,
   showRing,
@@ -35,10 +39,8 @@ export function SettableClock({
   const centre = size / 2;
   const valueRef = useRef(value);
   valueRef.current = value;
-  const activeHand = useRef<'hour' | 'minute'>('minute');
-  const [grabbed, setGrabbed] = useState<'hour' | 'minute' | null>(null);
-  // While setting, the minute hand moves in 5-minute steps (so the kid can sweep
-  // it smoothly even at quarter complexity), or 1-minute steps for "Minutes".
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const minuteSnap = step === 'minute' ? 1 : 5;
 
   const angleAt = (x: number, y: number): number =>
@@ -48,7 +50,7 @@ export function SettableClock({
     const deg = angleAt(x, y);
     const cur = valueRef.current;
     let next: ClockTime;
-    if (activeHand.current === 'minute') {
+    if (selectedRef.current === 'minute') {
       next = {
         hour: cur.hour,
         minute: (Math.round(deg / 6 / minuteSnap) * minuteSnap) % 60,
@@ -67,19 +69,13 @@ export function SettableClock({
 
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .onBegin((e) => {
-      const r = Math.hypot(e.x - centre, e.y - centre);
-      activeHand.current = r < size * 0.3 ? 'hour' : 'minute';
-      setGrabbed(activeHand.current);
-      update(e.x, e.y);
-    })
-    .onUpdate((e) => update(e.x, e.y))
-    .onFinalize(() => setGrabbed(null));
+    .onBegin((e) => update(e.x, e.y))
+    .onUpdate((e) => update(e.x, e.y));
 
   return (
     <GestureDetector gesture={pan}>
       <View style={{ width: size, height: size }} collapsable={false}>
-        <ClockFace time={value} size={size} showRing={showRing} grabbed={grabbed} />
+        <ClockFace time={value} size={size} showRing={showRing} grabbed={selected} />
       </View>
     </GestureDetector>
   );

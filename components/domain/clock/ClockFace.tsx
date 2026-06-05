@@ -14,7 +14,7 @@ export interface ClockFaceProps {
   size: number;
   /** Show the "count by 5" training ring (scaffold). */
   showRing?: boolean;
-  /** Which hand is currently held — drawn bolder to show it's captured. */
+  /** Which hand is currently active — drawn bolder to show it's selected. */
   grabbed?: 'hour' | 'minute' | null;
 }
 
@@ -33,14 +33,45 @@ function buildTicks(centre: number, outer: number) {
   return { minor, major };
 }
 
-function handPath(centre: number, tip: { x: number; y: number }) {
+/** A filled hand: a slim body with a counterweight tail and a sharp arrowhead. */
+function arrowHandPath(
+  centre: number,
+  length: number,
+  angleDeg: number,
+  bodyW: number,
+  headW: number,
+  headLen: number,
+  tailLen: number,
+) {
+  const rad = (angleDeg * Math.PI) / 180;
+  const dx = Math.sin(rad);
+  const dy = -Math.cos(rad); // outward unit vector
+  const px = Math.cos(rad);
+  const py = Math.sin(rad); // perpendicular unit vector
+  const at = (dist: number, off: number): [number, number] => [
+    centre + dx * dist + px * off,
+    centre + dy * dist + py * off,
+  ];
+  const bodyEnd = length - headLen;
+  const bh = bodyW / 2;
+  const hh = headW / 2;
   const path = Skia.Path.Make();
-  path.moveTo(centre, centre);
-  path.lineTo(tip.x, tip.y);
+  const pts: [number, number][] = [
+    at(-tailLen, bh),
+    at(bodyEnd, bh),
+    at(bodyEnd, hh),
+    at(length, 0), // sharp tip
+    at(bodyEnd, -hh),
+    at(bodyEnd, -bh),
+    at(-tailLen, -bh),
+  ];
+  path.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i += 1) path.lineTo(pts[i][0], pts[i][1]);
+  path.close();
   return path;
 }
 
-/** A clean, friendly analog clock face. */
+/** A clean, friendly analog clock face with sharp-tipped arrow hands. */
 export function ClockFace({
   time,
   size,
@@ -52,16 +83,18 @@ export function ClockFace({
   const rimW = size * 0.045;
   const dialR = radius - rimW; // usable radius inside the rim
 
-  const ticks = useMemo(
-    () => buildTicks(centre, dialR - 2),
-    [centre, dialR],
-  );
+  const ticks = useMemo(() => buildTicks(centre, dialR - 2), [centre, dialR]);
 
   const a = handAngles(time);
-  const hourTip = pointOnClock(centre, dialR * 0.52, a.hour);
-  const minTip = pointOnClock(centre, dialR * 0.82, a.minute);
-  const gH = grabbed === 'hour' ? 1.4 : 1;
-  const gM = grabbed === 'minute' ? 1.4 : 1;
+  const gH = grabbed === 'hour' ? 1.45 : 1;
+  const gM = grabbed === 'minute' ? 1.45 : 1;
+  const tail = size * 0.06;
+  const hourHand = arrowHandPath(
+    centre, dialR * 0.56, a.hour, size * 0.03 * gH, size * 0.07 * gH, size * 0.085, tail,
+  );
+  const minuteHand = arrowHandPath(
+    centre, dialR * 0.84, a.minute, size * 0.022 * gM, size * 0.06 * gM, size * 0.1, tail,
+  );
 
   return (
     <View style={{ width: size, height: size }}>
@@ -78,23 +111,8 @@ export function ClockFace({
         <Path path={ticks.minor} color={clockColors.tick} style="stroke" strokeWidth={1.5} />
         <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={2.5} strokeCap="round" />
 
-        <Path
-          path={handPath(centre, hourTip)}
-          color={clockColors.hourHand}
-          style="stroke"
-          strokeWidth={size * 0.038 * gH}
-          strokeCap="round"
-        />
-        <Circle cx={hourTip.x} cy={hourTip.y} r={size * 0.045 * gH} color={clockColors.hourHand} />
-
-        <Path
-          path={handPath(centre, minTip)}
-          color={clockColors.minuteHand}
-          style="stroke"
-          strokeWidth={size * 0.028 * gM}
-          strokeCap="round"
-        />
-        <Circle cx={minTip.x} cy={minTip.y} r={size * 0.038 * gM} color={clockColors.minuteHand} />
+        <Path path={hourHand} color={clockColors.hourHand} />
+        <Path path={minuteHand} color={clockColors.minuteHand} />
 
         <Circle cx={centre} cy={centre} r={size * 0.035} color={clockColors.face} />
         <Circle cx={centre} cy={centre} r={size * 0.016} color={clockColors.faceFill} />
