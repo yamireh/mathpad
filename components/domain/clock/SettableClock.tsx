@@ -46,19 +46,25 @@ export function SettableClock({
   const angleAt = (x: number, y: number): number =>
     norm360((Math.atan2(x - centre, -(y - centre)) * 180) / Math.PI);
 
-  const update = (x: number, y: number) => {
+  const update = (x: number, y: number, dragging: boolean) => {
     const deg = angleAt(x, y);
     const cur = valueRef.current;
     let next: ClockTime;
     if (selectedRef.current === 'minute') {
-      next = {
-        hour: cur.hour,
-        minute: (Math.round(deg / 6 / minuteSnap) * minuteSnap) % 60,
-      };
+      const minute = (Math.round(deg / 6 / minuteSnap) * minuteSnap) % 60;
+      let hour = cur.hour;
+      // Geared like a real clock: sweeping the minute hand past 12 rolls the
+      // hour by one (only during a continuous drag, not the initial grab).
+      if (dragging) {
+        if (cur.minute >= 45 && minute <= 15) hour = hour === 12 ? 1 : hour + 1;
+        else if (cur.minute <= 15 && minute >= 45)
+          hour = hour === 1 ? 12 : hour - 1;
+      }
+      next = { hour, minute };
     } else {
-      // Set mode shows a non-drifting hour hand, so snap straight to the
-      // nearest number.
-      const idx = Math.round(norm360(deg) / 30) % 12;
+      // Hour hand drifts with the minutes, so account for that drift before
+      // snapping to the nearest number.
+      const idx = Math.round(norm360(deg - cur.minute * 0.5) / 30) % 12;
       next = { hour: idx === 0 ? 12 : idx, minute: cur.minute };
     }
     if (next.hour !== cur.hour || next.minute !== cur.minute) {
@@ -70,8 +76,8 @@ export function SettableClock({
 
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .onBegin((e) => update(e.x, e.y))
-    .onUpdate((e) => update(e.x, e.y));
+    .onBegin((e) => update(e.x, e.y, false))
+    .onUpdate((e) => update(e.x, e.y, true));
 
   return (
     <GestureDetector gesture={pan}>
@@ -81,7 +87,6 @@ export function SettableClock({
           size={size}
           showRing={showRing}
           grabbed={selected}
-          simpleHour
         />
       </View>
     </GestureDetector>
