@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { type GestureResponderEvent, View } from 'react-native';
+import { View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
 import { tickFeedback } from '../../../lib/feedback';
 import { STEP_MINUTES, type ClockStep, type ClockTime } from '../../../lib/clock';
@@ -14,9 +15,6 @@ export interface SettableClockProps {
   /** Minute granularity the minute hand snaps to. */
   step: ClockStep;
   showRing?: boolean;
-  /** Fired on touch-down / touch-up so a parent can lock page scrolling. */
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
 }
 
 const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
@@ -33,8 +31,6 @@ export function SettableClock({
   size,
   step,
   showRing,
-  onDragStart,
-  onDragEnd,
 }: SettableClockProps) {
   const centre = size / 2;
   const valueRef = useRef(value);
@@ -63,32 +59,20 @@ export function SettableClock({
     }
   };
 
-  const at = (e: GestureResponderEvent): [number, number] => [
-    e.nativeEvent.locationX,
-    e.nativeEvent.locationY,
-  ];
+  const pan = Gesture.Pan()
+    .runOnJS(true)
+    .onBegin((e) => {
+      const r = Math.hypot(e.x - centre, e.y - centre);
+      activeHand.current = r < size * 0.3 ? 'hour' : 'minute';
+      update(e.x, e.y);
+    })
+    .onUpdate((e) => update(e.x, e.y));
 
   return (
-    <View
-      style={{ width: size, height: size }}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => {
-        const [x, y] = at(e);
-        const r = Math.hypot(x - centre, y - centre);
-        activeHand.current = r < size * 0.3 ? 'hour' : 'minute';
-        onDragStart?.();
-        update(x, y);
-      }}
-      onResponderMove={(e) => {
-        const [x, y] = at(e);
-        update(x, y);
-      }}
-      onResponderRelease={onDragEnd}
-      onResponderTerminate={onDragEnd}
-    >
-      <ClockFace time={value} size={size} showRing={showRing} />
-    </View>
+    <GestureDetector gesture={pan}>
+      <View style={{ width: size, height: size }} collapsable={false}>
+        <ClockFace time={value} size={size} showRing={showRing} />
+      </View>
+    </GestureDetector>
   );
 }

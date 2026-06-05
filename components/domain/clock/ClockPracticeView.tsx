@@ -27,6 +27,7 @@ import { SettableClock } from './SettableClock';
 // Start the hands apart (hour near 11, minute on 1) so it's obvious there are
 // two separate, movable hands — not one overlapping pair at 12.
 const SET_START: ClockTime = { hour: 11, minute: 5 };
+const CLOCK_SIZE = 264;
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;
@@ -143,16 +144,14 @@ export function ClockPracticeView({
             <SettableClock
               value={setValue}
               onChange={setSetValue}
-              size={240}
+              size={CLOCK_SIZE}
               step={q.step}
               showRing={showRing}
-              onDragStart={() => setDrawing(true)}
-              onDragEnd={() => setDrawing(false)}
             />
           </>
         ) : (
           <>
-            <ClockFace time={q.time} size={240} showRing={showRing} />
+            <ClockFace time={q.time} size={CLOCK_SIZE} showRing={showRing} />
             <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
             {q.answerWith === 'pattern' ? (
               <PatternBuilder

@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import {
@@ -18,14 +19,16 @@ import '../lib/i18n';
  */
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <PurchasesProvider>
-        <TipsProvider>
-          <PracticeSessionProvider>
-            <Stack screenOptions={{ headerShown: false }} />
-          </PracticeSessionProvider>
-        </TipsProvider>
-      </PurchasesProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PurchasesProvider>
+          <TipsProvider>
+            <PracticeSessionProvider>
+              <Stack screenOptions={{ headerShown: false }} />
+            </PracticeSessionProvider>
+          </TipsProvider>
+        </PurchasesProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
