@@ -194,7 +194,8 @@
   },
   "clock": {
     "readPrompt": "What time is it?",
-    "setPrompt": "Show {{time}} on the clock",
+    "setTitle": "Set the time",
+    "reset": "Reset",
     "hourHand": "Hour hand",
     "minuteHand": "Minute hand",
     "patternHint": "Tap the words to build the time",

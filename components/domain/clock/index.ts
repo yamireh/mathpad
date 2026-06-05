@@ -14,6 +14,7 @@ export {
 } from './DigitalClockAnswer';
 export { SettableClock, type SettableClockProps } from './SettableClock';
 export { ClockLegend, type ClockLegendProps } from './ClockLegend';
+export { SetClockPrompt, type SetClockPromptProps } from './SetClockPrompt';
 export { Segmented, type SegmentedProps } from './Segmented';
 export {
   ClockSettingsView,

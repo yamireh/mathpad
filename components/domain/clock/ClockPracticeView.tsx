@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 
-import { Button, IconButton, ScreenContainer } from '../../ui';
+import { Button, IconButton, Pill, ScreenContainer } from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
 import { errorFeedback, successFeedback } from '../../../lib/feedback';
 import { prepareModel, recognizeNumber } from '../../../lib/recognition';
@@ -29,6 +29,7 @@ import { ClockFace } from './ClockFace';
 import { ClockLegend } from './ClockLegend';
 import { DigitalClockAnswer } from './DigitalClockAnswer';
 import { PatternBuilder } from './PatternBuilder';
+import { SetClockPrompt } from './SetClockPrompt';
 import { SettableClock } from './SettableClock';
 
 // Hands always start at 9 o'clock (hour on 9, minute on 12) — two clearly
@@ -149,9 +150,7 @@ export function ClockPracticeView({
       >
         {q.answerWith === 'set' ? (
           <>
-            <Text style={styles.prompt}>
-              {t('clock.setPrompt', { time: formatDigital(q.time) })}
-            </Text>
+            <SetClockPrompt time={formatDigital(q.time)} />
             <SettableClock
               value={setValue}
               onChange={setSetValue}
@@ -161,6 +160,14 @@ export function ClockPracticeView({
               showRing={showRing}
             />
             <ClockLegend selected={selectedHand} onSelect={setSelectedHand} />
+            <Pill
+              label={t('clock.reset')}
+              icon="refresh-outline"
+              onPress={() => {
+                setSetValue(SET_START);
+                setSelectedHand('hour');
+              }}
+            />
           </>
         ) : (
           <>
