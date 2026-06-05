@@ -1,4 +1,5 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
+import { forwardRef, useImperativeHandle } from 'react';
 import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../../constants/design';
@@ -6,6 +7,13 @@ import { NotebookGrid } from '../NotebookGrid';
 import { type InkStroke, strokeToPath, useInkCapture } from '../ink';
 
 const STROKE_WIDTH = 3;
+
+export interface HandwritingFieldHandle {
+  /** Remove the last stroke. */
+  undo: () => void;
+  /** Erase all ink. */
+  clear: () => void;
+}
 
 export interface HandwritingFieldProps {
   width: number;
@@ -25,16 +33,26 @@ export interface HandwritingFieldProps {
  * same drawing stack as the scratch canvas — so it stays consistent and touches
  * no operation-specific code. Recognition is applied by the consumer.
  */
-export function HandwritingField({
-  width,
-  height,
-  initialStrokes,
-  onStrokesChange,
-  onDrawStart,
-  onDrawEnd,
-  accessibilityLabel,
-}: HandwritingFieldProps) {
+export const HandwritingField = forwardRef<
+  HandwritingFieldHandle,
+  HandwritingFieldProps
+>(function HandwritingField(
+  {
+    width,
+    height,
+    initialStrokes,
+    onStrokesChange,
+    onDrawStart,
+    onDrawEnd,
+    accessibilityLabel,
+  },
+  ref,
+) {
   const ink = useInkCapture(initialStrokes, onStrokesChange);
+  useImperativeHandle(ref, () => ({ undo: ink.undo, clear: ink.clear }), [
+    ink.undo,
+    ink.clear,
+  ]);
   const at = (e: GestureResponderEvent): [number, number] => [
     e.nativeEvent.locationX,
     e.nativeEvent.locationY,
@@ -89,7 +107,7 @@ export function HandwritingField({
       </Canvas>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   field: {
