@@ -12,4 +12,18 @@ export {
   DigitalClockAnswer,
   type DigitalClockAnswerProps,
 } from './DigitalClockAnswer';
+export { Segmented, type SegmentedProps } from './Segmented';
+export {
+  ClockSettingsView,
+  type ClockSettingsViewProps,
+} from './ClockSettingsView';
+export {
+  ClockPracticeView,
+  type ClockPracticeViewProps,
+} from './ClockPracticeView';
+export {
+  ClockResultsView,
+  type ClockResultsViewProps,
+} from './ClockResultsView';
+export { ClockModule } from './ClockModule';
 export { ClockPreview } from './ClockPreview';

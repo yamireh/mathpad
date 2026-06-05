@@ -201,6 +201,17 @@
       "half": "half",
       "past": "past",
       "to": "to"
+    },
+    "settings": {
+      "count": "Number of questions",
+      "type": "Answer type",
+      "complexity": "Complexity",
+      "typeDigital": "Digital",
+      "typePattern": "Pattern",
+      "typeMixed": "Mixed",
+      "stepQuarter": "Quarters",
+      "stepFive": "5 min",
+      "stepMinute": "Minutes"
     }
   },
   "hints": {

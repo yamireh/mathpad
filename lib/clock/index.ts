@@ -13,6 +13,8 @@ export {
   pointOnClock,
 } from './format';
 export type { ClockWord, ClockToken, ClockQuestion } from './question';
+export type { ClockSettings, ClockResult } from './settings';
+export { defaultClockSettings } from './settings';
 export {
   phraseTokens,
   tokensEqual,
