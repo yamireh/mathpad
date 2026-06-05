@@ -25,9 +25,9 @@ import { DigitalClockAnswer } from './DigitalClockAnswer';
 import { PatternBuilder } from './PatternBuilder';
 import { SettableClock } from './SettableClock';
 
-// Start the hands apart (hour near 11, minute on 1) so it's obvious there are
-// two separate, movable hands — not one overlapping pair at 12.
-const SET_START: ClockTime = { hour: 11, minute: 5 };
+// Hands always start at 9 o'clock (hour on 9, minute on 12) — two clearly
+// separate, movable hands.
+const SET_START: ClockTime = { hour: 9, minute: 0 };
 const CLOCK_SIZE = 264;
 
 export interface ClockPracticeViewProps {
