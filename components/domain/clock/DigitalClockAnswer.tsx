@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { IconButton } from '../../ui';
 import { clockColors, spacing, typography } from '../../../constants/design';
@@ -15,9 +15,6 @@ export interface DigitalClockAnswerProps {
   onDrawEnd?: () => void;
 }
 
-const FIELD_W = 116;
-const FIELD_H = 148;
-
 /**
  * "Write the time" answer surface: an hour field and a minute field separated
  * by a colon, each a {@link HandwritingField}, plus a clear button. The
@@ -30,6 +27,10 @@ export function DigitalClockAnswer({
   onDrawEnd,
 }: DigitalClockAnswerProps) {
   const { t } = useTranslation();
+  // Wide, responsive write boxes — two fit a row with the colon, larger on iPad.
+  const { width } = useWindowDimensions();
+  const fieldW = Math.min(Math.round(width * 0.37), 200);
+  const fieldH = Math.round(fieldW * 1.05);
   // Bumping this remounts both fields with empty ink.
   const [nonce, setNonce] = useState(0);
 
@@ -44,8 +45,8 @@ export function DigitalClockAnswer({
       <View style={styles.row}>
         <HandwritingField
           key={`hour-${nonce}`}
-          width={FIELD_W}
-          height={FIELD_H}
+          width={fieldW}
+          height={fieldH}
           onStrokesChange={onHourChange}
           onDrawStart={onDrawStart}
           onDrawEnd={onDrawEnd}
@@ -54,8 +55,8 @@ export function DigitalClockAnswer({
         <Text style={styles.colon}>:</Text>
         <HandwritingField
           key={`minute-${nonce}`}
-          width={FIELD_W}
-          height={FIELD_H}
+          width={fieldW}
+          height={fieldH}
           onStrokesChange={onMinuteChange}
           onDrawStart={onDrawStart}
           onDrawEnd={onDrawEnd}
