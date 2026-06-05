@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { Button, IconButton, ScreenContainer } from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
@@ -28,7 +34,6 @@ import { SettableClock } from './SettableClock';
 // Hands always start at 9 o'clock (hour on 9, minute on 12) — two clearly
 // separate, movable hands.
 const SET_START: ClockTime = { hour: 9, minute: 0 };
-const CLOCK_SIZE = 288;
 
 export interface ClockPracticeViewProps {
   settings: ClockSettings;
@@ -48,6 +53,9 @@ export function ClockPracticeView({
   onExit,
 }: ClockPracticeViewProps) {
   const { t } = useTranslation();
+  // Responsive clock: a share of the screen width, larger on iPad (capped).
+  const { width } = useWindowDimensions();
+  const clockSize = Math.min(Math.round(width * 0.82), 460);
   const questions = useMemo(
     () =>
       generateClockQuestions({
@@ -148,7 +156,7 @@ export function ClockPracticeView({
               value={setValue}
               onChange={setSetValue}
               selected={selectedHand}
-              size={CLOCK_SIZE}
+              size={clockSize}
               step={q.step}
               showRing={showRing}
             />
@@ -156,7 +164,7 @@ export function ClockPracticeView({
           </>
         ) : (
           <>
-            <ClockFace time={q.time} size={CLOCK_SIZE} showRing={showRing} />
+            <ClockFace time={q.time} size={clockSize} showRing={showRing} />
             <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
             {q.answerWith === 'pattern' ? (
               <PatternBuilder

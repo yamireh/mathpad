@@ -12,10 +12,11 @@ export interface ClockNumbersProps {
 
 /** The 1–12 hour numbers, placed around the dial (RN text over the Skia face). */
 const NUMBERS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-const SLOT = 28;
 
 export function ClockNumbers({ size, radius }: ClockNumbersProps) {
   const centre = size / 2;
+  const slot = size * 0.1; // scales with the clock
+  const fontSize = size * 0.062;
   return (
     <>
       {NUMBERS.map((n) => {
@@ -23,10 +24,10 @@ export function ClockNumbers({ size, radius }: ClockNumbersProps) {
         return (
           <View
             key={n}
-            style={[styles.slot, { left: x - SLOT / 2, top: y - SLOT / 2 }]}
+            style={[styles.slot, { width: slot, height: slot, left: x - slot / 2, top: y - slot / 2 }]}
             pointerEvents="none"
           >
-            <Text style={styles.text}>{n}</Text>
+            <Text style={[styles.text, { fontSize }]}>{n}</Text>
           </View>
         );
       })}
@@ -35,15 +36,8 @@ export function ClockNumbers({ size, radius }: ClockNumbersProps) {
 }
 
 const styles = StyleSheet.create({
-  slot: {
-    position: 'absolute',
-    width: SLOT,
-    height: SLOT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  slot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   text: {
-    fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
     color: clockColors.face,
     fontVariant: ['tabular-nums'],

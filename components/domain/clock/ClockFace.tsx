@@ -92,7 +92,7 @@ export function ClockFace({
   const dialR = radius - rimW; // usable radius inside the rim
 
   // Rings from the rim inward: minute numbers → ticks → hour numbers.
-  const ticksOuter = dialR * 0.78;
+  const ticksOuter = dialR * 0.84;
   const ticks = useMemo(
     () => buildTicks(centre, ticksOuter, dialR * 0.11, dialR * 0.05),
     [centre, ticksOuter, dialR],
@@ -131,8 +131,8 @@ export function ClockFace({
         <Circle cx={centre} cy={centre} r={size * 0.014} color={clockColors.faceFill} />
       </Canvas>
 
-      {showRing ? <ClockRing size={size} radius={dialR * 0.9} /> : null}
-      <ClockNumbers size={size} radius={dialR * (showRing ? 0.56 : 0.88)} />
+      {showRing ? <ClockRing size={size} radius={dialR * 0.92} /> : null}
+      <ClockNumbers size={size} radius={dialR * 0.58} />
     </View>
   );
 }
