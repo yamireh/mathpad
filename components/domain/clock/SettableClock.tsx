@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 
@@ -41,6 +41,8 @@ export function SettableClock({
   valueRef.current = value;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  // The hand being actively dragged (bolded only while held, not just selected).
+  const [active, setActive] = useState<'hour' | 'minute' | null>(null);
   const minuteSnap = step === 'minute' ? 1 : 5;
 
   const angleAt = (x: number, y: number): number =>
@@ -76,8 +78,12 @@ export function SettableClock({
 
   const pan = Gesture.Pan()
     .runOnJS(true)
-    .onBegin((e) => update(e.x, e.y, false))
-    .onUpdate((e) => update(e.x, e.y, true));
+    .onBegin((e) => {
+      setActive(selectedRef.current);
+      update(e.x, e.y, false);
+    })
+    .onUpdate((e) => update(e.x, e.y, true))
+    .onFinalize(() => setActive(null));
 
   return (
     <GestureDetector gesture={pan}>
@@ -86,7 +92,7 @@ export function SettableClock({
           time={value}
           size={size}
           showRing={showRing}
-          grabbed={selected}
+          grabbed={active}
         />
       </View>
     </GestureDetector>
