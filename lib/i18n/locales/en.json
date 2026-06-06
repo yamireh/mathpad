@@ -212,13 +212,20 @@
       "count": "Number of questions",
       "type": "Answer type",
       "complexity": "Complexity",
-      "typeDigital": "Digital",
-      "typePattern": "Pattern",
-      "typeSet": "Set hands",
+      "typeDigital": "Write the time",
+      "typeDigitalDesc": "Read the clock and write it, like 6:30",
+      "typePattern": "Say it in words",
+      "typePatternDesc": "Read the clock and build the words",
+      "typeSet": "Set the hands",
+      "typeSetDesc": "Move the hands to match a time",
       "typeMixed": "Mixed",
+      "typeMixedDesc": "A bit of each",
       "stepQuarter": "Quarters",
-      "stepFive": "5 min",
-      "stepMinute": "Minutes"
+      "stepQuarterDesc": "o'clock, quarter and half past",
+      "stepFive": "Five minutes",
+      "stepFiveDesc": "Times in 5-minute steps",
+      "stepMinute": "Minutes",
+      "stepMinuteDesc": "Any minute"
     }
   },
   "hints": {

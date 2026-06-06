@@ -4,6 +4,8 @@ import { colors, radius, spacing, typography } from '../../constants/design';
 
 export interface RadioRowProps {
   label: string;
+  /** Optional one-line explanation under the label. */
+  description?: string;
   selected: boolean;
   onPress: () => void;
   /** Accent colour for the selected indicator. */
@@ -13,6 +15,7 @@ export interface RadioRowProps {
 /** One selectable row within a radio group. */
 export function RadioRow({
   label,
+  description,
   selected,
   onPress,
   tone = colors.text,
@@ -25,7 +28,12 @@ export function RadioRow({
       accessibilityState={{ selected }}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.texts}>
+        <Text style={styles.label}>{label}</Text>
+        {description ? (
+          <Text style={styles.description}>{description}</Text>
+        ) : null}
+      </View>
       <View
         style={[
           styles.dot,
@@ -49,11 +57,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   pressed: { opacity: 0.6 },
+  texts: { flex: 1, gap: 2, paddingRight: spacing.md },
   label: {
-    flex: 1,
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.regular,
     color: colors.text,
+  },
+  description: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
   },
   dot: {
     width: 24,

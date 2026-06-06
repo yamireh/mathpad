@@ -3,14 +3,20 @@ import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Header, IconButton, ScreenContainer } from '../../ui';
+import {
+  Button,
+  Card,
+  Header,
+  IconButton,
+  RadioRow,
+  ScreenContainer,
+} from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
 import type {
   ClockAnswerType,
   ClockSettings,
   ClockStep,
 } from '../../../lib/clock';
-import { Segmented } from './Segmented';
 
 const TYPES: { value: ClockAnswerType; key: string }[] = [
   { value: 'digital', key: 'typeDigital' },
@@ -80,22 +86,29 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
       </Section>
 
       <Section title={t('clock.settings.type')}>
-        <Segmented
-          options={TYPES.map((o) => ({ value: o.value, label: t(`clock.settings.${o.key}`) }))}
-          value={type}
-          onChange={setType}
-          tone={clockColors.hourHand}
-          columns={2}
-        />
+        {TYPES.map((o) => (
+          <RadioRow
+            key={o.value}
+            label={t(`clock.settings.${o.key}`)}
+            description={t(`clock.settings.${o.key}Desc`)}
+            selected={type === o.value}
+            onPress={() => setType(o.value)}
+            tone={clockColors.hourHand}
+          />
+        ))}
       </Section>
 
       <Section title={t('clock.settings.complexity')}>
-        <Segmented
-          options={STEPS.map((o) => ({ value: o.value, label: t(`clock.settings.${o.key}`) }))}
-          value={step}
-          onChange={setStep}
-          tone={clockColors.hourHand}
-        />
+        {STEPS.map((o) => (
+          <RadioRow
+            key={o.value}
+            label={t(`clock.settings.${o.key}`)}
+            description={t(`clock.settings.${o.key}Desc`)}
+            selected={step === o.value}
+            onPress={() => setStep(o.value)}
+            tone={clockColors.hourHand}
+          />
+        ))}
       </Section>
 
       <Button
