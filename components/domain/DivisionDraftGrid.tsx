@@ -1,12 +1,13 @@
+import { Canvas, Path } from '@shopify/react-native-skia';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, typography } from '../../constants/design';
 import type { BoxStatus, ReviewMarks } from '../../lib/review';
-import { AnswerBox } from './AnswerBox';
+import { AnswerBox, fitTransform } from './AnswerBox';
 import { BorrowArrow } from './BorrowArrow';
 import { computeBorrowDisplay } from './borrow';
-import { type InkStroke } from './ink';
+import { strokeToPath, type InkStroke } from './ink';
 import {
   DIVISION_DRAFT_CELL_HEIGHT,
   DIVISION_DRAFT_CELL_WIDTH,
@@ -127,12 +128,13 @@ export interface DivisionDraftGridProps {
 }
 
 /**
- * A locked draft cell: the correct digit shown as a read-only label (the
- * kid's ink stays in state, just not rendered while locked). On the active
- * minuend row each digit is tap-to-borrow, showing the subtraction's
- * cross-out + reduced value exactly like the Subtraction feature.
+ * A locked draft cell: shows the kid's OWN ink, read-only (so it's clearly
+ * their input, never silently replaced with the correct digit). On the active
+ * minuend row each digit is tap-to-borrow, showing the subtraction's cross-out
+ * + reduced value exactly like the Subtraction feature.
  */
 function LabelCell({
+  strokes,
   value,
   cellWidth,
   tone,
@@ -140,6 +142,8 @@ function LabelCell({
   annotation,
   onBorrow,
 }: {
+  strokes: InkStroke[];
+  /** Correct digit — used only for the borrow accessibility label. */
   value: number | undefined;
   cellWidth: number;
   tone?: string;
@@ -147,7 +151,8 @@ function LabelCell({
   annotation?: number | null;
   onBorrow?: () => void;
 }) {
-  const digitSize = Math.max(18, Math.min(28, Math.round(cellWidth * 0.5)));
+  const inner = cellWidth - 12;
+  const transform = fitTransform(strokes, inner, DIVISION_DRAFT_CELL_HEIGHT);
   const content = (
     <>
       <View style={styles.labelClearSlot}>
@@ -157,10 +162,20 @@ function LabelCell({
           </Text>
         ) : null}
       </View>
-      <View style={[styles.labelBox, { width: cellWidth - 12 }]}>
-        <Text style={[styles.labelDigit, { fontSize: digitSize }]}>
-          {value ?? ''}
-        </Text>
+      <View style={[styles.labelBox, { width: inner }]}>
+        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          {strokes.map((stroke, i) => (
+            <Path
+              key={i}
+              path={strokeToPath(stroke, transform)}
+              color={colors.text}
+              style="stroke"
+              strokeWidth={2.5}
+              strokeCap="round"
+              strokeJoin="round"
+            />
+          ))}
+        </Canvas>
         {crossedOut ? (
           <View
             style={[styles.labelStrike, { backgroundColor: tone ?? colors.text }]}
@@ -314,6 +329,7 @@ export function DivisionDraftGrid({
                   return (
                     <LabelCell
                       key={col}
+                      strokes={ink[row]?.[col] ?? []}
                       value={draftLabels?.get(id)}
                       cellWidth={cellWidth}
                       tone={tone}
@@ -426,11 +442,6 @@ const styles = StyleSheet.create({
     height: DIVISION_DRAFT_CELL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  labelDigit: {
-    color: colors.text,
-    fontWeight: typography.weight.regular,
-    fontVariant: ['tabular-nums'],
   },
   labelStrike: {
     position: 'absolute',

@@ -55,7 +55,7 @@ const FIT_PADDING = 8;
 const MAX_SCALE = 3.5;
 
 /** Fit a stroke set's bounding box, centred, into the answer box. */
-function fitTransform(
+export function fitTransform(
   strokes: InkStroke[],
   innerWidth: number,
   innerHeight: number,
