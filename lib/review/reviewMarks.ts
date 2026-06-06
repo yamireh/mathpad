@@ -106,12 +106,11 @@ export async function computeReviewMarks(
     const w = written.get(id) ?? null;
     if (exp !== undefined) {
       marks.set(id, w === exp ? 'correct' : 'incorrect');
-    } else if (isAnswerBox(id)) {
-      // A written answer box with no expected digit is fine only if it's a
-      // harmless zero pad (e.g. `03`, `3.50`); any other digit is wrong.
-      if (w !== null && w !== 0) marks.set(id, 'incorrect');
-    } else {
-      // Working scaffold written where nothing belongs.
+    } else if (w !== null && w !== 0) {
+      // A box with no expected digit is fine only if it's a harmless zero: a
+      // leading zero pad (`03`, `3.50`) or the unused leading cell of a short/
+      // zero difference in the long-division draft. Any other stray digit is a
+      // mistake.
       marks.set(id, 'incorrect');
     }
   }

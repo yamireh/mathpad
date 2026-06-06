@@ -751,7 +751,15 @@ export const OperationsWorkspace = forwardRef<
             divisorCarryCols: divisionStepCarryCols,
           }
         : null;
-    const seq = fillSequence(shape, layout, expectedCarries, multInfo, draftMeta);
+    const seq = fillSequence(
+      shape,
+      layout,
+      expectedCarries,
+      multInfo,
+      draftMeta,
+      // Skip draft cells with no expected digit (unused leading cells of a
+      // short/zero difference) so navigation never targets them.
+    ).filter((id) => !id.startsWith('dd-') || plan.values.has(id));
     // First empty cell (in fill order) that has a known value.
     let cursor = '';
     let target: { id: string; value: number } | null = null;

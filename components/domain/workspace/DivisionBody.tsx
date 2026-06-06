@@ -270,7 +270,10 @@ export function DivisionBody({ core }: DivisionBodyProps) {
                 expectedCarries,
                 multInfo,
                 draftRows > 0 ? draftGridSize : null,
-              );
+                // Skip draft cells with no expected digit (e.g. the unused
+                // leading cells of a short/zero difference), so focus never
+                // lands on a box the kid shouldn't have to fill.
+              ).filter((id) => !id.startsWith('dd-') || draftLabels.has(id));
               const next = nextEmptyBox(
                 seq,
                 activeBox,
