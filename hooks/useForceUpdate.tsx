@@ -37,7 +37,11 @@ export function useForceUpdate(): UseForceUpdateResult {
 
     (async () => {
       try {
-        const res = await fetch(CONFIG_URL, {
+        // Cache-bust: RN's fetch doesn't reliably honor `cache: 'no-store'`,
+        // and raw.githubusercontent.com sends a ~5-min CDN TTL that iOS's
+        // NSURLCache obeys — so without a unique URL the app keeps replaying a
+        // stale config and never sees a raised minVersion.
+        const res = await fetch(`${CONFIG_URL}?t=${Date.now()}`, {
           signal: controller.signal,
           cache: 'no-store',
         });
