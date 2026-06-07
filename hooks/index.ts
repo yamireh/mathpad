@@ -1,4 +1,8 @@
 /** Custom hooks — stateful logic and side effects. */
+export {
+  useForceUpdate,
+  type UseForceUpdateResult,
+} from './useForceUpdate';
 export { useDevPreferences } from './useDevPreferences';
 export { useHowToDemo } from './useHowToDemo';
 export { useSettings, type UseSettingsResult } from './useSettings';

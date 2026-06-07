@@ -228,6 +228,11 @@
       "stepMinuteDesc": "Any minute"
     }
   },
+  "forceUpdate": {
+    "title": "Time to update",
+    "body": "A newer version of MathPad is available. Please update to keep practicing.",
+    "cta": "Update now"
+  },
   "hints": {
     "button": "Hint",
     "dismiss": "Dismiss hint",

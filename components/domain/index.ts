@@ -70,6 +70,10 @@ export {
   type RemainderAnswerRowProps,
 } from './RemainderAnswerRow';
 export {
+  ForceUpdateGate,
+  type ForceUpdateGateProps,
+} from './ForceUpdateGate';
+export {
   type AnswerInk,
   type InkPoint,
   type InkStroke,
