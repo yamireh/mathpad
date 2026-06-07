@@ -131,7 +131,8 @@ export interface DivisionDraftGridProps {
  * A locked draft cell: shows the kid's OWN ink, read-only (so it's clearly
  * their input, never silently replaced with the correct digit). On the active
  * minuend row each digit is tap-to-borrow, showing the subtraction's cross-out
- * + reduced value exactly like the Subtraction feature.
+ * + reduced value exactly like the Subtraction feature. Otherwise tapping it
+ * re-focuses the cell (`onEdit`) so a mistake can be undone/rewritten.
  */
 function LabelCell({
   strokes,
@@ -141,6 +142,7 @@ function LabelCell({
   crossedOut,
   annotation,
   onBorrow,
+  onEdit,
 }: {
   strokes: InkStroke[];
   /** Correct digit — used only for the borrow accessibility label. */
@@ -150,6 +152,8 @@ function LabelCell({
   crossedOut?: boolean;
   annotation?: number | null;
   onBorrow?: () => void;
+  /** Tap to re-focus this locked cell for editing (unlocks the row). */
+  onEdit?: () => void;
 }) {
   const inner = cellWidth - 12;
   const transform = fitTransform(strokes, inner, DIVISION_DRAFT_CELL_HEIGHT);
@@ -191,6 +195,14 @@ function LabelCell({
           accessibilityRole="button"
           accessibilityLabel={`Borrow from ${value}`}
           onPress={onBorrow}
+        >
+          {content}
+        </Pressable>
+      ) : onEdit ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit this working cell"
+          onPress={onEdit}
         >
           {content}
         </Pressable>
@@ -340,6 +352,7 @@ export function DivisionDraftGrid({
                           ? () => onBorrow(mIdx)
                           : undefined
                       }
+                      onEdit={mIdx >= 0 ? undefined : () => onSelect(id)}
                     />
                   );
                 }
