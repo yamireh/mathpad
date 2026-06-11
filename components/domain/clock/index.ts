@@ -19,6 +19,12 @@ export {
   ClockSettingsView,
   type ClockSettingsViewProps,
 } from './ClockSettingsView';
+export { DemoHand, type DemoHandProps } from './DemoHand';
+export {
+  ClockHowToView,
+  type ClockHowToViewProps,
+  type ClockHowToHandle,
+} from './ClockHowToView';
 export {
   ClockQuestionView,
   type ClockQuestionViewProps,

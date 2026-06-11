@@ -194,6 +194,21 @@
     "restore": "Restore purchase",
     "lockedCard": "{{operation}}, locked — tap to unlock"
   },
+  "unlockClock": {
+    "title": "Unlock Clock",
+    "heading": "Unlock the Clock module",
+    "subtitle": "Learn to tell the time — read an analog clock, then answer your way.",
+    "watch": "Watch how it works",
+    "cta": "Unlock Clock — {{price}}",
+    "restore": "Restore purchase",
+    "lockedCard": "Clock, locked — tap to unlock",
+    "features": {
+      "read": "Read an analog clock",
+      "write": "Write the time (6:30)",
+      "words": "Say it in words (half past six)",
+      "set": "Set the hands yourself"
+    }
+  },
   "clock": {
     "readPrompt": "What time is it?",
     "setTitle": "Set the time",
@@ -201,6 +216,16 @@
     "hourHand": "Hour hand",
     "minuteHand": "Minute hand",
     "patternHint": "Tap the words to build the time",
+    "howTo": {
+      "title": "How to read a clock",
+      "titleSet": "Set the time",
+      "titleWords": "Say it in words",
+      "titleWrite": "Write the time",
+      "setPrompt": "Set the time to 6:30",
+      "step1": "Pick the hour hand, move it to 6",
+      "step2": "Pick the minute hand, move it to 30",
+      "next": "Next: {{mode}}"
+    },
     "words": {
       "oclock": "o'clock",
       "quarter": "quarter",
@@ -229,9 +254,9 @@
     }
   },
   "forceUpdate": {
-    "title": "Time to update",
-    "body": "A newer version of MathPad is available. Please update to keep practicing.",
-    "cta": "Update now"
+    "title": "A fresh update is ready!",
+    "body": "We've made MathPad even better. Update to keep practicing your math.",
+    "cta": "Update MathPad"
   },
   "hints": {
     "button": "Hint",

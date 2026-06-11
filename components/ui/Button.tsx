@@ -76,7 +76,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   ghost: { backgroundColor: 'transparent' },
-  pressed: { opacity: 0.85 },
+  // Clearly readable on screen recordings: the button visibly pushes in on tap
+  // (same scale as the cards), consistent across the app.
+  pressed: { transform: [{ scale: 0.96 }], opacity: 0.9 },
   disabled: { opacity: 0.4 },
   label: {
     fontSize: typography.size.bodyLarge,

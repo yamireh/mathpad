@@ -11,6 +11,15 @@ import type { Operation } from '../../types';
 /** App Store Connect product id for the Operations bundle ($9.99). */
 export const OPERATIONS_PRODUCT_ID = 'com.mc.mathpad.operations';
 
+/** App Store Connect product id for the Clock module ($4.99). */
+export const CLOCK_PRODUCT_ID = 'com.mc.mathpad.clock';
+
+/** Whether the Clock module is playable — only once it's owned (or via the
+ *  future Complete bundle). Pure mirror of {@link isOperationUnlocked}. */
+export function isClockUnlocked(owned: boolean): boolean {
+  return owned;
+}
+
 /** Operations that are always free, with no purchase required. */
 export const FREE_OPERATIONS: readonly Operation[] = ['addition'];
 

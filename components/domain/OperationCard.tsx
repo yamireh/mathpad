@@ -50,6 +50,7 @@ export function OperationCard({
   return (
     <Card
       onPress={onPress}
+      pressTint={accent}
       accessibilityLabel={accessibilityLabel ?? label}
       style={styles.card}
     >

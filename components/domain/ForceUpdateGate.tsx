@@ -25,7 +25,7 @@ export function ForceUpdateGate({ appStoreId }: ForceUpdateGateProps) {
   return (
     <View style={styles.overlay}>
       <Ionicons
-        name="arrow-up-circle"
+        name="sparkles"
         size={64}
         color={operationColors.addition.accent}
       />

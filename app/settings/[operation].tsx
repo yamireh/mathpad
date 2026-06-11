@@ -34,7 +34,10 @@ import type {
   TimerDuration,
 } from '../../types';
 
-const QUESTION_COUNTS: QuestionCount[] = [5, 10, 15, 20];
+// 1 and 2 are dev-only quick options (for recording short demos); prod stays 5–20.
+const QUESTION_COUNTS: QuestionCount[] = __DEV__
+  ? [1, 2, 5, 10, 15, 20]
+  : [5, 10, 15, 20];
 const TIMER_DURATIONS: TimerDuration[] = [3, 5, 10, 15];
 
 /** Settings — per-operation session setup, adapts to the chosen topic. */

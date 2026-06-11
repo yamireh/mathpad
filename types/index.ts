@@ -39,8 +39,9 @@ export interface DigitRange {
   max: DigitCount;
 }
 
-/** Number of questions in a session. SPEC: 5 / 10 / 15 / 20. */
-export type QuestionCount = 5 | 10 | 15 | 20;
+/** Number of questions in a session. SPEC: 5 / 10 / 15 / 20 (plus 1 / 2 as
+ *  dev-only quick options for recording short demos). */
+export type QuestionCount = 1 | 2 | 5 | 10 | 15 | 20;
 
 /** Total session timer duration in minutes. SPEC: 3 / 5 / 10 / 15. */
 export type TimerDuration = 3 | 5 | 10 | 15;

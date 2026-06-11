@@ -12,6 +12,7 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
+import { usePurchases } from '../../../hooks';
 import { tapFeedback } from '../../../lib/feedback';
 import { TopicCard } from './TopicCard';
 import { TOPICS } from './topics';
@@ -28,6 +29,7 @@ const APP_ART = require('../../../assets/icon.png');
 export function MainPanel() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { clockOwned } = usePurchases();
 
   return (
     <ScreenContainer scroll>
@@ -40,21 +42,27 @@ export function MainPanel() {
       </View>
 
       <View style={styles.grid}>
-        {TOPICS.map((topic) => (
-          <TopicCard
-            key={topic.id}
-            label={t(topic.labelKey)}
-            description={t(topic.descKey)}
-            icon={topic.icon}
-            accent={topic.accent}
-            enabled={topic.enabled}
-            comingSoonLabel={t('comingSoon.tag')}
-            onPress={() => {
-              tapFeedback();
-              router.push(topic.route);
-            }}
-          />
-        ))}
+        {TOPICS.map((topic) => {
+          // Clock is a paid module: when it's live but not owned, the card is
+          // locked and routes to its unlock page instead of the module.
+          const locked = topic.id === 'clock' && topic.enabled && !clockOwned;
+          return (
+            <TopicCard
+              key={topic.id}
+              label={t(topic.labelKey)}
+              description={t(topic.descKey)}
+              icon={topic.icon}
+              accent={topic.accent}
+              enabled={topic.enabled}
+              comingSoonLabel={t('comingSoon.tag')}
+              locked={locked}
+              onPress={() => {
+                tapFeedback();
+                router.push(locked ? '/unlock-clock' : topic.route);
+              }}
+            />
+          );
+        })}
       </View>
 
       <Pressable

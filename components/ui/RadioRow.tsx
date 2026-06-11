@@ -1,6 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../../constants/design';
+import { type IoniconName } from './IconButton';
 
 export interface RadioRowProps {
   label: string;
@@ -10,6 +12,11 @@ export interface RadioRowProps {
   onPress: () => void;
   /** Accent colour for the selected indicator. */
   tone?: string;
+  /**
+   * Optional leading icon — a chip that fills with `tone` when selected, so the
+   * option is recognised by shape/colour at a glance, not just by reading.
+   */
+  icon?: IoniconName;
 }
 
 /** One selectable row within a radio group. */
@@ -19,6 +26,7 @@ export function RadioRow({
   selected,
   onPress,
   tone = colors.text,
+  icon,
 }: RadioRowProps) {
   return (
     <Pressable
@@ -28,6 +36,20 @@ export function RadioRow({
       accessibilityState={{ selected }}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
+      {icon ? (
+        <View
+          style={[
+            styles.iconChip,
+            { backgroundColor: selected ? tone : colors.surfaceAlt },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={22}
+            color={selected ? '#FFFFFF' : tone}
+          />
+        </View>
+      ) : null}
       <View style={styles.texts}>
         <Text style={styles.label}>{label}</Text>
         {description ? (
@@ -57,6 +79,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   pressed: { opacity: 0.6 },
+  iconChip: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
   texts: { flex: 1, gap: 2, paddingRight: spacing.md },
   label: {
     fontSize: typography.size.bodyLarge,

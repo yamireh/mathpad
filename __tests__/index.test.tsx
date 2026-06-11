@@ -14,7 +14,7 @@ const withPurchases = (ui: ReactNode) => (
 
 describe('Home screen (MainPanel)', () => {
   it('renders the greeting', () => {
-    render(<HomeScreen />);
+    render(withPurchases(<HomeScreen />));
     expect(screen.getByText('Hi, ready for math?')).toBeOnTheScreen();
     expect(
       screen.getByText('Choose your practice adventure'),
@@ -22,14 +22,14 @@ describe('Home screen (MainPanel)', () => {
   });
 
   it('lists every top-level topic card', () => {
-    render(<HomeScreen />);
+    render(withPurchases(<HomeScreen />));
     for (const label of ['Operations', 'Shapes', 'Clock', 'Coordinates']) {
       expect(screen.getByText(label)).toBeOnTheScreen();
     }
   });
 
   it('flags disabled topics as coming soon', () => {
-    render(<HomeScreen />);
+    render(withPurchases(<HomeScreen />));
     // Clock is enabled in dev (CLOCK_ENABLED = __DEV__); Shapes, Coordinates,
     // Patterns and Money remain disabled, so the pill repeats four times.
     expect(screen.getAllByText('Coming soon')).toHaveLength(4);

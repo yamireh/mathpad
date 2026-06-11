@@ -23,6 +23,8 @@ export interface TopicCardProps {
   enabled?: boolean;
   /** Badge copy when disabled (already localised, e.g. "Coming soon"). */
   comingSoonLabel?: string;
+  /** Built but not yet purchased — shows a lock chip; still tappable (to buy). */
+  locked?: boolean;
   onPress: () => void;
   accessibilityLabel?: string;
 }
@@ -39,12 +41,14 @@ export function TopicCard({
   accent,
   enabled = true,
   comingSoonLabel,
+  locked = false,
   onPress,
   accessibilityLabel,
 }: TopicCardProps) {
   return (
     <Card
       onPress={onPress}
+      pressTint={accent}
       accessibilityLabel={accessibilityLabel ?? label}
       style={styles.card}
     >
@@ -66,6 +70,10 @@ export function TopicCard({
                 {comingSoonLabel}
               </Text>
             </View>
+          ) : locked ? (
+            <View style={[styles.badge, { backgroundColor: accent }]}>
+              <Ionicons name="lock-closed" size={11} color="#FFFFFF" />
+            </View>
           ) : null}
         </View>
         <Text style={styles.desc} numberOfLines={1}>
@@ -74,7 +82,11 @@ export function TopicCard({
       </View>
 
       {enabled ? (
-        <Ionicons name="chevron-forward" size={22} color={accent} />
+        <Ionicons
+          name={locked ? 'lock-closed' : 'chevron-forward'}
+          size={22}
+          color={accent}
+        />
       ) : null}
     </Card>
   );

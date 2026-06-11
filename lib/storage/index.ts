@@ -27,6 +27,7 @@ const KEYS = {
   tips: 'mathpad:tips:v1',
   dev: 'mathpad:dev:v1',
   entitlement: 'mathpad:entitlement:v1',
+  clockEntitlement: 'mathpad:entitlement-clock:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -227,6 +228,21 @@ export const entitlementStore = {
   },
   async set(operationsOwned: boolean): Promise<void> {
     await writeJSON(KEYS.entitlement, { operationsOwned });
+  },
+};
+
+/** Cached Clock-module entitlement — same offline-mirror pattern as above. */
+type ClockEntitlementData = { clockOwned: boolean };
+
+export const clockEntitlementStore = {
+  async get(): Promise<boolean> {
+    const data = await readJSON<ClockEntitlementData>(KEYS.clockEntitlement, {
+      clockOwned: false,
+    });
+    return data.clockOwned;
+  },
+  async set(clockOwned: boolean): Promise<void> {
+    await writeJSON(KEYS.clockEntitlement, { clockOwned });
   },
 };
 
