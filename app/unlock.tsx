@@ -13,6 +13,7 @@ import {
   typography,
 } from '../constants/design';
 import { usePurchases } from '../hooks';
+import { COMPLETE_BUNDLE_ENABLED } from '../lib/featureFlags';
 import type { Operation } from '../types';
 
 /** Operations unlocked by the bundle (Addition is always free). */
@@ -100,13 +101,16 @@ export default function UnlockScreen() {
           disabled={purchasing}
           onPress={() => void purchase()}
         />
-        <Button
-          label={t('unlock.ctaAll', { price: completePrice })}
-          icon="sparkles-outline"
-          variant="secondary"
-          disabled={purchasing}
-          onPress={() => void purchaseComplete()}
-        />
+        <Text style={styles.note}>{t('unlock.purchaseNote')}</Text>
+        {COMPLETE_BUNDLE_ENABLED ? (
+          <Button
+            label={t('unlock.ctaAll', { price: completePrice })}
+            icon="sparkles-outline"
+            variant="secondary"
+            disabled={purchasing}
+            onPress={() => void purchaseComplete()}
+          />
+        ) : null}
         <Button
           label={t('unlock.restore')}
           variant="ghost"
@@ -153,4 +157,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   actions: { gap: spacing.md, marginTop: spacing.xxl },
+  note: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+    marginTop: -spacing.xs,
+  },
 });

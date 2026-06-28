@@ -25,6 +25,12 @@ Piecemeal total: $9.99 + $4.99 + 2 × $7.99 = **$30.96** → Complete saves **$5
 
 > Clock price set to **$4.99** (2026-06-08), down from the $7.99 placeholder.
 
+> **Complete bundle is deferred** until more modules ship — selling "everything"
+> when most modules are still "Coming soon" is poor value and risks App Store
+> review. The "Unlock everything" buttons are gated behind
+> `COMPLETE_BUNDLE_ENABLED` (`lib/featureFlags.ts`, currently `false`) on every
+> unlock page; flip it to `true` once Shapes/Money/Axis exist.
+
 ## 2. Free-tier philosophy
 
 - **Free tier, NOT free trial.** No timers, no "X days left," no anxiety mechanics. The free slice is permanent and genuinely useful.

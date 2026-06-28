@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "MathPad",
+    "name": "MathPen",
     "tagline": "Practice math by hand"
   },
   "common": {
@@ -43,7 +43,7 @@
     "body": "Find answers to common questions and get in touch with us on our support page.",
     "openSite": "Visit support page",
     "privacy": "Privacy Policy",
-    "version": "MathPad v{{version}}"
+    "version": "MathPen v{{version}}"
   },
   "topics": {
     "operations": "Operations",
@@ -191,6 +191,7 @@
     "watch": "Watch how it works",
     "ctaModule": "Unlock Operations — {{price}}",
     "ctaAll": "Unlock everything — {{price}}",
+    "purchaseNote": "One-time purchase — no subscription. Unlocks on all your devices; restore anytime.",
     "restore": "Restore purchase",
     "lockedCard": "{{operation}}, locked — tap to unlock"
   },
@@ -255,8 +256,8 @@
   },
   "forceUpdate": {
     "title": "A fresh update is ready!",
-    "body": "We've made MathPad even better. Update to keep practicing your math.",
-    "cta": "Update MathPad"
+    "body": "We've made MathPen even better. Update to keep practicing your math.",
+    "cta": "Update MathPen"
   },
   "hints": {
     "button": "Hint",

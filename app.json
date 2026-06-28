@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MathPad",
+    "name": "MathPen",
     "slug": "mathpad",
     "scheme": "mathpad",
     "version": "1.0.0",
@@ -45,7 +45,8 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-audio"
+      "expo-audio",
+      "expo-iap"
     ],
     "extra": {
       "router": {},

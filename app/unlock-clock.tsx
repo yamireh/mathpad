@@ -20,6 +20,7 @@ import {
   typography,
 } from '../constants/design';
 import { usePurchases } from '../hooks';
+import { COMPLETE_BUNDLE_ENABLED } from '../lib/featureFlags';
 
 /** What the Clock module includes, by i18n key. */
 const FEATURES = ['read', 'write', 'words', 'set'] as const;
@@ -35,9 +36,11 @@ export default function UnlockClockScreen() {
   const { t } = useTranslation();
   const {
     clockPrice,
+    completePrice,
     purchasing,
     clockOwned,
     purchaseClock,
+    purchaseComplete,
     restore,
     devSetClockOwned,
   } = usePurchases();
@@ -95,6 +98,15 @@ export default function UnlockClockScreen() {
           disabled={purchasing}
           onPress={() => void purchaseClock()}
         />
+        {COMPLETE_BUNDLE_ENABLED ? (
+          <Button
+            label={t('unlock.ctaAll', { price: completePrice })}
+            icon="sparkles-outline"
+            variant="secondary"
+            disabled={purchasing}
+            onPress={() => void purchaseComplete()}
+          />
+        ) : null}
         <Button
           label={t('unlockClock.restore')}
           variant="ghost"

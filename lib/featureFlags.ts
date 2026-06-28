@@ -9,3 +9,11 @@
 
 /** Clock module. Dev-only for now; set to `true` to ship Clock. */
 export const CLOCK_ENABLED = __DEV__;
+
+/**
+ * The "Unlock everything" Complete bundle ($24.99). Deferred until enough
+ * modules exist to make it worthwhile (and to satisfy App Store rules about
+ * selling available content) — see the `pricing` / `versions` skills. Flip to
+ * `true` once Shapes/Money/Axis ship; the buttons appear on every unlock page.
+ */
+export const COMPLETE_BUNDLE_ENABLED = false;
