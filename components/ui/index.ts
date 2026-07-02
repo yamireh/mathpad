@@ -14,6 +14,7 @@ export {
   type IconButtonProps,
   type IoniconName,
 } from './IconButton';
+export { ParentalGate, type ParentalGateProps } from './ParentalGate';
 export { Pill, type PillProps } from './Pill';
 export { RadioRow, type RadioRowProps } from './RadioRow';
 export {

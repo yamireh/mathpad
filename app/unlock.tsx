@@ -12,7 +12,7 @@ import {
   spacing,
   typography,
 } from '../constants/design';
-import { usePurchases } from '../hooks';
+import { useParentalGate, usePurchases } from '../hooks';
 import { COMPLETE_BUNDLE_ENABLED } from '../lib/featureFlags';
 import type { Operation } from '../types';
 
@@ -33,6 +33,7 @@ export default function UnlockScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { operation } = useLocalSearchParams<{ operation?: Operation }>();
+  const { runGated, gate } = useParentalGate();
   const {
     price,
     completePrice,
@@ -99,7 +100,7 @@ export default function UnlockScreen() {
           icon="lock-open-outline"
           tone={operationColors.multiplication.accent}
           disabled={purchasing}
-          onPress={() => void purchase()}
+          onPress={() => runGated(() => void purchase())}
         />
         <Text style={styles.note}>{t('unlock.purchaseNote')}</Text>
         {COMPLETE_BUNDLE_ENABLED ? (
@@ -108,16 +109,18 @@ export default function UnlockScreen() {
             icon="sparkles-outline"
             variant="secondary"
             disabled={purchasing}
-            onPress={() => void purchaseComplete()}
+            onPress={() => runGated(() => void purchaseComplete())}
           />
         ) : null}
         <Button
           label={t('unlock.restore')}
           variant="ghost"
           disabled={purchasing}
-          onPress={() => void restore()}
+          onPress={() => runGated(() => void restore())}
         />
       </View>
+
+      {gate}
     </ScreenContainer>
   );
 }

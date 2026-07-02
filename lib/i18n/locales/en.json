@@ -254,6 +254,24 @@
       "stepMinuteDesc": "Any minute"
     }
   },
+  "parentalGate": {
+    "title": "Ask a grown-up",
+    "instruction": "To continue, a grown-up should enter these numbers:",
+    "wrong": "Not quite — try again",
+    "delete": "Delete",
+    "numbers": [
+      "zero",
+      "one",
+      "two",
+      "three",
+      "four",
+      "five",
+      "six",
+      "seven",
+      "eight",
+      "nine"
+    ]
+  },
   "forceUpdate": {
     "title": "A fresh update is ready!",
     "body": "We've made MathPen even better. Update to keep practicing your math.",

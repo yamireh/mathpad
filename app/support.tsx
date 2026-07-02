@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Button, EmptyState, Header, IconButton, ScreenContainer } from '../components/ui';
 import { colors, spacing, typography } from '../constants/design';
+import { useParentalGate } from '../hooks';
 import { tapFeedback } from '../lib/feedback';
 
 /** External support site (FAQs + contact). */
@@ -17,6 +18,7 @@ const PRIVACY_URL = 'https://www.microclouds.ca/mathpad-privacy';
 export default function SupportScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { runGated, gate } = useParentalGate();
   const version = Constants.expoConfig?.version ?? '';
 
   const back = (
@@ -41,7 +43,7 @@ export default function SupportScreen() {
           label={t('support.openSite')}
           onPress={() => {
             tapFeedback();
-            void Linking.openURL(SUPPORT_URL);
+            runGated(() => void Linking.openURL(SUPPORT_URL));
           }}
         />
         <Button
@@ -50,7 +52,7 @@ export default function SupportScreen() {
           icon="lock-closed-outline"
           onPress={() => {
             tapFeedback();
-            void Linking.openURL(PRIVACY_URL);
+            runGated(() => void Linking.openURL(PRIVACY_URL));
           }}
         />
       </View>
@@ -58,6 +60,8 @@ export default function SupportScreen() {
       {version ? (
         <Text style={styles.version}>{t('support.version', { version })}</Text>
       ) : null}
+
+      {gate}
     </ScreenContainer>
   );
 }
