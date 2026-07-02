@@ -19,7 +19,7 @@ import {
   spacing,
   typography,
 } from '../constants/design';
-import { usePurchases } from '../hooks';
+import { useParentalGate, usePurchases } from '../hooks';
 import { COMPLETE_BUNDLE_ENABLED } from '../lib/featureFlags';
 
 /** What the Clock module includes, by i18n key. */
@@ -34,6 +34,7 @@ const FEATURES = ['read', 'write', 'words', 'set'] as const;
 export default function UnlockClockScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { runGated, gate } = useParentalGate();
   const {
     clockPrice,
     completePrice,
@@ -96,7 +97,7 @@ export default function UnlockClockScreen() {
           icon="lock-open-outline"
           tone={clockColors.hourHand}
           disabled={purchasing}
-          onPress={() => void purchaseClock()}
+          onPress={() => runGated(() => void purchaseClock())}
         />
         {COMPLETE_BUNDLE_ENABLED ? (
           <Button
@@ -104,14 +105,14 @@ export default function UnlockClockScreen() {
             icon="sparkles-outline"
             variant="secondary"
             disabled={purchasing}
-            onPress={() => void purchaseComplete()}
+            onPress={() => runGated(() => void purchaseComplete())}
           />
         ) : null}
         <Button
           label={t('unlockClock.restore')}
           variant="ghost"
           disabled={purchasing}
-          onPress={() => void restore()}
+          onPress={() => runGated(() => void restore())}
         />
         {__DEV__ ? (
           <View style={styles.dev}>
@@ -123,6 +124,8 @@ export default function UnlockClockScreen() {
           </View>
         ) : null}
       </View>
+
+      {gate}
     </ScreenContainer>
   );
 }

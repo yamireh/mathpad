@@ -4,6 +4,10 @@ export {
   type UseForceUpdateResult,
 } from './useForceUpdate';
 export { useDevPreferences } from './useDevPreferences';
+export {
+  useParentalGate,
+  type UseParentalGateResult,
+} from './useParentalGate';
 export { useHowToDemo } from './useHowToDemo';
 export { useSettings, type UseSettingsResult } from './useSettings';
 export { useHistory, type UseHistoryResult } from './useHistory';
