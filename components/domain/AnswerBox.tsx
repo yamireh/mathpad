@@ -77,9 +77,11 @@ export function fitTransform(
 }
 
 /**
- * One answer digit cell. Displays the kid's ink (captured big in the answer
- * pad, scaled down here) and acts as a tap target to focus that pad on it.
- * It never shows a recognised digit — ink is converted only at Finish.
+ * One answer digit cell. Displays the ink for that box (captured big in the
+ * answer pad, scaled down here) and acts as a tap target to focus that pad on
+ * it. During practice the workspace live-recognizes a finished answer digit and
+ * swaps the raw ink for a clean canonical glyph, so what this box renders is
+ * usually that tidy digit rather than the original handwriting.
  */
 export function AnswerBox({
   strokes,

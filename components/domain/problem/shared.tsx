@@ -141,6 +141,7 @@ export function CarryRow({
   dotIndex,
   errorMarks,
   clearAbove = false,
+  leadingSkip = 0,
 }: {
   columns: number;
   carryInk: InkStroke[][];
@@ -158,6 +159,12 @@ export function CarryRow({
   errorMarks?: ReviewMarks | null;
   /** Float the clear ✕ above each box instead of inside it (small boxes). */
   clearAbove?: boolean;
+  /**
+   * Leftmost columns to leave *without* a carry box — leading answer columns
+   * that only hold a final carry-out, where the kid writes the digit straight
+   * into the answer instead of carrying it. See `leadingCarrySkip`.
+   */
+  leadingSkip?: number;
 }) {
   return (
     <View style={[sharedStyles.carryRow, { marginLeft: operatorWidth }]}>
@@ -169,7 +176,7 @@ export function CarryRow({
               <View style={{ width: decimalDotWidth(cellWidth) }} />
             ) : null}
             <View style={{ width: cellWidth, alignItems: 'center' }}>
-              {i < columns - 1 ? (
+              {i >= leadingSkip && i < columns - 1 ? (
                 <CarryBox
                   strokes={carryInk[i] ?? []}
                   selected={selectedBox === id}

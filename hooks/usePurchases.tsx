@@ -76,6 +76,10 @@ export interface PurchasesContextValue {
   purchaseClock: () => Promise<boolean>;
   /** Restore previous purchases. Resolves true if anything is now owned. */
   restore: () => Promise<boolean>;
+  /** True when the last purchase attempt failed to start (not user-cancel). */
+  purchaseFailed: boolean;
+  /** Dismiss the {@link purchaseFailed} flag (e.g. after showing a notice). */
+  clearPurchaseError: () => void;
   /** DEV-only: force the Operations owned state to test both sides of the gate. */
   devSetOwned: (value: boolean) => void;
   /** DEV-only: force the Clock owned state to test both sides of the gate. */
@@ -94,6 +98,11 @@ function useEntitlementCore() {
   const [clockOwned, setClockOwned] = useState(false);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  // Set when a purchase can't even start (missing product / launch failure) —
+  // NOT on user-cancel. Lets the unlock screens surface a notice instead of the
+  // button silently doing nothing.
+  const [purchaseFailed, setPurchaseFailed] = useState(false);
+  const clearPurchaseError = useCallback(() => setPurchaseFailed(false), []);
 
   const applyOps = useCallback(async (value: boolean) => {
     setOwned(value);
@@ -166,6 +175,9 @@ function useEntitlementCore() {
     loading,
     purchasing,
     setPurchasing,
+    purchaseFailed,
+    setPurchaseFailed,
+    clearPurchaseError,
     applyOps,
     purchaseClock,
     purchaseComplete,
@@ -190,6 +202,8 @@ function usePurchasesValue(
     clockOwned,
     loading,
     purchasing,
+    purchaseFailed,
+    clearPurchaseError,
     purchaseClock,
     purchaseComplete,
     devSetOwned,
@@ -210,6 +224,8 @@ function usePurchasesValue(
       purchaseComplete,
       purchaseClock,
       restore,
+      purchaseFailed,
+      clearPurchaseError,
       devSetOwned,
       devSetClockOwned,
     }),
@@ -223,6 +239,8 @@ function usePurchasesValue(
       purchaseComplete,
       purchaseClock,
       restore,
+      purchaseFailed,
+      clearPurchaseError,
       devSetOwned,
       devSetClockOwned,
     ],
@@ -232,7 +250,7 @@ function usePurchasesValue(
 /** Real StoreKit-backed provider — used when the expo-iap native module exists. */
 function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
   const core = useEntitlementCore();
-  const { applyOps, setPurchasing } = core;
+  const { applyOps, setPurchasing, setPurchaseFailed } = core;
 
   // A purchase() call parks here until StoreKit reports success/failure via the
   // useIAP callbacks below — bridges the callback API to a Promise<boolean>.
@@ -309,15 +327,21 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
   const startPurchase = useCallback(
     (sku: string) => {
       setPurchasing(true);
+      setPurchaseFailed(false);
       return new Promise<boolean>((resolve) => {
         pendingResolve.current = resolve;
         requestPurchase({
           request: { apple: { sku, quantity: 1 } },
           type: 'in-app',
-        }).catch(() => settle(false));
+        }).catch(() => {
+          // Couldn't even launch the sheet (missing product, store down, etc.)
+          // — this is the silent-no-op case, so make it visible.
+          setPurchaseFailed(true);
+          settle(false);
+        });
       }).finally(() => setPurchasing(false));
     },
-    [requestPurchase, settle, setPurchasing],
+    [requestPurchase, settle, setPurchasing, setPurchaseFailed],
   );
 
   // In a dev build the App Store product usually isn't available (no sandbox /
@@ -368,12 +392,16 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
  */
 function StubPurchasesProvider({ children }: { children: ReactNode }) {
   const core = useEntitlementCore();
-  const { applyOps, setPurchasing } = core;
+  const { applyOps, setPurchasing, setPurchaseFailed } = core;
 
   const purchase = useCallback(async () => {
     // No StoreKit in this binary. Simulate in dev so the unlock flow is
-    // testable; in production refuse rather than unlock for free.
-    if (!__DEV__) return false;
+    // testable; in production refuse rather than unlock for free — but surface
+    // it so the button isn't a silent dead end.
+    if (!__DEV__) {
+      setPurchaseFailed(true);
+      return false;
+    }
     setPurchasing(true);
     try {
       await applyOps(true);
@@ -381,7 +409,7 @@ function StubPurchasesProvider({ children }: { children: ReactNode }) {
     } finally {
       setPurchasing(false);
     }
-  }, [applyOps, setPurchasing]);
+  }, [applyOps, setPurchasing, setPurchaseFailed]);
 
   const restore = useCallback(async () => {
     const [ops, clock] = await Promise.all([

@@ -1,10 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Header, IconButton, ScreenContainer } from '../components/ui';
+import {
+  Button,
+  Card,
+  Header,
+  IconButton,
+  NoticeDialog,
+  ScreenContainer,
+} from '../components/ui';
 import {
   colors,
   operationColors,
@@ -42,7 +49,19 @@ export default function UnlockScreen() {
     purchase,
     purchaseComplete,
     restore,
+    purchaseFailed,
+    clearPurchaseError,
   } = usePurchases();
+  // Which action the kid kicked off — so only that button shows the spinner.
+  const [pending, setPending] = useState<'ops' | 'complete' | 'restore' | null>(
+    null,
+  );
+  // Gate the action, then bracket it with the per-button loading state.
+  const runPurchase = (key: 'ops' | 'complete' | 'restore', fn: () => Promise<unknown>) =>
+    runGated(() => {
+      setPending(key);
+      void Promise.resolve(fn()).finally(() => setPending(null));
+    });
   // The kid can preview the tapped operation's worked-example demo before buying.
   const canWatch = !!operation && operation !== 'mix';
 
@@ -100,7 +119,8 @@ export default function UnlockScreen() {
           icon="lock-open-outline"
           tone={operationColors.multiplication.accent}
           disabled={purchasing}
-          onPress={() => runGated(() => void purchase())}
+          loading={pending === 'ops'}
+          onPress={() => runPurchase('ops', purchase)}
         />
         <Text style={styles.note}>{t('unlock.purchaseNote')}</Text>
         {COMPLETE_BUNDLE_ENABLED ? (
@@ -109,18 +129,27 @@ export default function UnlockScreen() {
             icon="sparkles-outline"
             variant="secondary"
             disabled={purchasing}
-            onPress={() => runGated(() => void purchaseComplete())}
+            loading={pending === 'complete'}
+            onPress={() => runPurchase('complete', purchaseComplete)}
           />
         ) : null}
         <Button
           label={t('unlock.restore')}
           variant="ghost"
           disabled={purchasing}
-          onPress={() => runGated(() => void restore())}
+          loading={pending === 'restore'}
+          onPress={() => runPurchase('restore', restore)}
         />
       </View>
 
       {gate}
+      <NoticeDialog
+        visible={purchaseFailed}
+        title={t('purchase.errorTitle')}
+        message={t('purchase.errorBody')}
+        buttonLabel={t('common.gotIt')}
+        onDismiss={clearPurchaseError}
+      />
     </ScreenContainer>
   );
 }

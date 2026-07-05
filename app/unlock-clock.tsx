@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import {
   Card,
   Header,
   IconButton,
+  NoticeDialog,
   Pill,
   ScreenContainer,
 } from '../components/ui';
@@ -44,7 +45,21 @@ export default function UnlockClockScreen() {
     purchaseComplete,
     restore,
     devSetClockOwned,
+    purchaseFailed,
+    clearPurchaseError,
   } = usePurchases();
+  // Which action is in flight — so only that button shows the spinner.
+  const [pending, setPending] = useState<'clock' | 'complete' | 'restore' | null>(
+    null,
+  );
+  const runPurchase = (
+    key: 'clock' | 'complete' | 'restore',
+    fn: () => Promise<unknown>,
+  ) =>
+    runGated(() => {
+      setPending(key);
+      void Promise.resolve(fn()).finally(() => setPending(null));
+    });
 
   // Once owned (just bought or restored), the module is unlocked — leave.
   useEffect(() => {
@@ -97,7 +112,8 @@ export default function UnlockClockScreen() {
           icon="lock-open-outline"
           tone={clockColors.hourHand}
           disabled={purchasing}
-          onPress={() => runGated(() => void purchaseClock())}
+          loading={pending === 'clock'}
+          onPress={() => runPurchase('clock', purchaseClock)}
         />
         {COMPLETE_BUNDLE_ENABLED ? (
           <Button
@@ -105,14 +121,16 @@ export default function UnlockClockScreen() {
             icon="sparkles-outline"
             variant="secondary"
             disabled={purchasing}
-            onPress={() => runGated(() => void purchaseComplete())}
+            loading={pending === 'complete'}
+            onPress={() => runPurchase('complete', purchaseComplete)}
           />
         ) : null}
         <Button
           label={t('unlockClock.restore')}
           variant="ghost"
           disabled={purchasing}
-          onPress={() => runGated(() => void restore())}
+          loading={pending === 'restore'}
+          onPress={() => runPurchase('restore', restore)}
         />
         {__DEV__ ? (
           <View style={styles.dev}>
@@ -126,6 +144,13 @@ export default function UnlockClockScreen() {
       </View>
 
       {gate}
+      <NoticeDialog
+        visible={purchaseFailed}
+        title={t('purchase.errorTitle')}
+        message={t('purchase.errorBody')}
+        buttonLabel={t('common.gotIt')}
+        onDismiss={clearPurchaseError}
+      />
     </ScreenContainer>
   );
 }

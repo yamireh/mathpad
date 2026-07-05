@@ -21,6 +21,14 @@ describe('Button', () => {
     fireEvent.press(screen.getByText('Start'));
     expect(onPress).not.toHaveBeenCalled();
   });
+
+  it('does not fire while loading and marks itself busy', () => {
+    const onPress = jest.fn();
+    render(<Button label="Buy" onPress={onPress} loading />);
+    fireEvent.press(screen.getByText('Buy'));
+    expect(onPress).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { busy: true })).toBeOnTheScreen();
+  });
 });
 
 describe('Chip', () => {

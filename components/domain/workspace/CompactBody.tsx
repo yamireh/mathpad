@@ -129,6 +129,7 @@ export function CompactBody({ core }: CompactBodyProps) {
     clearBox,
     clearAllAnswers,
     cancelAdvance,
+    commitAnswerBox,
   } = core;
 
   const sizing: ProblemSizing = useMemo(() => {
@@ -265,18 +266,23 @@ export function CompactBody({ core }: CompactBodyProps) {
             cancelAdvance();
             advanceTimerRef.current = setTimeout(() => {
               advanceTimerRef.current = null;
-              const seq = fillSequence(shape, layout, expectedCarries, multInfo, null);
-              const next = nextEmptyBox(
-                seq,
-                activeBox,
-                latestInkRef.current,
-                latestCarryInkRef.current,
-                latestPartialInkRef.current,
-                latestTimesCarryRef.current,
-                latestDivisionDraftRef.current,
-                latestDivisionCarryRef.current,
-              );
-              setActiveBox(next);
+              void (async () => {
+                // Live-recognize the box just written. Unreadable ink is
+                // cleared and flagged — hold focus here rather than advancing.
+                if ((await commitAnswerBox(activeBox)) === 'invalid') return;
+                const seq = fillSequence(shape, layout, expectedCarries, multInfo, null);
+                const next = nextEmptyBox(
+                  seq,
+                  activeBox,
+                  latestInkRef.current,
+                  latestCarryInkRef.current,
+                  latestPartialInkRef.current,
+                  latestTimesCarryRef.current,
+                  latestDivisionDraftRef.current,
+                  latestDivisionCarryRef.current,
+                );
+                setActiveBox(next);
+              })();
             }, ADVANCE_DELAY_MS);
           }}
           onClearAll={clearAllAnswers}

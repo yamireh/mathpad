@@ -123,4 +123,10 @@ export interface WorkspaceCore {
   clearBox: (boxId: string) => void;
   clearAllAnswers: () => void;
   cancelAdvance: () => void;
+  /**
+   * Live-recognize one final-answer digit cell (called on the auto-advance
+   * tick). Returns `'ok'` (ink swapped for a clean glyph), `'invalid'` (ink
+   * cleared + retry prompt shown), or `'skip'` (empty / non-answer / review).
+   */
+  commitAnswerBox: (boxId: string | null) => Promise<'ok' | 'invalid' | 'skip'>;
 }

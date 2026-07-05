@@ -86,6 +86,7 @@ export function DivisionBody({ core }: DivisionBodyProps) {
     clearBox,
     clearAllAnswers,
     cancelAdvance,
+    commitAnswerBox,
   } = core;
 
   // --- Visible draft rows + cell sizing for the long-division grid ---
@@ -264,27 +265,32 @@ export function DivisionBody({ core }: DivisionBodyProps) {
             cancelAdvance();
             advanceTimerRef.current = setTimeout(() => {
               advanceTimerRef.current = null;
-              const seq = fillSequence(
-                shape,
-                layout,
-                expectedCarries,
-                multInfo,
-                draftRows > 0 ? draftGridSize : null,
-                // Skip draft cells with no expected digit (e.g. the unused
-                // leading cells of a short/zero difference), so focus never
-                // lands on a box the kid shouldn't have to fill.
-              ).filter((id) => !id.startsWith('dd-') || draftLabels.has(id));
-              const next = nextEmptyBox(
-                seq,
-                activeBox,
-                latestInkRef.current,
-                latestCarryInkRef.current,
-                latestPartialInkRef.current,
-                latestTimesCarryRef.current,
-                latestDivisionDraftRef.current,
-                latestDivisionCarryRef.current,
-              );
-              setActiveBox(next);
+              void (async () => {
+                // Live-recognize the box just written. Unreadable ink is
+                // cleared and flagged — hold focus here rather than advancing.
+                if ((await commitAnswerBox(activeBox)) === 'invalid') return;
+                const seq = fillSequence(
+                  shape,
+                  layout,
+                  expectedCarries,
+                  multInfo,
+                  draftRows > 0 ? draftGridSize : null,
+                  // Skip draft cells with no expected digit (e.g. the unused
+                  // leading cells of a short/zero difference), so focus never
+                  // lands on a box the kid shouldn't have to fill.
+                ).filter((id) => !id.startsWith('dd-') || draftLabels.has(id));
+                const next = nextEmptyBox(
+                  seq,
+                  activeBox,
+                  latestInkRef.current,
+                  latestCarryInkRef.current,
+                  latestPartialInkRef.current,
+                  latestTimesCarryRef.current,
+                  latestDivisionDraftRef.current,
+                  latestDivisionCarryRef.current,
+                );
+                setActiveBox(next);
+              })();
             }, ADVANCE_DELAY_MS);
           }}
           onClearAll={clearAllAnswers}

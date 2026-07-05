@@ -39,7 +39,9 @@ const STROKE_WIDTH = 4;
 /**
  * The large writing pad for the focused answer box. The kid writes a digit
  * here at a comfortable size; the strokes mirror into the small answer box
- * (scaled), and recognition still happens only at Finish.
+ * (scaled). When the kid pauses on a final-answer box the workspace recognizes
+ * that box right away (see `commitAnswerBox`); the whole answer is still
+ * re-recognized at Finish for marking.
  */
 export function AnswerPad({
   strokes,
