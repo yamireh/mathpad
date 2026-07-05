@@ -147,6 +147,8 @@
     "skipMessage": "You haven't written an answer yet. Are you sure you want to continue?",
     "skipConfirm": "Move on",
     "skipCancel": "Keep working",
+    "invalidTitle": "Hmm, I couldn't read that",
+    "invalidBody": "Let's clear that box and write the number again.",
     "helpTitle": "How to answer",
     "helpMessage": "Write each digit in its own box. Use the scratch area for your working out — it is just for you. Tap Finish when you are done.",
     "timeUpTitle": "Time's up!",
@@ -182,6 +184,10 @@
     "watch": "Watch how",
     "replay": "Watch again",
     "gotIt": "Got it"
+  },
+  "purchase": {
+    "errorTitle": "Purchase couldn't start",
+    "errorBody": "We couldn't reach the App Store just now. Please check your connection and try again in a moment."
   },
   "unlock": {
     "title": "Unlock operations",

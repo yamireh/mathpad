@@ -14,6 +14,7 @@ import {
   operatorSymbol,
   verticalGeometry,
 } from '../layout';
+import { leadingCarrySkip } from '../workspace/multiOperand';
 import { CarryRow, DigitCells, gridWidth, sharedStyles } from './shared';
 
 export interface AdditionProblemProps {
@@ -51,6 +52,10 @@ export function AdditionProblem({
   const [op1, op2] = question.operands;
   const { intCols, decCols } = verticalGeometry(question);
   const columns = intCols + decCols;
+  // Leading answer column(s) that only hold a final carry-out get no carry box —
+  // the kid writes that digit straight into the answer (matches the auto-advance
+  // suppression in `additionCarries`).
+  const leadingSkip = leadingCarrySkip(op1, op2, intCols);
   const {
     cellWidth,
     digitSize,
@@ -78,6 +83,7 @@ export function AdditionProblem({
           dotIndex={dotIndex}
           clearAbove
           errorMarks={errorMarks}
+          leadingSkip={leadingSkip}
         />
       ) : null}
 

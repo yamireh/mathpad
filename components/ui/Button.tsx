@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 import { colors, radius, spacing, typography } from '../../constants/design';
 import { type IoniconName } from './IconButton';
@@ -15,6 +15,8 @@ export interface ButtonProps {
   /** Optional leading icon. */
   icon?: IoniconName;
   disabled?: boolean;
+  /** Show a spinner in place of the icon and block presses (e.g. mid-purchase). */
+  loading?: boolean;
   fullWidth?: boolean;
   accessibilityLabel?: string;
 }
@@ -27,6 +29,7 @@ export function Button({
   tone = colors.text,
   icon,
   disabled = false,
+  loading = false,
   fullWidth = true,
   accessibilityLabel,
 }: ButtonProps) {
@@ -36,24 +39,30 @@ export function Button({
       : variant === 'ghost'
         ? tone
         : colors.text;
+  // A loading button is inert — it must not fire again while its action runs.
+  const blocked = disabled || loading;
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={blocked}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: blocked, busy: loading }}
       style={({ pressed }) => [
         styles.base,
         fullWidth && styles.fullWidth,
         variant === 'primary' && { backgroundColor: tone },
         variant === 'secondary' && styles.secondary,
         variant === 'ghost' && styles.ghost,
-        pressed && !disabled && styles.pressed,
-        disabled && styles.disabled,
+        pressed && !blocked && styles.pressed,
+        blocked && styles.disabled,
       ]}
     >
-      {icon ? <Ionicons name={icon} size={20} color={contentColor} /> : null}
+      {loading ? (
+        <ActivityIndicator size="small" color={contentColor} />
+      ) : icon ? (
+        <Ionicons name={icon} size={20} color={contentColor} />
+      ) : null}
       <Text style={[styles.label, { color: contentColor }]}>{label}</Text>
     </Pressable>
   );

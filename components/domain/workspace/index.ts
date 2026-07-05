@@ -1,4 +1,5 @@
 export * from './boxIds';
+export * from './commitCell';
 export * from './CompactBody';
 export * from './DivisionBody';
 export * from './draftInk';

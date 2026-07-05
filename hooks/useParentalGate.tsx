@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { ParentalGate } from '../components/ui';
 
@@ -20,24 +20,45 @@ export interface UseParentalGateResult {
  */
 export function useParentalGate(): UseParentalGateResult {
   const [pending, setPending] = useState<{ run: () => void } | null>(null);
+  // The gated action must run only AFTER the modal has fully dismissed — on iOS
+  // you cannot present the StoreKit sheet while a modal is still animating out
+  // (it silently fails). So on success we stash the action, close the modal, and
+  // fire it from `onClosed` (Modal.onDismiss). A timeout backs that up in case
+  // onDismiss never fires (e.g. Android); whichever runs first wins, then clears.
+  const runAfterClose = useRef<(() => void) | null>(null);
+  const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const runGated = useCallback((action: () => void) => {
     setPending({ run: action });
   }, []);
 
-  const handleSuccess = useCallback(() => {
-    const action = pending;
-    setPending(null);
-    action?.run();
-  }, [pending]);
+  const flush = useCallback(() => {
+    if (fallbackTimer.current) {
+      clearTimeout(fallbackTimer.current);
+      fallbackTimer.current = null;
+    }
+    const action = runAfterClose.current;
+    runAfterClose.current = null;
+    action?.();
+  }, []);
 
-  const handleCancel = useCallback(() => setPending(null), []);
+  const handleSuccess = useCallback(() => {
+    runAfterClose.current = pending?.run ?? null;
+    setPending(null);
+    fallbackTimer.current = setTimeout(flush, 500);
+  }, [pending, flush]);
+
+  const handleCancel = useCallback(() => {
+    runAfterClose.current = null;
+    setPending(null);
+  }, []);
 
   const gate = (
     <ParentalGate
       visible={pending !== null}
       onSuccess={handleSuccess}
       onCancel={handleCancel}
+      onClosed={flush}
     />
   );
 

@@ -32,6 +32,12 @@ export interface ParentalGateProps {
   onSuccess: () => void;
   /** Called when the gate is dismissed without passing. */
   onCancel: () => void;
+  /**
+   * Fires after the modal has *fully* dismissed (iOS `Modal.onDismiss`). The
+   * gated action must wait for this — presenting the StoreKit sheet while the
+   * modal is still animating out silently fails on iOS.
+   */
+  onClosed?: () => void;
 }
 
 /**
@@ -50,6 +56,7 @@ export function ParentalGate({
   visible,
   onSuccess,
   onCancel,
+  onClosed,
 }: ParentalGateProps) {
   const { t } = useTranslation();
   const words = t('parentalGate.numbers', {
@@ -133,6 +140,7 @@ export function ParentalGate({
       transparent
       animationType="fade"
       onRequestClose={onCancel}
+      onDismiss={onClosed}
     >
       <View style={styles.backdrop}>
         <Animated.View

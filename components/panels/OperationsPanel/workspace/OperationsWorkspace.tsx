@@ -21,13 +21,16 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { NoticeDialog } from '../../../ui';
 import {
   scratchAudible,
   scratchMute,
   scratchStop,
 } from '../../../../lib/feedback';
+import { recognizeDigit } from '../../../../lib/recognition';
 import { digitInk } from '../../../../lib/solver/digitInk';
 import type { ReviewMarks } from '../../../../lib/review';
 import { computeSolvePlan } from '../../../../lib/solver/solveValues';
@@ -64,12 +67,14 @@ import {
   fillSequence,
   type MultiplicationInfo,
   nextEmptyBox,
+  additionCarries,
   multiOperandCarries,
   parseDivisionCarryId,
   parseDivisionDraftId,
   parsePartialId,
   parseTimesCarryId,
   partialProductValues,
+  recognizeAnswerCell,
   useSolver,
   type WorkspaceCore,
 } from '../../../domain/workspace';
@@ -180,6 +185,8 @@ export const OperationsWorkspace = forwardRef<
     tone,
   } = props;
 
+  const { t } = useTranslation();
+
   /* ------------------------- derived inputs ------------------------- */
   const shape = answerShape(question);
   const isLongDivision = layout === 'divisionLong';
@@ -187,6 +194,8 @@ export const OperationsWorkspace = forwardRef<
 
   /* ----------------------------- state ------------------------------ */
   const [padCollapsed, setPadCollapsed] = useState(false);
+  // Shown when the kid's live-recognized answer digit was unreadable.
+  const [invalidVisible, setInvalidVisible] = useState(false);
   const [activeBox, setActiveBox] = useState<string | null>(() => {
     if (question.operation === 'multiplication') {
       const [a1, a2] = multiplicationDigitOperands(question);
@@ -398,17 +407,16 @@ export const OperationsWorkspace = forwardRef<
   /* -------------- per-column expected-carries flags -------------- */
   const expectedCarries = useMemo<boolean[] | null>(() => {
     if (question.operation === 'addition') {
-      // Over the full (integer + decimal) grid: scale operands to their digit
-      // strings so carries — including across the decimal point — are covered.
-      // Integer questions have decCols 0, so this matches the old behavior.
+      // Over the full (integer + decimal) grid so carries — including across the
+      // decimal point — are covered. The final carry-out of the leftmost operand
+      // column is suppressed: it has no column to add into, so the kid writes it
+      // straight into the answer's leading box (no carry box + bring-down).
       const { intCols, decCols } = verticalGeometry(question);
-      const scale = 10 ** decCols;
-      return multiOperandCarries(
-        [
-          Math.round(Math.abs(question.operands[0]) * scale),
-          Math.round(Math.abs(question.operands[1]) * scale),
-        ],
-        intCols + decCols,
+      return additionCarries(
+        question.operands[0],
+        question.operands[1],
+        intCols,
+        decCols,
       );
     }
     if (question.operation === 'multiplication') {
@@ -658,6 +666,37 @@ export const OperationsWorkspace = forwardRef<
     setPadNonce((n) => n + 1);
   };
 
+  // Live recognition of a single final-answer digit cell, the moment the kid
+  // pauses on it (called from the auto-advance tick). A recognized digit's raw
+  // ink is swapped for a clean canonical glyph — the same `digitInk` the hint
+  // writer uses, so Finish re-recognizes it identically. Unreadable scribble is
+  // cleared and the kid is prompted to try again. No-op outside practice
+  // (review's "Show errors" keeps the kid's original ink) and for non-answer
+  // cells (sign box + all working cells stay untouched).
+  const commitAnswerBox = useCallback(
+    async (boxId: string | null): Promise<'ok' | 'invalid' | 'skip'> => {
+      if (!boxId || errorMarks) return 'skip';
+      const kind = boxId.split('-')[0];
+      if (kind !== 'int' && kind !== 'dec' && kind !== 'rem') return 'skip';
+      const strokes = getBoxStrokes(latestInkRef.current, boxId);
+      const verdict = await recognizeAnswerCell(strokes, recognizeDigit);
+      if (verdict.kind === 'skip') return 'skip';
+      if (verdict.kind === 'invalid') {
+        onAnswerInkChange(setBoxStrokes(latestInkRef.current, boxId, []));
+        lastStrokeCountRef.current = 0;
+        setActiveBox(boxId);
+        setPadNonce((n) => n + 1);
+        setInvalidVisible(true);
+        return 'invalid';
+      }
+      onAnswerInkChange(
+        setBoxStrokes(latestInkRef.current, boxId, digitInk(verdict.digit)),
+      );
+      return 'ok';
+    },
+    [errorMarks, onAnswerInkChange],
+  );
+
   const writeBox = useCallback(
     (boxId: string, digit: number) => {
       const strokes = digitInk(digit);
@@ -894,6 +933,7 @@ export const OperationsWorkspace = forwardRef<
     clearBox,
     clearAllAnswers,
     cancelAdvance,
+    commitAnswerBox,
   };
 
   /* ----------------------- per-operation dispatch ---------------------- */
@@ -932,6 +972,13 @@ export const OperationsWorkspace = forwardRef<
             actionNonce={actionNonce}
           />
         ) : null}
+        <NoticeDialog
+          visible={invalidVisible}
+          title={t('practice.invalidTitle')}
+          message={t('practice.invalidBody')}
+          buttonLabel={t('common.gotIt')}
+          onDismiss={() => setInvalidVisible(false)}
+        />
       </View>
     </CursorTargetProvider>
   );
