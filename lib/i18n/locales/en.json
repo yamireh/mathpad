@@ -149,6 +149,8 @@
     "skipCancel": "Keep working",
     "invalidTitle": "Hmm, I couldn't read that",
     "invalidBody": "Let's clear that box and write the number again.",
+    "multiTitle": "One digit per box",
+    "multiBody": "Write just one number in each box. Let's clear it and try again.",
     "helpTitle": "How to answer",
     "helpMessage": "Write each digit in its own box. Use the scratch area for your working out — it is just for you. Tap Finish when you are done.",
     "timeUpTitle": "Time's up!",

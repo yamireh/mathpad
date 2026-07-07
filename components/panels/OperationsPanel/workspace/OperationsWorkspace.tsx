@@ -194,8 +194,9 @@ export const OperationsWorkspace = forwardRef<
 
   /* ----------------------------- state ------------------------------ */
   const [padCollapsed, setPadCollapsed] = useState(false);
-  // Shown when the kid's live-recognized answer digit was unreadable.
-  const [invalidVisible, setInvalidVisible] = useState(false);
+  // Live-recognition notice: unreadable ink ('invalid') or more than one digit
+  // written in a single box ('multi'). Null = no notice showing.
+  const [notice, setNotice] = useState<'invalid' | 'multi' | null>(null);
   const [activeBox, setActiveBox] = useState<string | null>(() => {
     if (question.operation === 'multiplication') {
       const [a1, a2] = multiplicationDigitOperands(question);
@@ -674,25 +675,27 @@ export const OperationsWorkspace = forwardRef<
   // (review's "Show errors" keeps the kid's original ink) and for non-answer
   // cells (sign box + all working cells stay untouched).
   const commitAnswerBox = useCallback(
-    async (boxId: string | null): Promise<'ok' | 'invalid' | 'skip'> => {
+    async (boxId: string | null): Promise<'ok' | 'invalid' | 'multi' | 'skip'> => {
       if (!boxId || errorMarks) return 'skip';
       const kind = boxId.split('-')[0];
       if (kind !== 'int' && kind !== 'dec' && kind !== 'rem') return 'skip';
       const strokes = getBoxStrokes(latestInkRef.current, boxId);
       const verdict = await recognizeAnswerCell(strokes, recognizeDigit);
       if (verdict.kind === 'skip') return 'skip';
-      if (verdict.kind === 'invalid') {
-        onAnswerInkChange(setBoxStrokes(latestInkRef.current, boxId, []));
-        lastStrokeCountRef.current = 0;
-        setActiveBox(boxId);
-        setPadNonce((n) => n + 1);
-        setInvalidVisible(true);
-        return 'invalid';
+      if (verdict.kind === 'ok') {
+        onAnswerInkChange(
+          setBoxStrokes(latestInkRef.current, boxId, digitInk(verdict.digit)),
+        );
+        return 'ok';
       }
-      onAnswerInkChange(
-        setBoxStrokes(latestInkRef.current, boxId, digitInk(verdict.digit)),
-      );
-      return 'ok';
+      // 'invalid' (unreadable) or 'multi' (two digits in one box): clear the box,
+      // show the matching notice, and hold focus here rather than advancing.
+      onAnswerInkChange(setBoxStrokes(latestInkRef.current, boxId, []));
+      lastStrokeCountRef.current = 0;
+      setActiveBox(boxId);
+      setPadNonce((n) => n + 1);
+      setNotice(verdict.kind);
+      return verdict.kind;
     },
     [errorMarks, onAnswerInkChange],
   );
@@ -973,11 +976,11 @@ export const OperationsWorkspace = forwardRef<
           />
         ) : null}
         <NoticeDialog
-          visible={invalidVisible}
-          title={t('practice.invalidTitle')}
-          message={t('practice.invalidBody')}
+          visible={notice !== null}
+          title={t(notice === 'multi' ? 'practice.multiTitle' : 'practice.invalidTitle')}
+          message={t(notice === 'multi' ? 'practice.multiBody' : 'practice.invalidBody')}
           buttonLabel={t('common.gotIt')}
-          onDismiss={() => setInvalidVisible(false)}
+          onDismiss={() => setNotice(null)}
         />
       </View>
     </CursorTargetProvider>
