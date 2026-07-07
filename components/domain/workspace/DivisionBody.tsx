@@ -31,8 +31,12 @@ import { nextEmptyBox } from './nextEmptyBox';
 import { PadRegion } from './PadRegion';
 import type { WorkspaceCore } from './types';
 
-/** Idle time after the last stroke before auto-advancing to the next box. */
-const ADVANCE_DELAY_MS = 300;
+/**
+ * Idle time after the last stroke before recognizing the box + auto-advancing.
+ * Long enough that a digit drawn in two strokes (4, 5, 7) isn't read/advanced
+ * after only the first stroke — the kid gets a beat to finish it.
+ */
+const ADVANCE_DELAY_MS = 500;
 
 export interface DivisionBodyProps {
   core: WorkspaceCore;
@@ -266,9 +270,10 @@ export function DivisionBody({ core }: DivisionBodyProps) {
             advanceTimerRef.current = setTimeout(() => {
               advanceTimerRef.current = null;
               void (async () => {
-                // Live-recognize the box just written. Unreadable ink is
-                // cleared and flagged — hold focus here rather than advancing.
-                if ((await commitAnswerBox(activeBox)) === 'invalid') return;
+                // Live-recognize the box just written. Unreadable ink or a
+                // two-digit box is cleared + flagged — hold focus, don't advance.
+                const verdict = await commitAnswerBox(activeBox);
+                if (verdict === 'invalid' || verdict === 'multi') return;
                 const seq = fillSequence(
                   shape,
                   layout,

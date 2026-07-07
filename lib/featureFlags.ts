@@ -7,8 +7,8 @@
  * or `false` to hide it everywhere.
  */
 
-/** Clock module. Dev-only for now; set to `true` to ship Clock. */
-export const CLOCK_ENABLED = __DEV__;
+/** Clock module — live (V1.2, paid Clock IAP `com.mc.mathpad.clock`). */
+export const CLOCK_ENABLED = true;
 
 /**
  * The "Unlock everything" Complete bundle ($24.99). Deferred until enough

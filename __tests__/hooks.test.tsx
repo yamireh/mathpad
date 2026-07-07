@@ -12,6 +12,7 @@ import {
   useTimer,
   usePracticeSession,
 } from '../hooks';
+import { setBoxStrokes, type InkStroke } from '../components/domain/ink';
 import { historyStore } from '../lib/storage';
 import type { AdditionSettings, Question, SubmittedAnswer } from '../types';
 
@@ -84,6 +85,37 @@ describe('usePracticeSession', () => {
     expect(history).toHaveLength(1);
     expect(history[0].firstTryScore).toBe(0);
     expect(history[0].finalScore).toBe(1);
+  });
+
+  it('coalesces a box’s consecutive edits into one undo step', () => {
+    const { result } = renderHook(() => usePracticeSession(), { wrapper });
+    act(() => result.current.start(settings));
+    const qid = result.current.session!.questions[0].id;
+    const oneStroke = [[[0, 0]]] as unknown as InkStroke[];
+    const twoStrokes = [[[0, 0]], [[1, 1]]] as unknown as InkStroke[];
+
+    // Two edits to int-0 — e.g. a stroke, then the live-recognition swap.
+    act(() =>
+      result.current.updateAnswerInk(
+        qid,
+        setBoxStrokes(result.current.session!.answerInk[qid], 'int-0', oneStroke),
+      ),
+    );
+    act(() =>
+      result.current.updateAnswerInk(
+        qid,
+        setBoxStrokes(
+          result.current.session!.answerInk[qid],
+          'int-0',
+          twoStrokes,
+        ),
+      ),
+    );
+    expect(result.current.session!.answerInk[qid].integer[0]).toHaveLength(2);
+
+    // One undo empties the box — not back to the one-stroke state.
+    act(() => result.current.undoLastAction(qid));
+    expect(result.current.session!.answerInk[qid].integer[0]).toHaveLength(0);
   });
 
   it('reset clears the session', async () => {

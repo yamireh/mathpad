@@ -1,6 +1,8 @@
 import {
   additionCarries,
   leadingCarrySkip,
+  multiplicationCarries,
+  partialProductValues,
 } from '../components/domain/workspace/multiOperand';
 
 describe('leadingCarrySkip', () => {
@@ -40,5 +42,28 @@ describe('additionCarries', () => {
     // 21 + 19 = 40: units 1+9=10 carries into tens (index 0); tens fits, no
     // leading column, so the carry box stays.
     expect(additionCarries(21, 19, 2, 0)).toEqual([true, false]);
+  });
+});
+
+describe('multiplicationCarries', () => {
+  it('never puts a carry box over the leftmost answer digit (89 × 13 = 1157)', () => {
+    // Carries into hundreds (internal, kept) and into thousands (leftmost).
+    const carries = multiplicationCarries(partialProductValues(89, 13), 4);
+    expect(carries[0]).toBe(false); // thousands (last box) — always suppressed
+    expect(carries[1]).toBe(true); // hundreds — internal carry, kept
+  });
+
+  it('drops the leftmost carry even when a partial reaches it (12 × 34 = 408)', () => {
+    // The only carry is tens→hundreds, i.e. into the last box — so no boxes.
+    expect(multiplicationCarries(partialProductValues(12, 34), 3)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('suppresses the leftmost carry for a single-digit multiplier (68 × 5 = 340)', () => {
+    const carries = multiplicationCarries(partialProductValues(68, 5), 3);
+    expect(carries[0]).toBe(false); // hundreds (last box)
   });
 });

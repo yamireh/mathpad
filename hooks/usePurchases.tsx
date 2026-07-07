@@ -19,10 +19,11 @@
  * a grant so the unlock UX stays testable; in production it never grants for
  * free. A real build always takes the StoreKit path.
  *
- * V1 ships exactly one live IAP (the Operations bundle — see the `versions` /
- * `pricing` skills). The Clock module and the Complete bundle have no App Store
- * product yet, so they remain local stubs here (dev-only, gated by the feature
- * flags) until their own slice wires them to StoreKit.
+ * Two live IAPs ship as of V1.2 (see the `versions` / `pricing` skills): the
+ * Operations bundle (`com.mc.mathpad.operations`, $9.99) and the Clock module
+ * (`com.mc.mathpad.clock`, $4.99) — both non-consumables reconciled from
+ * StoreKit. The Complete bundle has no App Store product yet, so it stays a
+ * local stub (gated off by `COMPLETE_BUNDLE_ENABLED`) until more modules exist.
  */
 import {
   createContext,
@@ -42,7 +43,7 @@ import {
   type Purchase,
 } from 'expo-iap';
 
-import { OPERATIONS_PRODUCT_ID } from '../lib/entitlement';
+import { CLOCK_PRODUCT_ID, OPERATIONS_PRODUCT_ID } from '../lib/entitlement';
 import { clockEntitlementStore, entitlementStore } from '../lib/storage';
 
 /** Displayed prices until StoreKit provides the real, localized ones. */
@@ -131,19 +132,9 @@ function useEntitlementCore() {
     };
   }, []);
 
-  // Clock / Complete have no live App Store product in V1 (dev-only, gated by
-  // feature flags). Keep them as local stubs so their unlock UX stays testable;
-  // their own slice will route them through StoreKit like Operations.
-  const purchaseClock = useCallback(async () => {
-    setPurchasing(true);
-    try {
-      await applyClock(true);
-      return true;
-    } finally {
-      setPurchasing(false);
-    }
-  }, [applyClock]);
-
+  // The Complete bundle has no live App Store product yet (deferred until more
+  // modules exist), so it stays a local stub. Clock IS a live StoreKit product
+  // now — each provider wires its own `purchaseClock` (real vs. fallback).
   const purchaseComplete = useCallback(async () => {
     setPurchasing(true);
     try {
@@ -179,7 +170,7 @@ function useEntitlementCore() {
     setPurchaseFailed,
     clearPurchaseError,
     applyOps,
-    purchaseClock,
+    applyClock,
     purchaseComplete,
     devSetOwned,
     devSetClockOwned,
@@ -193,7 +184,9 @@ function usePurchasesValue(
   core: EntitlementCore,
   overrides: {
     price: string;
+    clockPrice: string;
     purchase: () => Promise<boolean>;
+    purchaseClock: () => Promise<boolean>;
     restore: () => Promise<boolean>;
   },
 ): PurchasesContextValue {
@@ -204,12 +197,11 @@ function usePurchasesValue(
     purchasing,
     purchaseFailed,
     clearPurchaseError,
-    purchaseClock,
     purchaseComplete,
     devSetOwned,
     devSetClockOwned,
   } = core;
-  const { price, purchase, restore } = overrides;
+  const { price, clockPrice, purchase, purchaseClock, restore } = overrides;
 
   return useMemo<PurchasesContextValue>(
     () => ({
@@ -217,7 +209,7 @@ function usePurchasesValue(
       clockOwned,
       price,
       completePrice: FALLBACK_COMPLETE_PRICE,
-      clockPrice: FALLBACK_CLOCK_PRICE,
+      clockPrice,
       loading,
       purchasing,
       purchase,
@@ -233,6 +225,7 @@ function usePurchasesValue(
       owned,
       clockOwned,
       price,
+      clockPrice,
       loading,
       purchasing,
       purchase,
@@ -250,7 +243,7 @@ function usePurchasesValue(
 /** Real StoreKit-backed provider — used when the expo-iap native module exists. */
 function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
   const core = useEntitlementCore();
-  const { applyOps, setPurchasing, setPurchaseFailed } = core;
+  const { applyOps, applyClock, setPurchasing, setPurchaseFailed } = core;
 
   // A purchase() call parks here until StoreKit reports success/failure via the
   // useIAP callbacks below — bridges the callback API to a Promise<boolean>.
@@ -269,6 +262,7 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
       // 'pending' = deferred (e.g. Ask to Buy); don't grant until it clears.
       if (purchase.purchaseState === 'pending') return;
       if (purchase.productId === OPERATIONS_PRODUCT_ID) await applyOps(true);
+      if (purchase.productId === CLOCK_PRODUCT_ID) await applyClock(true);
       try {
         // Non-consumable: must be finished so StoreKit stops re-delivering it.
         await finishRef.current?.(purchase);
@@ -278,7 +272,7 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
       }
       settle(true);
     },
-    [applyOps, settle],
+    [applyOps, applyClock, settle],
   );
 
   const onPurchaseError = useCallback(
@@ -297,20 +291,28 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
       finishTransaction({ purchase, isConsumable: false });
   }, [finishTransaction]);
 
-  // Reconcile owned-state from StoreKit. Returns whether the Operations bundle
-  // is owned per the store. Throws if the query fails (offline / store down) so
-  // callers can fall back to the cached entitlement instead of revoking it.
-  const reconcile = useCallback(async (): Promise<boolean> => {
+  // Reconcile owned-state from StoreKit for both products. Throws if the query
+  // fails (offline / store down) so callers can fall back to the cached
+  // entitlement instead of revoking it.
+  const reconcile = useCallback(async (): Promise<{
+    ops: boolean;
+    clock: boolean;
+  }> => {
     const purchases = await queryAvailablePurchases();
     const ops = purchases.some((p) => p.productId === OPERATIONS_PRODUCT_ID);
+    const clock = purchases.some((p) => p.productId === CLOCK_PRODUCT_ID);
     await applyOps(ops);
-    return ops;
-  }, [applyOps]);
+    await applyClock(clock);
+    return { ops, clock };
+  }, [applyOps, applyClock]);
 
   useEffect(() => {
     if (!connected) return;
-    fetchProducts({ skus: [OPERATIONS_PRODUCT_ID], type: 'in-app' }).catch(() => {
-      // Price falls back to the bundled string; not fatal.
+    fetchProducts({
+      skus: [OPERATIONS_PRODUCT_ID, CLOCK_PRODUCT_ID],
+      type: 'in-app',
+    }).catch(() => {
+      // Prices fall back to the bundled strings; not fatal.
     });
     reconcile().catch(() => {
       // Offline / store unavailable: keep the cached entitlement untouched.
@@ -320,6 +322,11 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
   const price = useMemo(() => {
     const product = products.find((p) => p.id === OPERATIONS_PRODUCT_ID);
     return product?.displayPrice ?? FALLBACK_PRICE;
+  }, [products]);
+
+  const clockPrice = useMemo(() => {
+    const product = products.find((p) => p.id === CLOCK_PRODUCT_ID);
+    return product?.displayPrice ?? FALLBACK_CLOCK_PRICE;
   }, [products]);
 
   // Kick off a StoreKit purchase and resolve once the success/error callback
@@ -362,10 +369,23 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
     return startPurchase(OPERATIONS_PRODUCT_ID);
   }, [products, startPurchase, applyOps, setPurchasing]);
 
+  const purchaseClock = useCallback(async () => {
+    const hasProduct = products.some((p) => p.id === CLOCK_PRODUCT_ID);
+    if (__DEV__ && !hasProduct) {
+      setPurchasing(true);
+      try {
+        await applyClock(true);
+        return true;
+      } finally {
+        setPurchasing(false);
+      }
+    }
+    return startPurchase(CLOCK_PRODUCT_ID);
+  }, [products, startPurchase, applyClock, setPurchasing]);
+
   const restore = useCallback(async () => {
     try {
-      const ops = await reconcile();
-      const clock = await clockEntitlementStore.get();
+      const { ops, clock } = await reconcile();
       return ops || clock;
     } catch {
       // Offline: fall back to whatever we last validated.
@@ -377,7 +397,13 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
     }
   }, [reconcile]);
 
-  const value = usePurchasesValue(core, { price, purchase, restore });
+  const value = usePurchasesValue(core, {
+    price,
+    clockPrice,
+    purchase,
+    purchaseClock,
+    restore,
+  });
 
   return (
     <PurchasesContext.Provider value={value}>
@@ -392,7 +418,7 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
  */
 function StubPurchasesProvider({ children }: { children: ReactNode }) {
   const core = useEntitlementCore();
-  const { applyOps, setPurchasing, setPurchaseFailed } = core;
+  const { applyOps, applyClock, setPurchasing, setPurchaseFailed } = core;
 
   const purchase = useCallback(async () => {
     // No StoreKit in this binary. Simulate in dev so the unlock flow is
@@ -411,6 +437,20 @@ function StubPurchasesProvider({ children }: { children: ReactNode }) {
     }
   }, [applyOps, setPurchasing, setPurchaseFailed]);
 
+  const purchaseClock = useCallback(async () => {
+    if (!__DEV__) {
+      setPurchaseFailed(true);
+      return false;
+    }
+    setPurchasing(true);
+    try {
+      await applyClock(true);
+      return true;
+    } finally {
+      setPurchasing(false);
+    }
+  }, [applyClock, setPurchasing, setPurchaseFailed]);
+
   const restore = useCallback(async () => {
     const [ops, clock] = await Promise.all([
       entitlementStore.get(),
@@ -421,7 +461,9 @@ function StubPurchasesProvider({ children }: { children: ReactNode }) {
 
   const value = usePurchasesValue(core, {
     price: FALLBACK_PRICE,
+    clockPrice: FALLBACK_CLOCK_PRICE,
     purchase,
+    purchaseClock,
     restore,
   });
 

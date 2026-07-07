@@ -68,7 +68,7 @@ import {
   type MultiplicationInfo,
   nextEmptyBox,
   additionCarries,
-  multiOperandCarries,
+  multiplicationCarries,
   parseDivisionCarryId,
   parseDivisionDraftId,
   parsePartialId,
@@ -151,6 +151,25 @@ export interface OperationsWorkspaceHandle {
 /** Demo pencil sound during auto-solve. Off for now; flip to re-enable. */
 const DEMO_SCRATCH_SOUND = false;
 
+/**
+ * Where focus should start on a fresh (or just-cleared) question: the first
+ * partial-product cell for multiplication — that's where the kid begins, not
+ * the answer row — otherwise the frontier answer box.
+ */
+function initialFocusBox(
+  question: Question,
+  ink: AnswerInk,
+  shape: ReturnType<typeof answerShape>,
+  layout: ProblemLayout,
+): string {
+  if (question.operation === 'multiplication') {
+    const [a1, a2] = multiplicationDigitOperands(question);
+    const widths = partialWidths(a1, a2);
+    if (widths && widths.length > 0) return `pp-0-${widths[0] - 1}`;
+  }
+  return frontierBox(ink, shape, layout);
+}
+
 export const OperationsWorkspace = forwardRef<
   OperationsWorkspaceHandle,
   OperationsWorkspaceProps
@@ -194,16 +213,12 @@ export const OperationsWorkspace = forwardRef<
 
   /* ----------------------------- state ------------------------------ */
   const [padCollapsed, setPadCollapsed] = useState(false);
-  // Shown when the kid's live-recognized answer digit was unreadable.
-  const [invalidVisible, setInvalidVisible] = useState(false);
-  const [activeBox, setActiveBox] = useState<string | null>(() => {
-    if (question.operation === 'multiplication') {
-      const [a1, a2] = multiplicationDigitOperands(question);
-      const widths = partialWidths(a1, a2);
-      if (widths && widths.length > 0) return `pp-0-${widths[0] - 1}`;
-    }
-    return frontierBox(answerInk, shape, layout);
-  });
+  // Live-recognition notice: unreadable ink ('invalid') or more than one digit
+  // written in a single box ('multi'). Null = no notice showing.
+  const [notice, setNotice] = useState<'invalid' | 'multi' | null>(null);
+  const [activeBox, setActiveBox] = useState<string | null>(() =>
+    initialFocusBox(question, answerInk, shape, layout),
+  );
   const [padNonce, setPadNonce] = useState(0);
   const [bringDownPulse, setBringDownPulse] = useState<{
     cellId: string;
@@ -421,9 +436,11 @@ export const OperationsWorkspace = forwardRef<
     }
     if (question.operation === 'multiplication') {
       // Partials/carries run on the operand digit strings (decimal × multiplies
-      // the digits as integers); the sum spans the product's digit width.
+      // the digits as integers); the sum spans the product's digit width. The
+      // final carry-out into a leading column no partial reaches is suppressed —
+      // the kid writes it straight into the answer (same as addition).
       const [a1, a2] = multiplicationDigitOperands(question);
-      return multiOperandCarries(
+      return multiplicationCarries(
         partialProductValues(a1, a2),
         digitCount(a1 * a2),
       );
@@ -589,7 +606,7 @@ export const OperationsWorkspace = forwardRef<
       }
     }
     onClearUndoHistory?.();
-    setActiveBox(frontierBox(empty, shape, layout));
+    setActiveBox(initialFocusBox(question, empty, shape, layout));
     setPadNonce((n) => n + 1);
   };
 
@@ -666,35 +683,93 @@ export const OperationsWorkspace = forwardRef<
     setPadNonce((n) => n + 1);
   };
 
-  // Live recognition of a single final-answer digit cell, the moment the kid
-  // pauses on it (called from the auto-advance tick). A recognized digit's raw
-  // ink is swapped for a clean canonical glyph — the same `digitInk` the hint
-  // writer uses, so Finish re-recognizes it identically. Unreadable scribble is
-  // cleared and the kid is prompted to try again. No-op outside practice
-  // (review's "Show errors" keeps the kid's original ink) and for non-answer
-  // cells (sign box + all working cells stay untouched).
-  const commitAnswerBox = useCallback(
-    async (boxId: string | null): Promise<'ok' | 'invalid' | 'skip'> => {
-      if (!boxId || errorMarks) return 'skip';
-      const kind = boxId.split('-')[0];
-      if (kind !== 'int' && kind !== 'dec' && kind !== 'rem') return 'skip';
-      const strokes = getBoxStrokes(latestInkRef.current, boxId);
-      const verdict = await recognizeAnswerCell(strokes, recognizeDigit);
-      if (verdict.kind === 'skip') return 'skip';
-      if (verdict.kind === 'invalid') {
-        onAnswerInkChange(setBoxStrokes(latestInkRef.current, boxId, []));
-        lastStrokeCountRef.current = 0;
-        setActiveBox(boxId);
-        setPadNonce((n) => n + 1);
-        setInvalidVisible(true);
-        return 'invalid';
+  // Read/write the ink of ANY digit cell by id — answer boxes plus every
+  // working cell (carry, partial product, times-carry, long-division draft and
+  // divisor-carry). The sign box is excluded (it holds a minus, not a digit).
+  const boxStrokeAccess = useCallback(
+    (
+      boxId: string,
+    ): { get: () => InkStroke[]; set: (s: InkStroke[]) => void } | null => {
+      if (boxId.startsWith('carry-')) {
+        const col = Number(boxId.slice(6));
+        return {
+          get: () => latestCarryInkRef.current?.[col] ?? [],
+          set: (s) => onCarryInkChange?.(col, s),
+        };
       }
-      onAnswerInkChange(
-        setBoxStrokes(latestInkRef.current, boxId, digitInk(verdict.digit)),
-      );
-      return 'ok';
+      const pp = parsePartialId(boxId);
+      if (pp) {
+        return {
+          get: () => latestPartialInkRef.current?.[pp.row]?.[pp.col] ?? [],
+          set: (s) => onPartialInkChange?.(pp.row, pp.col, s),
+        };
+      }
+      const tc = parseTimesCarryId(boxId);
+      if (tc) {
+        return {
+          get: () => latestTimesCarryRef.current?.[tc.row]?.[tc.col] ?? [],
+          set: (s) => onTimesCarryInkChange?.(tc.row, tc.col, s),
+        };
+      }
+      const dd = parseDivisionDraftId(boxId);
+      if (dd) {
+        return {
+          get: () => latestDivisionDraftRef.current?.[dd.row]?.[dd.col] ?? [],
+          set: (s) => onDivisionDraftInkChange?.(dd.row, dd.col, s),
+        };
+      }
+      const dc = parseDivisionCarryId(boxId);
+      if (dc) {
+        return {
+          get: () => latestDivisionCarryRef.current?.[dc.row]?.[dc.col] ?? [],
+          set: (s) => onDivisionCarryInkChange?.(dc.row, dc.col, s),
+        };
+      }
+      if (boxId === 'sign') return null;
+      return {
+        get: () => getBoxStrokes(latestInkRef.current, boxId),
+        set: (s) =>
+          onAnswerInkChange(setBoxStrokes(latestInkRef.current, boxId, s)),
+      };
     },
-    [errorMarks, onAnswerInkChange],
+    [
+      onAnswerInkChange,
+      onCarryInkChange,
+      onPartialInkChange,
+      onTimesCarryInkChange,
+      onDivisionDraftInkChange,
+      onDivisionCarryInkChange,
+    ],
+  );
+
+  // Live recognition of whichever cell the kid just paused on (called from the
+  // auto-advance tick). A recognized digit's raw ink is swapped for a clean
+  // canonical glyph — the same `digitInk` the hint writer uses, so Finish
+  // re-recognizes it identically. Unreadable scribble ('invalid') or two digits
+  // in one box ('multi') clears the cell and prompts the kid. No-op outside
+  // practice (review's "Show errors" keeps the kid's original ink) and for the
+  // sign box.
+  const commitAnswerBox = useCallback(
+    async (boxId: string | null): Promise<'ok' | 'invalid' | 'multi' | 'skip'> => {
+      if (!boxId || errorMarks) return 'skip';
+      const access = boxStrokeAccess(boxId);
+      if (!access) return 'skip';
+      const verdict = await recognizeAnswerCell(access.get(), recognizeDigit);
+      if (verdict.kind === 'skip') return 'skip';
+      if (verdict.kind === 'ok') {
+        access.set(digitInk(verdict.digit));
+        return 'ok';
+      }
+      // 'invalid' (unreadable) or 'multi' (two digits in one box): clear the
+      // cell, show the matching notice, and hold focus rather than advancing.
+      access.set([]);
+      lastStrokeCountRef.current = 0;
+      setActiveBox(boxId);
+      setPadNonce((n) => n + 1);
+      setNotice(verdict.kind);
+      return verdict.kind;
+    },
+    [errorMarks, boxStrokeAccess],
   );
 
   const writeBox = useCallback(
@@ -973,11 +1048,11 @@ export const OperationsWorkspace = forwardRef<
           />
         ) : null}
         <NoticeDialog
-          visible={invalidVisible}
-          title={t('practice.invalidTitle')}
-          message={t('practice.invalidBody')}
+          visible={notice !== null}
+          title={t(notice === 'multi' ? 'practice.multiTitle' : 'practice.invalidTitle')}
+          message={t(notice === 'multi' ? 'practice.multiBody' : 'practice.invalidBody')}
           buttonLabel={t('common.gotIt')}
-          onDismiss={() => setInvalidVisible(false)}
+          onDismiss={() => setNotice(null)}
         />
       </View>
     </CursorTargetProvider>

@@ -126,7 +126,10 @@ export interface WorkspaceCore {
   /**
    * Live-recognize one final-answer digit cell (called on the auto-advance
    * tick). Returns `'ok'` (ink swapped for a clean glyph), `'invalid'` (ink
-   * cleared + retry prompt shown), or `'skip'` (empty / non-answer / review).
+   * cleared + retry prompt), `'multi'` (two digits in one box — cleared + "one
+   * per box" prompt), or `'skip'` (empty / non-answer / review).
    */
-  commitAnswerBox: (boxId: string | null) => Promise<'ok' | 'invalid' | 'skip'>;
+  commitAnswerBox: (
+    boxId: string | null,
+  ) => Promise<'ok' | 'invalid' | 'multi' | 'skip'>;
 }

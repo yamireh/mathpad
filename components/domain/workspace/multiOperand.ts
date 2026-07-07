@@ -70,6 +70,28 @@ export function additionCarries(
   return carries;
 }
 
+/**
+ * Per-column carry flags for the multiplication SUM step (adding the partial
+ * products into the product), with the same leading carry-out suppression as
+ * {@link additionCarries}: a leading product column that no partial product
+ * reaches only holds a final carry, so the kid writes that digit straight into
+ * the answer instead of carrying it up and bringing it back down.
+ */
+export function multiplicationCarries(
+  partialValues: number[],
+  productWidth: number,
+): boolean[] {
+  const carries = multiOperandCarries(partialValues, productWidth);
+  const maxSpan = Math.max(1, ...partialValues.map(intDigits));
+  // Never a carry box over the leftmost (last) answer digit: it's the final
+  // digit, written straight into the answer — there's no column further left to
+  // carry into. So skip at least the leading column (plus any columns the
+  // partials don't reach). Internal carry boxes are untouched.
+  const skip = Math.max(1, productWidth - maxSpan);
+  for (let i = 0; i < skip; i += 1) carries[i] = false;
+  return carries;
+}
+
 /** Partial-product values for `op1 × op2`, shifted into their place values. */
 export function partialProductValues(op1: number, op2: number): number[] {
   const values: number[] = [];

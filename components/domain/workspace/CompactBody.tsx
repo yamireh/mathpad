@@ -13,12 +13,13 @@
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { TipBubble } from '../../ui';
+import { Button, TipBubble } from '../../ui';
 import { colors, radius, shadows, spacing } from '../../../constants/design';
 import { AnswerArea } from '../AnswerArea';
 import { ProblemDisplay } from '../problem';
 import { ScratchCanvas } from '../ScratchCanvas';
 import {
+  answerBoxOrder,
   frontierBox,
   getBoxStrokes,
   isBoxWritable,
@@ -38,8 +39,12 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { AnswerShape } from '../layout';
 
-/** Idle time after the last stroke before auto-advancing to the next box. */
-const ADVANCE_DELAY_MS = 300;
+/**
+ * Idle time after the last stroke before recognizing the box + auto-advancing.
+ * Long enough that a digit drawn in two strokes (4, 5, 7) isn't read/advanced
+ * after only the first stroke — the kid gets a beat to finish it.
+ */
+const ADVANCE_DELAY_MS = 500;
 
 /**
  * How many columns the active box sits from the right (units) edge — used to
@@ -164,6 +169,12 @@ export function CompactBody({ core }: CompactBodyProps) {
     scrollToActive();
   }, [scrollToActive]);
 
+  // Every answer digit box has ink — the kid is done (frontierBox can't be used
+  // for this: it returns the last box, never null, when all are filled).
+  const allBoxesFilled = answerBoxOrder(shape, layout).every(
+    (id) => getBoxStrokes(answerInk, id).length > 0,
+  );
+
   const answer = (
     <AnswerArea
       question={question}
@@ -267,9 +278,10 @@ export function CompactBody({ core }: CompactBodyProps) {
             advanceTimerRef.current = setTimeout(() => {
               advanceTimerRef.current = null;
               void (async () => {
-                // Live-recognize the box just written. Unreadable ink is
-                // cleared and flagged — hold focus here rather than advancing.
-                if ((await commitAnswerBox(activeBox)) === 'invalid') return;
+                // Live-recognize the box just written. Unreadable ink or a
+                // two-digit box is cleared + flagged — hold focus, don't advance.
+                const verdict = await commitAnswerBox(activeBox);
+                if (verdict === 'invalid' || verdict === 'multi') return;
                 const seq = fillSequence(shape, layout, expectedCarries, multInfo, null);
                 const next = nextEmptyBox(
                   seq,
@@ -289,6 +301,18 @@ export function CompactBody({ core }: CompactBodyProps) {
           onUndo={onUndo}
           canUndo={canUndo}
         />
+      ) : allBoxesFilled ? (
+        // Every box is answered: no scratch surface (nothing left to work out) —
+        // just a "Clear all" that restarts the whole question.
+        <View style={styles.doneRegion}>
+          <Button
+            label={t('common.clearAll')}
+            icon="trash-outline"
+            variant="secondary"
+            fullWidth={false}
+            onPress={clearAllAnswers}
+          />
+        </View>
       ) : (
         <View style={styles.bottomRegion}>
           <ScratchToolbar
@@ -340,6 +364,13 @@ const styles = StyleSheet.create({
   },
   bottomRegion: {
     flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  doneRegion: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
