@@ -36,7 +36,7 @@ import type { WorkspaceCore } from './types';
  * Long enough that a digit drawn in two strokes (4, 5, 7) isn't read/advanced
  * after only the first stroke — the kid gets a beat to finish it.
  */
-const ADVANCE_DELAY_MS = 600;
+const ADVANCE_DELAY_MS = 500;
 
 export interface DivisionBodyProps {
   core: WorkspaceCore;

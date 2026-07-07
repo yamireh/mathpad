@@ -3,12 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { IconButton } from '../../ui';
-import { clockColors, spacing, typography } from '../../../constants/design';
+import { clockColors, colors, spacing, typography } from '../../../constants/design';
 import { type InkStroke } from '../ink';
 import {
   HandwritingField,
   type HandwritingFieldHandle,
 } from './HandwritingField';
+
+/** Fixed width for the colon (and the spacer above it), so the Hours/Minutes
+ *  labels line up exactly over their fields. */
+const COLON_W = spacing.xl;
 
 export interface DigitalClockAnswerProps {
   onHourChange: (strokes: InkStroke[]) => void;
@@ -56,6 +60,15 @@ export function DigitalClockAnswer({
 
   return (
     <View style={styles.wrap}>
+      {/* Labels sit above each field (and a spacer over the colon) so it's clear
+          hours go on the left, minutes on the right. */}
+      <View style={styles.row}>
+        <Text style={[styles.label, { width: fieldW }]}>{t('clock.hours')}</Text>
+        <View style={{ width: COLON_W }} />
+        <Text style={[styles.label, { width: fieldW }]}>
+          {t('clock.minutes')}
+        </Text>
+      </View>
       <View style={styles.row}>
         <HandwritingField
           key={`hour-${nonce}`}
@@ -68,9 +81,9 @@ export function DigitalClockAnswer({
           }}
           onDrawStart={onDrawStart}
           onDrawEnd={onDrawEnd}
-          accessibilityLabel="Hour"
+          accessibilityLabel={t('clock.hours')}
         />
-        <Text style={styles.colon}>:</Text>
+        <Text style={[styles.colon, { width: COLON_W }]}>:</Text>
         <HandwritingField
           key={`minute-${nonce}`}
           ref={minuteField}
@@ -82,7 +95,7 @@ export function DigitalClockAnswer({
           }}
           onDrawStart={onDrawStart}
           onDrawEnd={onDrawEnd}
-          accessibilityLabel="Minutes"
+          accessibilityLabel={t('clock.minutes')}
         />
       </View>
 
@@ -114,7 +127,15 @@ const styles = StyleSheet.create({
     fontSize: typography.size.display,
     fontWeight: typography.weight.medium,
     color: clockColors.minuteHand,
-    marginHorizontal: spacing.xs,
+    textAlign: 'center',
+  },
+  label: {
+    textAlign: 'center',
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
   },
   tools: { flexDirection: 'row', gap: spacing.lg },
 });

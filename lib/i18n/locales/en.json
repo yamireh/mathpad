@@ -220,6 +220,8 @@
   },
   "clock": {
     "readPrompt": "What time is it?",
+    "hours": "Hours",
+    "minutes": "Minutes",
     "setTitle": "Set the time",
     "reset": "Reset",
     "hourHand": "Hour hand",

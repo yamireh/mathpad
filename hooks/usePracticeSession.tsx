@@ -129,6 +129,24 @@ function strokesEq(a: InkStroke[] = [], b: InkStroke[] = []): boolean {
   return a.length === b.length && a.every((s, i) => s === b[i]);
 }
 
+/** The answer box id whose strokes changed between two states (or null) —
+ *  immutable updates keep references, so `!==` pinpoints the touched box. Used
+ *  to coalesce a box's consecutive edits into one undo step. */
+function changedAnswerBox(
+  prev: AnswerInk | undefined,
+  next: AnswerInk,
+): string | null {
+  if (!prev) return null;
+  if (prev.sign !== next.sign) return 'sign';
+  for (let i = 0; i < next.integer.length; i += 1)
+    if (prev.integer[i] !== next.integer[i]) return `int-${i}`;
+  for (let i = 0; i < next.decimal.length; i += 1)
+    if (prev.decimal[i] !== next.decimal[i]) return `dec-${i}`;
+  for (let i = 0; i < next.remainder.length; i += 1)
+    if (prev.remainder[i] !== next.remainder[i]) return `rem-${i}`;
+  return null;
+}
+
 /**
  * The id of the box whose ink differs between the question's current state and
  * the snapshot being restored — i.e. the box an undo just reverted, so focus
@@ -341,16 +359,32 @@ export function PracticeSessionProvider({
     [],
   );
 
+  // The cell (`qid:boxId`) the last history push was for, so consecutive edits
+  // to the same cell coalesce into ONE undo step. Reset (null) whenever the
+  // next edit must start a fresh step (after an undo / clear).
+  const lastEditRef = useRef<string | null>(null);
+
   // Push the question's current state onto its undo stack, then commit
   // `next` (which contains the post-change state). Caps the stack at
   // UNDO_LIMIT so deep practice sessions don't grow memory unbounded.
+  //
+  // `coalesceKey` identifies the edited cell: consecutive edits to the same
+  // cell (all the strokes of one digit, plus the live-recognition swap that
+  // replaces them with a clean glyph) collapse into a single undo step, so one
+  // undo empties the box rather than peeling back a stroke or the swap.
   const pushHistoryAndCommit = useCallback(
-    (qid: string, next: SessionData) => {
+    (qid: string, next: SessionData, coalesceKey?: string | null) => {
       const prev = sessionRef.current;
       if (!prev) {
         commit(next);
         return;
       }
+      const fullKey = coalesceKey != null ? `${qid}:${coalesceKey}` : null;
+      if (fullKey != null && fullKey === lastEditRef.current) {
+        commit(next); // same cell as the last edit — no new undo step
+        return;
+      }
+      lastEditRef.current = fullKey;
       const snapshot = snapshotQuestion(prev, qid);
       const stack = next.undoStacks[qid] ?? [];
       const trimmed =
@@ -369,10 +403,11 @@ export function PracticeSessionProvider({
     (questionId: string, ink: AnswerInk) => {
       const data = sessionRef.current;
       if (!data) return;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        answerInk: { ...data.answerInk, [questionId]: ink },
-      });
+      pushHistoryAndCommit(
+        questionId,
+        { ...data, answerInk: { ...data.answerInk, [questionId]: ink } },
+        changedAnswerBox(data.answerInk[questionId], ink),
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -435,10 +470,11 @@ export function PracticeSessionProvider({
       const next = [...current];
       while (next.length <= column) next.push([]);
       next[column] = strokes;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        carryInk: { ...data.carryInk, [questionId]: next },
-      });
+      pushHistoryAndCommit(
+        questionId,
+        { ...data, carryInk: { ...data.carryInk, [questionId]: next } },
+        `carry-${column}`,
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -454,10 +490,11 @@ export function PracticeSessionProvider({
       while (nextRow.length <= col) nextRow.push([]);
       nextRow[col] = strokes;
       nextRows[row] = nextRow;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        partialInk: { ...data.partialInk, [questionId]: nextRows },
-      });
+      pushHistoryAndCommit(
+        questionId,
+        { ...data, partialInk: { ...data.partialInk, [questionId]: nextRows } },
+        `pp-${row}-${col}`,
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -478,13 +515,14 @@ export function PracticeSessionProvider({
       while (nextRow.length <= op1Col) nextRow.push([]);
       nextRow[op1Col] = strokes;
       nextRows[partialRow] = nextRow;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        timesCarryInk: {
-          ...data.timesCarryInk,
-          [questionId]: nextRows,
+      pushHistoryAndCommit(
+        questionId,
+        {
+          ...data,
+          timesCarryInk: { ...data.timesCarryInk, [questionId]: nextRows },
         },
-      });
+        `tcarry-${partialRow}-${op1Col}`,
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -500,13 +538,14 @@ export function PracticeSessionProvider({
       while (nextRow.length <= col) nextRow.push([]);
       nextRow[col] = strokes;
       nextRows[row] = nextRow;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        divisionDraftInk: {
-          ...data.divisionDraftInk,
-          [questionId]: nextRows,
+      pushHistoryAndCommit(
+        questionId,
+        {
+          ...data,
+          divisionDraftInk: { ...data.divisionDraftInk, [questionId]: nextRows },
         },
-      });
+        `dd-${row}-${col}`,
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -522,13 +561,14 @@ export function PracticeSessionProvider({
       while (nextRow.length <= col) nextRow.push([]);
       nextRow[col] = strokes;
       nextRows[step] = nextRow;
-      pushHistoryAndCommit(questionId, {
-        ...data,
-        divisionCarryInk: {
-          ...data.divisionCarryInk,
-          [questionId]: nextRows,
+      pushHistoryAndCommit(
+        questionId,
+        {
+          ...data,
+          divisionCarryInk: { ...data.divisionCarryInk, [questionId]: nextRows },
         },
-      });
+        `dcarry-${step}-${col}`,
+      );
     },
     [pushHistoryAndCommit],
   );
@@ -540,6 +580,9 @@ export function PracticeSessionProvider({
       if (!data) return null;
       const stack = data.undoStacks[questionId] ?? [];
       if (stack.length === 0) return null;
+      // After an undo, the next edit — even to the same cell — must start a new
+      // undo step rather than coalescing into the step we just reverted.
+      lastEditRef.current = null;
       const snap = stack[stack.length - 1];
       const remaining = stack.slice(0, -1);
       const box = undoneBox(data, snap, questionId);
@@ -577,6 +620,7 @@ export function PracticeSessionProvider({
     (questionId: string) => {
       const data = sessionRef.current;
       if (!data) return;
+      lastEditRef.current = null;
       commit({
         ...data,
         undoStacks: { ...data.undoStacks, [questionId]: [] },

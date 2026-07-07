@@ -83,6 +83,14 @@ export function MultiplicationProblem({
   // Multi-digit multipliers render their partial products as separate rows
   // between the two rules. The sum carry row then sits above the sum.
   const partials = partialWidths(a1, a2);
+  // No carry box over the leftmost (last) answer digit — it's the final digit,
+  // written straight into the answer. Skip at least that column, plus any
+  // leading columns no partial product reaches (each partial spans width + its
+  // row shift). Internal carry boxes stay.
+  const sumCarryLeadingSkip = Math.max(
+    1,
+    partials ? columns - Math.max(...partials.map((w, r) => w + r)) : 0,
+  );
   const operand = (value: number, places: number) =>
     places > 0 ? (
       <ThinDotDigits
@@ -191,6 +199,7 @@ export function MultiplicationProblem({
             boxHeight={carryH}
             clearAbove
             errorMarks={errorMarks}
+            leadingSkip={sumCarryLeadingSkip}
           />
         </View>
       ) : null}

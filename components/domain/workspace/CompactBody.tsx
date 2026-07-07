@@ -13,12 +13,13 @@
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { TipBubble } from '../../ui';
+import { Button, TipBubble } from '../../ui';
 import { colors, radius, shadows, spacing } from '../../../constants/design';
 import { AnswerArea } from '../AnswerArea';
 import { ProblemDisplay } from '../problem';
 import { ScratchCanvas } from '../ScratchCanvas';
 import {
+  answerBoxOrder,
   frontierBox,
   getBoxStrokes,
   isBoxWritable,
@@ -43,7 +44,7 @@ import type { AnswerShape } from '../layout';
  * Long enough that a digit drawn in two strokes (4, 5, 7) isn't read/advanced
  * after only the first stroke — the kid gets a beat to finish it.
  */
-const ADVANCE_DELAY_MS = 600;
+const ADVANCE_DELAY_MS = 500;
 
 /**
  * How many columns the active box sits from the right (units) edge — used to
@@ -167,6 +168,12 @@ export function CompactBody({ core }: CompactBodyProps) {
   useEffect(() => {
     scrollToActive();
   }, [scrollToActive]);
+
+  // Every answer digit box has ink — the kid is done (frontierBox can't be used
+  // for this: it returns the last box, never null, when all are filled).
+  const allBoxesFilled = answerBoxOrder(shape, layout).every(
+    (id) => getBoxStrokes(answerInk, id).length > 0,
+  );
 
   const answer = (
     <AnswerArea
@@ -294,6 +301,18 @@ export function CompactBody({ core }: CompactBodyProps) {
           onUndo={onUndo}
           canUndo={canUndo}
         />
+      ) : allBoxesFilled ? (
+        // Every box is answered: no scratch surface (nothing left to work out) —
+        // just a "Clear all" that restarts the whole question.
+        <View style={styles.doneRegion}>
+          <Button
+            label={t('common.clearAll')}
+            icon="trash-outline"
+            variant="secondary"
+            fullWidth={false}
+            onPress={clearAllAnswers}
+          />
+        </View>
       ) : (
         <View style={styles.bottomRegion}>
           <ScratchToolbar
@@ -345,6 +364,13 @@ const styles = StyleSheet.create({
   },
   bottomRegion: {
     flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  doneRegion: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
