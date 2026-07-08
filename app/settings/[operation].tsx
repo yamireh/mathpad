@@ -165,6 +165,8 @@ export default function SettingsScreen() {
                 patch({ timer: { ...settings.timer, enabled } })
               }
               trackColor={{ true: accent, false: colors.border }}
+              thumbColor={colors.surface}
+              ios_backgroundColor={colors.border}
             />
           }
         >
@@ -450,6 +452,8 @@ function ToggleRow({
         value={value}
         onValueChange={onValueChange}
         trackColor={{ true: tone, false: colors.border }}
+        thumbColor={colors.surface}
+        ios_backgroundColor={colors.border}
       />
     </View>
   );
