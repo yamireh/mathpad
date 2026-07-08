@@ -1,6 +1,9 @@
 {
-  "platforms": ["apple"],
+  "platforms": ["apple", "android"],
   "apple": {
     "modules": ["DigitalInkModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.digitalink.DigitalInkModule"]
   }
 }

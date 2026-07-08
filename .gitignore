@@ -45,3 +45,6 @@ coverage/
 
 # local tooling
 .claude/settings.local.json
+
+# Local native module Gradle build output
+modules/*/android/build/

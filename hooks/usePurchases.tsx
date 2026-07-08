@@ -36,6 +36,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { LogBox } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   getAvailablePurchases as queryAvailablePurchases,
@@ -45,6 +46,14 @@ import {
 
 import { CLOCK_PRODUCT_ID, OPERATIONS_PRODUCT_ID } from '../lib/entitlement';
 import { clockEntitlementStore, entitlementStore } from '../lib/storage';
+
+// The billing service can't connect where it isn't available — an Android
+// emulator without Google Play, before a Play Console track exists, or offline.
+// We handle that gracefully (see `onConnectionError` below), and in production
+// expo-iap's own log is harmless, so silence the expected dev warning.
+if (__DEV__) {
+  LogBox.ignoreLogs(['initConnection failed', '[useIAP] Connection failed']);
+}
 
 /** Displayed prices until StoreKit provides the real, localized ones. */
 const FALLBACK_PRICE = '$9.99';
@@ -283,8 +292,15 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
     [settle],
   );
 
+  // Store/billing couldn't connect (emulator without Google Play, no Play track
+  // yet, offline). Degrade gracefully: `connected` stays false, so we never
+  // fetch products or reconcile, entitlement stays at its cached value (nothing
+  // owned by default), and a buy attempt surfaces the "couldn't start" notice.
+  // Handling it here keeps it from being an unhandled error.
+  const onConnectionError = useCallback((_error: Error) => {}, []);
+
   const { connected, products, fetchProducts, requestPurchase, finishTransaction } =
-    useIAP({ onPurchaseSuccess, onPurchaseError });
+    useIAP({ onPurchaseSuccess, onPurchaseError, onError: onConnectionError });
 
   useEffect(() => {
     finishRef.current = (purchase: Purchase) =>

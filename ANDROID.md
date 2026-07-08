@@ -2,27 +2,52 @@
 
 Goal: bring Android to **exact parity with the current iOS app** — same screens, same
 recognition, same pricing, same feel — from the one shared codebase. iOS is the
-reference; nothing new is designed here, only ported. Execute this when we're
-ready (Android is post-V1 per SPEC + the `versions` V1 doc).
+reference; nothing new is designed here, only ported.
+
+**Status: ACTIVE.** iOS has shipped **1.2.0** (Operations + Clock, both live paid
+IAPs). Android is now being built, testing on the **Android emulator** (no
+physical device needed — ML Kit Digital Ink works on the emulator; it just
+downloads the model over the emulator's network like any device).
+
+**Execution order (incremental — validate each before moving on):**
+1. **Addition works** — the hard milestone: Android build runs + the native
+   recognition module works + Addition's full flow (write → mark → review). Once
+   recognition works, it works for *every* operation (same digit/sign model).
+2. **Full Operations** — verify Subtraction / Multiplication / Division / Mix:
+   the borrow arrows, carry boxes, partial-product rows, long-division draft grid,
+   and the live-recognition + undo behaviors, on Android.
+3. **Clock** — verify the Skia clock face, the **draggable hands** (react-native-
+   gesture-handler `Gesture.Pan`), and the digital "write the time" answer (same
+   recognition module) on Android.
+Then: IAP via Play Billing, Play Console, assets, store admin, AAB.
 
 ## Current state (what is NOT yet cross-platform)
 
 - ~85–90% of the app is platform-agnostic JS/UI (expo-router, Skia, reanimated,
   expo-audio, expo-localization, all `lib/` + `components/` + `hooks/`) and runs
   on Android once it builds.
-- **The one real gap:** the custom recognition native module
-  `modules/digital-ink` is **iOS-only**. `expo-module.config.json` declares
-  `"platforms": ["apple"]` and there is only `ios/DigitalInkModule.swift`. No
-  Android (Kotlin) implementation exists.
-- IAP (`usePurchases`) is a stub today; its Slice 2 real implementation must
-  cover Google Play Billing, not just StoreKit.
+- **The one real gap (now implemented, needs build+test):** the custom
+  recognition native module `modules/digital-ink` was iOS-only. **Android is now
+  written** — `expo-module.config.json` declares `["apple","android"]`, plus
+  `android/build.gradle` (ML Kit dep) and
+  `android/src/main/java/expo/modules/digitalink/DigitalInkModule.kt` (Kotlin,
+  mirrors the Swift API + error codes). Not yet compiled/run — that's Milestone 1.
+- IAP (`usePurchases`) is **real now** (not a stub): live StoreKit for both
+  `com.mc.mathpad.operations` ($9.99) and `com.mc.mathpad.clock` ($7.99).
+  `expo-iap` also wraps **Google Play Billing**, so the shared hook should work on
+  Android — the remaining work is Play Console products + verifying the flow, not
+  new client code (see Phase 3).
 - `app.json` already has an `android` block (package `com.mc.mathpad`, adaptive
   icon, `edgeToEdgeEnabled`, `predictiveBackGestureEnabled: false`), so config is
   partially there.
 
 ---
 
-## Phase 1 — Digital-ink recognition Android module (the main work) 🟠
+## Phase 1 — Digital-ink recognition Android module (the main work) — CODE DONE, needs build ✅🟠
+
+**Written** (2026 Android port): the Kotlin module, `build.gradle`, and the
+config are in place. Remaining: generate the Android project and build/run it on
+an emulator, then confirm recognition matches iOS. The JS side is unchanged.
 
 Mirror `modules/digital-ink/ios/DigitalInkModule.swift` in Kotlin so the JS API
 is byte-for-byte identical. The JS side (`lib/recognition/index.ts`,
@@ -74,8 +99,18 @@ resolves `[]`.
    This matches iOS — it's a one-time Google ML Kit model fetch, not a backend,
    so it's consistent with the "offline, no backend" stance (note in Data Safety).
 
-**Done when:** on a physical Android device, model downloads on first run, and
-digit/sign recognition returns the same candidates as iOS for the same strokes.
+**Build & run it (no physical device — emulator is fine):**
+1. `npx expo prebuild -p android` — generates `android/` and links the local
+   module (it reads the updated `expo-module.config.json`).
+2. Start an Android emulator (Android Studio → Device Manager → a Pixel API 34
+   image), then `npx expo run:android`. Grant network so ML Kit can fetch the
+   model on first run.
+3. First launch downloads the model (needs internet); after that recognition is
+   on-device/offline, same as iOS.
+
+**Done when:** on the **emulator**, the model downloads on first run and
+digit/sign recognition returns the same candidates as iOS for the same strokes —
+proving Milestone 1 (Addition works end to end).
 
 ---
 
@@ -96,15 +131,19 @@ digit/sign recognition returns the same candidates as iOS for the same strokes.
 
 ## Phase 3 — IAP parity (Google Play Billing) 🟡
 
-When Slice 2 (real `expo-iap`) lands, it must cover Android too:
-- `expo-iap` wraps **Google Play Billing** as well as StoreKit — the
-  `hooks/usePurchases.tsx` code is largely shared; verify product fetch +
-  `requestPurchase` + restore (`getAvailablePurchases`) on Android.
-- **Google Play Console** setup (mirrors App Store Connect): create the same
-  product **`com.mc.mathpad.operations`** as a one-time (non-consumable-equivalent
-  managed) product at the local-equivalent of $9.99, a merchant/payments profile,
-  and license/closed-testing testers for sandbox purchases.
+The real `expo-iap` implementation already shipped (iOS 1.2.0). It wraps **Google
+Play Billing** as well as StoreKit, so `hooks/usePurchases.tsx` is largely shared:
+- Verify product fetch (`fetchProducts`), `requestPurchase`, and restore
+  (`getAvailablePurchases`) work on Android for **both** products. The success
+  handler already keys on `productId` for Operations *and* Clock, so no new client
+  code is expected — just confirm the Android round-trip.
+- **Google Play Console** setup (mirrors App Store Connect): create **two**
+  managed (one-time) products — **`com.mc.mathpad.operations`** (~$9.99) and
+  **`com.mc.mathpad.clock`** (~$7.99) — plus a merchant/payments profile and
+  license/closed-testing testers for sandbox purchases.
 - Billing permission is added by the library/config plugin — confirm it's present.
+- Note: this is **Milestone-2/3 work** — get recognition + the operation/clock
+  flows running first; wire Play Billing once the app runs.
 
 ---
 
@@ -126,6 +165,12 @@ The shared UI renders on Android, but verify each against the iOS look:
   the (currently disabled) scratch sound stays disabled.
 - **Skia + reanimated:** the hand-cursor solve, bring-down drop, borrow/carry
   animations — verify timing/visuals match iOS.
+- **Clock module (Milestone 3):** the Skia `ClockFace`, the **draggable hands**
+  (`SettableClock` via react-native-gesture-handler `Gesture.Pan` — verify the
+  pan/drag + hand-snap feel on Android), the **pattern word-tile drag**
+  (`PatternBuilder`), tick haptic/sound, and the digital "write the time" answer
+  (`DigitalClockAnswer`, same recognition module). Gesture handling is the most
+  likely place to differ from iOS.
 - **Keyboard / haptics:** confirm tap feedback (`lib/feedback`) maps to Android.
 - **Density / tablets:** check phone + tablet layouts at several densities.
 
