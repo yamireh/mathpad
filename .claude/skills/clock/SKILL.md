@@ -17,7 +17,7 @@ planning docs (below) describe intent and are partly stale.
 - Topic card: `components/panels/MainPanel/topics.ts` (Clock entry, `enabled` flag;
   placed above Shapes).
 - Planned as **V2.0** (see `versions` skill / `V2.0.md`). Pricing: its own module
-  IAP (**$4.99**, `com.mc.mathpad.clock`) per the `pricing` skill. **Gating built
+  IAP (**$7.99**, `com.mc.mathpad.clock`) per the `pricing` skill. **Gating built
   (Slice 1 stub):** `lib/entitlement` `isClockUnlocked` + `CLOCK_PRODUCT_ID`,
   `usePurchases` `clockOwned`/`clockPrice`/`purchaseClock`, `clockEntitlementStore`,
   the unlock page `app/unlock-clock.tsx` (links to `/how-to/clock`), the locked
@@ -82,7 +82,7 @@ planning docs (below) describe intent and are partly stale.
   (Slice 2 — needs an EAS build + App Store Connect product) + a **free slice**
   decision; localized phrase tiles beyond English.
 - Done: ✅ "How to read a clock" demo (`ClockHowToView` / `app/how-to/clock.tsx`);
-  ✅ Clock unlock page + gating (Slice 1 stub, $4.99).
+  ✅ Clock unlock page + gating (Slice 1 stub, $7.99).
 
 ## Maintaining this skill
 

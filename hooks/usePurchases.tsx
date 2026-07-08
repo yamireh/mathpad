@@ -21,7 +21,7 @@
  *
  * Two live IAPs ship as of V1.2 (see the `versions` / `pricing` skills): the
  * Operations bundle (`com.mc.mathpad.operations`, $9.99) and the Clock module
- * (`com.mc.mathpad.clock`, $4.99) — both non-consumables reconciled from
+ * (`com.mc.mathpad.clock`, $7.99) — both non-consumables reconciled from
  * StoreKit. The Complete bundle has no App Store product yet, so it stays a
  * local stub (gated off by `COMPLETE_BUNDLE_ENABLED`) until more modules exist.
  */
@@ -49,7 +49,7 @@ import { clockEntitlementStore, entitlementStore } from '../lib/storage';
 /** Displayed prices until StoreKit provides the real, localized ones. */
 const FALLBACK_PRICE = '$9.99';
 const FALLBACK_COMPLETE_PRICE = '$24.99';
-const FALLBACK_CLOCK_PRICE = '$4.99';
+const FALLBACK_CLOCK_PRICE = '$7.99';
 
 /** Whether this binary actually bundles the expo-iap native module. */
 const STOREKIT_AVAILABLE = requireOptionalNativeModule('ExpoIap') != null;

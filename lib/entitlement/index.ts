@@ -11,7 +11,7 @@ import type { Operation } from '../../types';
 /** App Store Connect product id for the Operations bundle ($9.99). */
 export const OPERATIONS_PRODUCT_ID = 'com.mc.mathpad.operations';
 
-/** App Store Connect product id for the Clock module ($4.99). */
+/** App Store Connect product id for the Clock module ($7.99). */
 export const CLOCK_PRODUCT_ID = 'com.mc.mathpad.clock';
 
 /** Whether the Clock module is playable — only once it's owned (or via the

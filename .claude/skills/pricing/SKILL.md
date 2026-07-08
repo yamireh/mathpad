@@ -16,14 +16,15 @@ Per-module non-consumable IAPs, with a free entry slice in each module and a Com
 | Tier | Price | What it unlocks | Free slice |
 |---|---|---|---|
 | **Operations (core)** | **$9.99** | Subtraction + Multiplication + Division + Mix | **Addition is free** — full features, all settings, history, score, review |
-| **Clock** | **$4.99** | Full module | TBD when module is built (e.g. whole-hour reading) |
+| **Clock** | **$7.99** | Full module | TBD when module is built (e.g. whole-hour reading) |
 | **Shapes** | **$7.99** | Full module | TBD when module is built (e.g. basic 2D shapes naming) |
 | **Axis** | **$7.99** | Full module | TBD when module is built (e.g. first-quadrant plotting) |
 | **MathPad Complete (bundle)** | **$24.99** | Everything, including any future modules covered by the bundle SKU | — |
 
-Piecemeal total: $9.99 + $4.99 + 2 × $7.99 = **$30.96** → Complete saves **$5.97 (19%)**.
+Piecemeal total: $9.99 + 3 × $7.99 = **$33.96** → Complete saves **$8.97 (26%)**.
 
-> Clock price set to **$4.99** (2026-06-08), down from the $7.99 placeholder.
+> Clock ships at **$7.99** in v1.2.0 (the earlier $4.99 note from 2026-06-08 was
+> reverted — the actual App Store IAP tier is $7.99).
 
 > **Complete bundle is deferred** until more modules ship — selling "everything"
 > when most modules are still "Coming soon" is poor value and risks App Store
