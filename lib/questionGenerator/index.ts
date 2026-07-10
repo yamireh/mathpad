@@ -363,8 +363,14 @@ function generateMultiplication(
   }
   let last: [number, number] = [0, 0];
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const a = operandWithDigits(pickDigitCount(counts, rng), rng);
-    const b = operandWithDigits(pickDigitCount(counts, rng), rng);
+    const x = operandWithDigits(pickDigitCount(counts, rng), rng);
+    const y = operandWithDigits(pickDigitCount(counts, rng), rng);
+    // Standard column layout: the larger operand (always ≥ digits) is the
+    // multiplicand on top, the shorter one the multiplier below — never a
+    // 2-digit stacked over a 3-digit.
+    const a = Math.max(x, y);
+    const b = Math.min(x, y);
+    if (b === 1) continue; // ×1 is a no-op — skip the trivial question
     last = [a, b];
     const regroup = multiplicationHasRegroup(a, b);
     if (want === 'with' && !regroup) continue;
@@ -392,21 +398,25 @@ function generateMultiplicationDecimal(
 ): QuestionCore {
   let last: QuestionCore | null = null;
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    const p1 = randInt(1, 2, rng);
-    const p2 = randInt(1, Math.max(1, 3 - p1), rng); // p1 + p2 ≤ 3
-    const a = decimalOperand(pickDigitCount(counts, rng), p1, rng);
-    const b = decimalOperand(pickDigitCount(counts, rng), p2, rng);
-    const places = p1 + p2;
+    const px = randInt(1, 2, rng);
+    const py = randInt(1, Math.max(1, 3 - px), rng); // px + py ≤ 3
+    const x = decimalOperand(pickDigitCount(counts, rng), px, rng);
+    const y = decimalOperand(pickDigitCount(counts, rng), py, rng);
+    // Larger value on top as the multiplicand (with its own decimal places),
+    // matching the integer layout convention.
+    const [a, pa, b, pb] = x >= y ? [x, px, y, py] : [y, py, x, px];
+    if (a === 1 || b === 1) continue; // skip trivial ×1.0
+    const places = pa + pb;
     const core: QuestionCore = {
       operation: 'multiplication',
       operands: [a, b],
-      operandDecimals: [p1, p2],
+      operandDecimals: [pa, pb],
       answer: { kind: 'decimal', value: roundTo(a * b, places), decimalPlaces: places },
       layout: 'vertical',
     };
     last ??= core;
     // Regrouping is a property of multiplying the scaled-integer digit strings.
-    const regroup = multiplicationHasRegroup(scaleToInt(a, p1), scaleToInt(b, p2));
+    const regroup = multiplicationHasRegroup(scaleToInt(a, pa), scaleToInt(b, pb));
     if (want === 'with' && !regroup) continue;
     if (want === 'without' && regroup) continue;
     return core;
@@ -478,17 +488,17 @@ function generateDivision(
     if (resolved === 'noRemainder') {
       const dLo = Math.max(2, lowerBound(divisorDigits));
       const dHi = upperBound(divisorDigits);
-      // Pick the quotient first (≥ 2, so the dividend is never equal to the
-      // divisor) for an even spread of answers, then a divisor that keeps the
-      // dividend within its digit range. Picking the divisor first would bias
-      // hard toward quotient 2, which fits almost every divisor.
-      const qMax = Math.floor(hi / dLo);
-      if (qMax < 2) continue;
-      const quotient = randInt(2, qMax, rng);
-      const divLo = Math.max(dLo, Math.ceil(lo / quotient));
-      const divHi = Math.min(dHi, Math.floor(hi / quotient));
-      if (divHi < divLo) continue;
-      const divisor = randInt(divLo, divHi, rng);
+      // Pick the DIVISOR uniformly across its whole digit range first, so the
+      // set shows varied, non-"round" divisors (…÷19, …÷47) rather than the
+      // 10/11/12 that dominate when the quotient is chosen first — a large
+      // quotient forces the divisor down against its lower bound. Then pick a
+      // quotient (≥ 2, so the dividend never equals the divisor) that keeps the
+      // dividend inside its digit range.
+      const divisor = randInt(dLo, dHi, rng);
+      const qLo = Math.max(2, Math.ceil(lo / divisor));
+      const qHi = Math.floor(hi / divisor);
+      if (qHi < qLo) continue;
+      const quotient = randInt(qLo, qHi, rng);
       const dividend = quotient * divisor;
       return {
         operation: 'division',
@@ -586,6 +596,42 @@ const MIX_OPERATIONS: readonly ConcreteOperation[] = [
 ];
 
 /**
+ * How many times to regenerate a question to dodge a duplicate before giving
+ * up. Small constraint spaces (e.g. 1-digit no-carry addition) can legitimately
+ * run out of distinct problems, so on exhaustion we accept a repeat rather than
+ * loop forever.
+ */
+const DEDUP_ATTEMPTS = 40;
+
+/** Operations where operand order doesn't change the problem (a∘b === b∘a). */
+const COMMUTATIVE: ReadonlySet<ConcreteOperation> = new Set([
+  'addition',
+  'multiplication',
+]);
+
+/**
+ * Signature identifying a "repeat" question. Operands are order-normalized for
+ * commutative operations, so 11+44 and 44+11 count as the same problem; decimal
+ * place metadata is folded in so e.g. 4.0 and 4.00 stay distinct.
+ */
+function questionSignature(core: QuestionCore): string {
+  const ops = COMMUTATIVE.has(core.operation)
+    ? [...core.operands].sort((a, b) => a - b)
+    : core.operands;
+  const dec = core.operandDecimals ? `d${core.operandDecimals.join(',')}` : '';
+  return `${core.operation}|${ops.join('x')}|${dec}`;
+}
+
+/**
+ * Reject trivially-degenerate problems: a division whose dividend equals its
+ * divisor (e.g. 44 ÷ 44 = 1). Same-operand problems for other operations
+ * (44+44, 7×7) are legitimate practice and kept.
+ */
+function isDegenerate(core: QuestionCore): boolean {
+  return core.operation === 'division' && core.operands[0] === core.operands[1];
+}
+
+/**
  * Generate a full session of questions for the given settings.
  *
  * @param settings  Validated session settings.
@@ -597,13 +643,24 @@ export function generateSession(
 ): Question[] {
   const count = settings.questionCount;
   const questions: Question[] = [];
+  // No two questions in a session are the same problem (order-normalized), and
+  // no trivially-degenerate ones — so a session reads as varied and random.
+  const seen = new Set<string>();
+  const nextOperation = (): ConcreteOperation =>
+    settings.operation === 'mix' ? pick(MIX_OPERATIONS, rng) : settings.operation;
+
   for (let i = 0; i < count; i++) {
-    const operation: ConcreteOperation =
-      settings.operation === 'mix'
-        ? pick(MIX_OPERATIONS, rng)
-        : settings.operation;
-    const core = generateForOperation(operation, settings, rng);
-    questions.push({ id: `q-${i + 1}`, ...core });
+    let chosen: QuestionCore | null = null;
+    for (let attempt = 0; attempt < DEDUP_ATTEMPTS; attempt++) {
+      const core = generateForOperation(nextOperation(), settings, rng);
+      if (isDegenerate(core)) continue;
+      chosen = core; // newest valid candidate — kept as the fallback
+      if (!seen.has(questionSignature(core))) break;
+    }
+    // Only null if every attempt was degenerate (near-impossible); take one more.
+    chosen ??= generateForOperation(nextOperation(), settings, rng);
+    seen.add(questionSignature(chosen));
+    questions.push({ id: `q-${i + 1}`, ...chosen });
   }
   return questions;
 }

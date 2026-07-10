@@ -114,6 +114,66 @@ describe('generateSession — structure', () => {
       expect(counts).toContain(digitCount(q.operands[1]));
     }
   });
+
+  it('produces no duplicate problems within a session (commutative-aware)', () => {
+    const sig = (q: Question) => {
+      const commutative =
+        q.operation === 'addition' || q.operation === 'multiplication';
+      const ops = commutative
+        ? [...q.operands].sort((a, b) => a - b)
+        : q.operands;
+      return `${q.operation}|${ops.join('x')}`;
+    };
+    for (const settings of [
+      additionSettings({ questionCount: 20 }),
+      multiplicationSettings({ questionCount: 20 }),
+      divisionSettings({ questionCount: 20 }),
+      { ...additionSettings(), operation: 'mix', questionCount: 20 } as MixSettings,
+    ]) {
+      // A single session is fully de-duplicated (across-session sampling would
+      // legitimately repeat once each session resets its `seen` set).
+      const questions = generateSession(settings);
+      const sigs = questions.map(sig);
+      expect(new Set(sigs).size).toBe(questions.length);
+    }
+  });
+
+  it('never emits a degenerate division (dividend === divisor)', () => {
+    for (const q of sample(divisionSettings({ answerType: 'all' }))) {
+      if (q.operation !== 'division') continue;
+      expect(q.operands[0]).not.toBe(q.operands[1]);
+    }
+  });
+
+  it('never emits a trivial ×1 multiplication', () => {
+    for (const settings of [
+      multiplicationSettings({ digitCounts: [1, 2] }),
+      multiplicationSettings({ digitCounts: [1] }),
+      multiplicationSettings({ digitCounts: [1, 2], decimals: 'on' }),
+    ]) {
+      for (const q of sample(settings)) {
+        expect(q.operands).not.toContain(1);
+      }
+    }
+  });
+
+  it('stacks the larger operand on top for multiplication', () => {
+    // Larger value on top ⟺ ≥ digits on top for integers (any 3-digit > any
+    // 2-digit), so this covers the "no 2-digit over a 3-digit" convention.
+    for (const settings of [
+      multiplicationSettings({ digitCounts: [2, 3] }),
+      multiplicationSettings({ digitCounts: [2, 3], decimals: 'on' }),
+    ]) {
+      for (const q of sample(settings)) {
+        expect(q.operands[0]).toBeGreaterThanOrEqual(q.operands[1]);
+        if (!q.operandDecimals) {
+          expect(digitCount(q.operands[0])).toBeGreaterThanOrEqual(
+            digitCount(q.operands[1]),
+          );
+        }
+      }
+    }
+  });
 });
 
 describe('addition', () => {

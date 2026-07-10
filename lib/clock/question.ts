@@ -113,6 +113,17 @@ export function resolveAnswerWith(
   return type;
 }
 
+/** A time's identity — two questions with the same key are the same clock. */
+const timeKey = (t: ClockTime): string => `${t.hour}:${t.minute}`;
+
+/**
+ * Regeneration cap to dodge a repeated time. Distinct times per step (quarter
+ * 48, five 144, minute 720) always dwarf the question count, so this only ever
+ * guards against a very tight run; on exhaustion we accept a repeat rather than
+ * loop forever.
+ */
+const TIME_DEDUP_ATTEMPTS = 50;
+
 export function generateClockQuestions(opts: {
   count: number;
   step: ClockStep;
@@ -120,10 +131,20 @@ export function generateClockQuestions(opts: {
   rng?: () => number;
 }): ClockQuestion[] {
   const rng = opts.rng ?? Math.random;
-  return Array.from({ length: opts.count }, (_, i) => ({
-    id: `clock-${i}`,
-    time: generateClockTime(opts.step, rng),
-    step: opts.step,
-    answerWith: resolveAnswerWith(opts.type, rng),
-  }));
+  // Every question in a session shows a distinct time, so it reads as random
+  // rather than repeating the same clock.
+  const seen = new Set<string>();
+  return Array.from({ length: opts.count }, (_, i) => {
+    let time = generateClockTime(opts.step, rng);
+    for (let a = 0; a < TIME_DEDUP_ATTEMPTS && seen.has(timeKey(time)); a++) {
+      time = generateClockTime(opts.step, rng);
+    }
+    seen.add(timeKey(time));
+    return {
+      id: `clock-${i}`,
+      time,
+      step: opts.step,
+      answerWith: resolveAnswerWith(opts.type, rng),
+    };
+  });
 }

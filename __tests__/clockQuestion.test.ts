@@ -92,4 +92,12 @@ describe('clock — generateClockQuestions', () => {
     expect(resolveAnswerWith('pattern')).toBe('pattern');
     expect(resolveAnswerWith('set')).toBe('set');
   });
+
+  it('gives every question a distinct time (no repeats in a session)', () => {
+    for (const step of ['quarter', 'five', 'minute'] as const) {
+      const qs = generateClockQuestions({ count: 12, step, type: 'digital' });
+      const keys = qs.map((q) => `${q.time.hour}:${q.time.minute}`);
+      expect(new Set(keys).size).toBe(qs.length);
+    }
+  });
 });
