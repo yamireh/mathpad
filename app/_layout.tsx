@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { I18nManager } from 'react-native';
+import { I18nManager, Text, TextInput } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -19,6 +19,15 @@ import '../lib/i18n';
 // keeps React Native's own layout LTR (and covers iOS).
 I18nManager.allowRTL(false);
 I18nManager.forceRTL(false);
+
+// Keep text at its designed sizes regardless of the device's system font-size
+// setting. A large OS font otherwise wraps titles and — more importantly —
+// enlarges the problem digits out of alignment with their fixed-width columns.
+// (To allow some scaling instead, swap for `maxFontSizeMultiplier: 1.1`.)
+type ScalableText = { defaultProps?: { allowFontScaling?: boolean } };
+for (const Component of [Text, TextInput] as unknown as ScalableText[]) {
+  Component.defaultProps = { ...Component.defaultProps, allowFontScaling: false };
+}
 
 /**
  * Root layout.
