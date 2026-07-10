@@ -96,7 +96,7 @@ export function SubtractionProblem({
       </View>
       <View style={sharedStyles.problemRow}>
         <View style={[sharedStyles.operatorColumn, { width: operatorWidth }]}>
-          <Text style={[sharedStyles.operator, { fontSize: digitSize }]}>
+          <Text allowFontScaling={false} style={[sharedStyles.operator, { fontSize: digitSize }]}>
             {operatorSymbol[question.operation]}
           </Text>
         </View>
@@ -198,7 +198,7 @@ function BorrowDigitRow({
           <View style={[styles.cell, { width: cellWidth }]}>
             <View style={styles.annotationSlot}>
               {crossedOut ? (
-                <Text
+                <Text allowFontScaling={false}
                   style={[
                     styles.annotation,
                     { color: tone, fontSize: annotationSize },
@@ -209,7 +209,7 @@ function BorrowDigitRow({
               ) : null}
             </View>
             <View style={styles.digitWrap}>
-              <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>
+              <Text allowFontScaling={false} style={[sharedStyles.digit, { fontSize: digitSize }]}>
                 {digit}
               </Text>
               {crossedOut ? (
@@ -234,7 +234,7 @@ function BorrowDigitRow({
           <Fragment key={i}>
             {i === dotAt ? (
               <View style={[styles.dotCell, { width: dotWidth }]}>
-                <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>
+                <Text allowFontScaling={false} style={[sharedStyles.digit, { fontSize: digitSize }]}>
                   {DECIMAL_SEPARATOR}
                 </Text>
               </View>

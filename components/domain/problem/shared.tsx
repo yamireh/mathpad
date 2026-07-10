@@ -61,7 +61,7 @@ export function DigitCells({
       : [];
   const cell = (d: string, key: string) => (
     <View key={key} style={{ width: cellWidth, alignItems: 'center' }}>
-      <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>{d}</Text>
+      <Text allowFontScaling={false} style={[sharedStyles.digit, { fontSize: digitSize }]}>{d}</Text>
     </View>
   );
   return (
@@ -71,7 +71,7 @@ export function DigitCells({
         <View
           style={[styles.dotCell, { width: decimalDotWidth(cellWidth) }]}
         >
-          <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>
+          <Text allowFontScaling={false} style={[sharedStyles.digit, { fontSize: digitSize }]}>
             {DECIMAL_SEPARATOR}
           </Text>
         </View>
@@ -105,11 +105,12 @@ export function ThinDotDigits({
     <View style={styles.thinDotRow}>
       {digits.map((d, i) => (
         <View key={i} style={{ width: cellWidth, alignItems: 'center' }}>
-          <Text style={[sharedStyles.digit, { fontSize: digitSize }]}>{d}</Text>
+          <Text allowFontScaling={false} style={[sharedStyles.digit, { fontSize: digitSize }]}>{d}</Text>
         </View>
       ))}
       {places > 0 ? (
         <Text
+          allowFontScaling={false}
           style={[
             sharedStyles.digit,
             styles.thinDot,

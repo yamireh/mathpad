@@ -152,7 +152,7 @@ function DividendBorrowRow({
           <View style={{ width: cellWidth, alignItems: 'center' }}>
             <View style={styles.dividendAnnotation}>
               {disp?.crossedOut ? (
-                <Text
+                <Text allowFontScaling={false}
                   style={[
                     styles.dividendAnnotationText,
                     { color: tone, fontSize: annotationSize },
@@ -163,7 +163,7 @@ function DividendBorrowRow({
               ) : null}
             </View>
             <View style={styles.dividendDigitWrap}>
-              <Text style={[styles.problemText, { fontSize: digitSize }]}>
+              <Text allowFontScaling={false} style={[styles.problemText, { fontSize: digitSize }]}>
                 {digit}
               </Text>
               {disp?.crossedOut ? (
@@ -270,10 +270,10 @@ function HorizontalDivision({
   return (
     <View style={styles.horizontalWrap}>
       <View style={styles.horizontalRow}>
-        <Text style={styles.problemText}>{dividend}</Text>
-        <Text style={styles.problemText}>÷</Text>
-        <Text style={styles.problemText}>{divisor}</Text>
-        <Text style={styles.problemText}>=</Text>
+        <Text allowFontScaling={false} style={styles.problemText}>{dividend}</Text>
+        <Text allowFontScaling={false} style={styles.problemText}>÷</Text>
+        <Text allowFontScaling={false} style={styles.problemText}>{divisor}</Text>
+        <Text allowFontScaling={false} style={styles.problemText}>=</Text>
       </View>
       <View style={styles.horizontalAnswer}>{answerSlot}</View>
     </View>
@@ -420,7 +420,7 @@ function LongDivision({
             <DigitCells value={divisor} cellWidth={cellWidth} digitSize={digitSize} />
           </View>
         ) : (
-          <Text
+          <Text allowFontScaling={false}
             style={[
               styles.problemText,
               styles.longDivisor,
@@ -442,7 +442,7 @@ function LongDivision({
             <DigitCells value={divisor} cellWidth={cellWidth} digitSize={digitSize} />
           </View>
         ) : (
-          <Text
+          <Text allowFontScaling={false}
             style={[
               styles.problemText,
               styles.longDivisorHeader,
@@ -486,7 +486,7 @@ function LongDivision({
               <DigitCells value={divisor} cellWidth={cellWidth} digitSize={digitSize} />
             </View>
           ) : (
-            <Text
+            <Text allowFontScaling={false}
               style={[
                 styles.problemText,
                 styles.longDivisor,

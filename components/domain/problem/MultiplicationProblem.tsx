@@ -131,7 +131,7 @@ export function MultiplicationProblem({
       </View>
       <View style={sharedStyles.problemRow}>
         <View style={[sharedStyles.operatorColumn, { width: operatorWidth }]}>
-          <Text style={[sharedStyles.operator, { fontSize: digitSize }]}>
+          <Text allowFontScaling={false} style={[sharedStyles.operator, { fontSize: digitSize }]}>
             {operatorSymbol[question.operation]}
           </Text>
         </View>
@@ -261,7 +261,7 @@ function PartialProductRow({
       {/* Addition marker (+) for every partial-product row — the same
           left-gutter operator lane division uses for its "−". */}
       <View style={[styles.partialPlus, { width: operatorWidth }]}>
-        <Text style={[sharedStyles.operator, { fontSize: digitSize }]}>+</Text>
+        <Text allowFontScaling={false} style={[sharedStyles.operator, { fontSize: digitSize }]}>+</Text>
       </View>
       {Array.from({ length: leading }).map((_, i) => (
         <View
@@ -321,7 +321,7 @@ function PartialZeroCell({
           { width: columnWidth - 12, height: boxHeight },
         ]}
       >
-        <Text style={[styles.zeroDigit, { fontSize: digitSize }]}>0</Text>
+        <Text allowFontScaling={false} style={[styles.zeroDigit, { fontSize: digitSize }]}>0</Text>
       </View>
     </View>
   );

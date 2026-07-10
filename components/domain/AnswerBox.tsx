@@ -183,6 +183,7 @@ export function AnswerBox({
           {digit !== null ? (
             <View style={styles.printedWrap}>
               <Text
+                allowFontScaling={false}
                 style={[
                   styles.printed,
                   { fontSize: Math.round(boxHeight * 0.62), color: inkColor },

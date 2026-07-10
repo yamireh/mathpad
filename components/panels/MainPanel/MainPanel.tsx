@@ -35,8 +35,21 @@ export function MainPanel() {
     <ScreenContainer scroll>
       <View style={styles.hero}>
         <View style={styles.heroText}>
-          <Text style={styles.heroGreeting}>{t('home.greeting')}</Text>
-          <Text style={styles.heroSubtitle}>{t('home.subtitle')}</Text>
+          {/* Keep the greeting on one line: at full size on a normal-width
+              screen, shrinking to fit only when the column is tight (e.g. a
+              device with a large Display-size / screen-zoom setting). No OS
+              font scaling so it can't grow past its designed size either. */}
+          <Text
+            allowFontScaling={false}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={styles.heroGreeting}
+          >
+            {t('home.greeting')}
+          </Text>
+          <Text allowFontScaling={false} numberOfLines={2} style={styles.heroSubtitle}>
+            {t('home.subtitle')}
+          </Text>
         </View>
         <Image source={APP_ART} style={styles.heroArt} resizeMode="cover" />
       </View>

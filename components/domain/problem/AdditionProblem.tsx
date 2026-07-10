@@ -100,7 +100,7 @@ export function AdditionProblem({
       </View>
       <View style={sharedStyles.problemRow}>
         <View style={[sharedStyles.operatorColumn, { width: operatorWidth }]}>
-          <Text style={[sharedStyles.operator, { fontSize: digitSize }]}>
+          <Text allowFontScaling={false} style={[sharedStyles.operator, { fontSize: digitSize }]}>
             {operatorSymbol[question.operation]}
           </Text>
         </View>

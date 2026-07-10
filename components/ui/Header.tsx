@@ -16,7 +16,12 @@ export function Header({ title, left, right }: HeaderProps) {
   return (
     <View style={styles.header}>
       <View style={styles.side}>{left}</View>
-      <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
+      <Text
+        style={styles.title}
+        numberOfLines={1}
+        allowFontScaling={false}
+        accessibilityRole="header"
+      >
         {title ?? ''}
       </Text>
       <View style={[styles.side, styles.right]}>{right}</View>

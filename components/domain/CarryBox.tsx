@@ -79,6 +79,7 @@ export function CarryBox({
         {digit !== null ? (
           <View style={styles.printedWrap}>
             <Text
+              allowFontScaling={false}
               style={[
                 styles.printed,
                 { fontSize: Math.round(height * 0.62), color: colors.answerInk },
