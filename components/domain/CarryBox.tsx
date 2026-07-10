@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Canvas, Path } from '@shopify/react-native-skia';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, radius } from '../../constants/design';
+import { colors, radius, typography } from '../../constants/design';
 import type { BoxStatus } from '../../lib/review';
+import { canonicalDigit } from '../../lib/solver/digitInk';
 import { fitStrokes, type InkStroke, strokeToPath } from './ink';
 
 export interface CarryBoxProps {
@@ -52,6 +53,8 @@ export function CarryBox({
 }: CarryBoxProps) {
   const transform = fitStrokes(strokes, width, height, 5);
   const hasInk = strokes.length > 0;
+  // Recognized carry → clean printed number; raw handwriting stays as ink.
+  const digit = canonicalDigit(strokes);
   const statusColor =
     status === 'incorrect'
       ? colors.wrong
@@ -73,19 +76,32 @@ export function CarryBox({
           (selected || statusColor) && styles.boxSelected,
         ]}
       >
-        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {strokes.map((stroke, i) => (
-            <Path
-              key={i}
-              path={strokeToPath(stroke, transform)}
-              color={colors.textMuted}
-              style="stroke"
-              strokeWidth={2.5}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          ))}
-        </Canvas>
+        {digit !== null ? (
+          <View style={styles.printedWrap}>
+            <Text
+              style={[
+                styles.printed,
+                { fontSize: Math.round(height * 0.62), color: colors.answerInk },
+              ]}
+            >
+              {digit}
+            </Text>
+          </View>
+        ) : (
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            {strokes.map((stroke, i) => (
+              <Path
+                key={i}
+                path={strokeToPath(stroke, transform)}
+                color={colors.answerInk}
+                style="stroke"
+                strokeWidth={2.5}
+                strokeCap="round"
+                strokeJoin="round"
+              />
+            ))}
+          </Canvas>
+        )}
       </Pressable>
 
       {hasInk ? (
@@ -104,6 +120,17 @@ export function CarryBox({
 }
 
 const styles = StyleSheet.create({
+  printedWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  printed: {
+    fontWeight: typography.weight.regular,
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
   box: {
     borderRadius: radius.sm,
     borderWidth: 1,

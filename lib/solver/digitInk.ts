@@ -87,6 +87,26 @@ export function digitInk(digit: number): InkStroke[] {
 }
 
 /**
+ * Inverse of {@link digitInk}: because `digitInk(d)` is deterministic, a cell
+ * whose ink is exactly a canonical glyph maps 1:1 back to its digit. Lets a
+ * recognized cell render a clean printed number instead of the glyph ink, with
+ * no change to the strokes-as-source-of-truth model. Raw, mid-writing
+ * handwriting (or a non-digit mark like the minus sign) matches nothing and
+ * returns null.
+ */
+const CANONICAL_DIGIT: ReadonlyMap<string, number> = new Map(
+  Array.from(
+    { length: 10 },
+    (_, d) => [JSON.stringify(digitInk(d)), d] as const,
+  ),
+);
+
+export function canonicalDigit(strokes: InkStroke[]): number | null {
+  if (strokes.length === 0) return null;
+  return CANONICAL_DIGIT.get(JSON.stringify(strokes)) ?? null;
+}
+
+/**
  * A timed fingertip path for "writing" a digit, used by the demo HandCursor.
  *
  * Returns offsets relative to a centre point (so the caller adds them to the

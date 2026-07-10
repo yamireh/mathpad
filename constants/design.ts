@@ -30,8 +30,12 @@ export const colors = {
   textMuted: '#6E7079',
   /** Hairline borders and dividers. */
   border: '#DDE0E5',
-  /** Ink filled in by a hint — a distinct blue so it reads as "given to you". */
-  hint: '#2563EB',
+  /** Ink the child writes as their answer — a friendly blue, distinct from the
+   *  printed problem (black `text`) so their own work stands out. */
+  answerInk: '#2563EB',
+  /** Ink filled in by a hint — amber, so a "given to you" digit stays distinct
+   *  from the child's own blue answer. */
+  hint: '#F59E0B',
   /** Warm amber — the eye-catching "How to solve" lightbulb. */
   amber: '#F59E0B',
   /** Marking — correct answer. */

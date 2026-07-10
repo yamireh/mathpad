@@ -1,10 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Canvas, Path } from '@shopify/react-native-skia';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
-import { colors, radius } from '../../constants/design';
+import { colors, radius, typography } from '../../constants/design';
 import type { BoxStatus } from '../../lib/review';
+import { canonicalDigit } from '../../lib/solver/digitInk';
 import { ANSWER_BOX_HEIGHT, DIGIT_COLUMN_WIDTH } from './layout';
 import {
   type InkStroke,
@@ -98,7 +106,10 @@ export function AnswerBox({
   hinted = false,
   dropKey = 0,
 }: AnswerBoxProps) {
-  const inkColor = hinted ? colors.hint : colors.text;
+  const inkColor = hinted ? colors.hint : colors.answerInk;
+  // Once recognized, show a clean printed number; while still handwriting (or
+  // for the minus sign), fall back to the ink.
+  const digit = canonicalDigit(strokes);
 
   // Bring-down: slide just the digit down into the (static) box, visibly from
   // above — so the box must un-clip for the duration of the drop.
@@ -169,19 +180,32 @@ export function AnswerBox({
           style={[StyleSheet.absoluteFill, { transform: [{ translateY: inkY }] }]}
           pointerEvents="none"
         >
-          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-            {strokes.map((stroke, i) => (
-              <Path
-                key={i}
-                path={strokeToPath(stroke, transform)}
-                color={inkColor}
-                style="stroke"
-                strokeWidth={2.5}
-                strokeCap="round"
-                strokeJoin="round"
-              />
-            ))}
-          </Canvas>
+          {digit !== null ? (
+            <View style={styles.printedWrap}>
+              <Text
+                style={[
+                  styles.printed,
+                  { fontSize: Math.round(boxHeight * 0.62), color: inkColor },
+                ]}
+              >
+                {digit}
+              </Text>
+            </View>
+          ) : (
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              {strokes.map((stroke, i) => (
+                <Path
+                  key={i}
+                  path={strokeToPath(stroke, transform)}
+                  color={inkColor}
+                  style="stroke"
+                  strokeWidth={2.5}
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              ))}
+            </Canvas>
+          )}
         </Animated.View>
       </Pressable>
     </View>
@@ -190,6 +214,19 @@ export function AnswerBox({
 
 const styles = StyleSheet.create({
   column: { alignItems: 'center' },
+  printedWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Match the printed problem digits (tabular-nums, regular weight) so the
+  // answer reads as the same typeface, just in the answer colour.
+  printed: {
+    fontWeight: typography.weight.regular,
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
   clearSlot: { justifyContent: 'center' },
   clearButton: {
     width: 18,
