@@ -46,7 +46,8 @@
       "expo-font",
       "expo-asset",
       "expo-audio",
-      "expo-iap"
+      "expo-iap",
+      "./plugins/withDisableRtl.js"
     ],
     "extra": {
       "router": {},
