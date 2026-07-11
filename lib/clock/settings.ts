@@ -9,7 +9,7 @@ export interface ClockSettings {
 }
 
 export function defaultClockSettings(): ClockSettings {
-  return { questionCount: 10, step: 'quarter', type: 'mixed' };
+  return { questionCount: 10, step: 'quarter', type: 'digital' };
 }
 
 /** Outcome of one answered clock question. */

@@ -28,10 +28,10 @@ const COLON_W = spacing.xl;
 const CONVERT_DELAY_MS = 1100;
 
 /**
- * Lay the recognized digits out as clean `digitInk` glyphs across the field —
- * the same handwritten-style conversion the operations answer boxes use, but
- * for a multi-digit field (e.g. "12"). Coordinates are the field's own pixels
- * so the HandwritingField renders them directly.
+ * Lay the recognized digits out as canonical `digitInk` glyphs across the field.
+ * These aren't shown (the field displays a printed number instead) — they're the
+ * strokes reported upward so the consumer re-recognizes the answer deterministically
+ * at judge time. Coordinates are the field's own pixels.
  */
 function numberToFieldInk(
   digits: number[],
@@ -83,10 +83,12 @@ interface TimeFieldProps {
 
 /**
  * One HH/MM field with live recognition: after the kid pauses, the handwriting
- * is recognized and swapped for clean digit glyphs (like operations). Because a
- * field holds a whole two-digit number, the convert timer RESETS on every stroke
- * so a kid mid-number isn't cut off. An unreadable scribble is cleared and
- * flagged; writing again after a conversion drops the glyphs and starts fresh.
+ * is recognized and shown as a clean printed number (blue, like the operations
+ * answer boxes). The convert timer is cancelled on pen-down and only counts
+ * during a real finger-up pause, so a kid mid-number isn't cut off. An
+ * unreadable scribble is cleared and flagged; touching the field again drops the
+ * printed number so they can rewrite. The canonical strokes are still reported
+ * upward so the consumer judges the answer the same way.
  */
 const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField(
   {
@@ -101,10 +103,10 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
   },
   ref,
 ) {
+  // Bumping `key` remounts (and so clears) the drawable field underneath.
   const [key, setKey] = useState(0);
-  const [seed, setSeed] = useState<InkStroke[]>([]);
-  // Number of clean-glyph strokes currently shown (0 = raw handwriting / empty).
-  const convertedCount = useRef(0);
+  // The recognized number, shown as a clean printed overlay (null = drawing).
+  const [printed, setPrinted] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cancel = () => {
@@ -115,15 +117,12 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
   };
   useEffect(() => cancel, []);
 
-  const remount = (strokes: InkStroke[], converted: number) => {
-    convertedCount.current = converted;
-    setSeed(strokes);
-    setKey((k) => k + 1);
-  };
+  const clearField = () => setKey((k) => k + 1);
 
   const reset = () => {
     cancel();
-    remount([], 0);
+    setPrinted(null);
+    clearField();
     onStrokes([]);
   };
 
@@ -133,18 +132,18 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
     void recognizeNumber(strokes)
       .then(({ integerDigits }) => {
         if (integerDigits.length === 0) {
-          remount([], 0);
-          onStrokes([]);
+          reset();
           onUnreadable();
           return;
         }
-        const ink = numberToFieldInk(integerDigits, width, height);
-        onStrokes(ink);
-        remount(ink, ink.length);
+        // Report the canonical glyphs (judge re-recognizes these) and show the
+        // number as a clean printed overlay over the now-emptied field.
+        onStrokes(numberToFieldInk(integerDigits, width, height));
+        setPrinted(integerDigits.join(''));
+        clearField();
       })
       .catch(() => {
-        // Model not ready yet — leave the raw handwriting; it's still recognized
-        // at judge time, so nothing is lost.
+        // Model not ready yet — leave the raw handwriting; still judged fine.
       });
   };
 
@@ -155,42 +154,44 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
     timer.current = setTimeout(() => recognize(strokes), CONVERT_DELAY_MS);
   };
 
-  // Pen-down: kill any pending convert so it can't fire while the kid is still
-  // writing (mid-stroke, or between the phases of a digit). It's rescheduled on
-  // pen-up, so the delay only ever counts during a real finger-up pause.
+  // Pen-down: cancel any pending convert (so it can't fire mid-stroke) and drop
+  // the printed overlay so the kid writes on a clean field.
   const handleDrawStart = () => {
     cancel();
+    if (printed !== null) setPrinted(null);
     onDrawStart?.();
   };
 
   const handleStrokes = (strokes: InkStroke[]) => {
     if (strokes.length) onWrite();
-    if (convertedCount.current > 0) {
-      // Seed echo — nothing new written.
-      if (strokes.length <= convertedCount.current) return;
-      // The kid is rewriting over clean digits: drop the glyphs, keep the new.
-      const fresh = strokes.slice(convertedCount.current);
-      convertedCount.current = 0;
-      onStrokes(fresh);
-      remount(fresh, 0);
-      schedule(fresh);
-      return;
-    }
     onStrokes(strokes);
     schedule(strokes);
   };
 
   return (
-    <HandwritingField
-      key={key}
-      initialStrokes={seed}
-      width={width}
-      height={height}
-      onStrokesChange={handleStrokes}
-      onDrawStart={handleDrawStart}
-      onDrawEnd={onDrawEnd}
-      accessibilityLabel={accessibilityLabel}
-    />
+    <View style={{ width, height }}>
+      <HandwritingField
+        key={key}
+        width={width}
+        height={height}
+        onStrokesChange={handleStrokes}
+        onDrawStart={handleDrawStart}
+        onDrawEnd={onDrawEnd}
+        accessibilityLabel={accessibilityLabel}
+      />
+      {printed !== null ? (
+        <View style={styles.printedWrap} pointerEvents="none">
+          <Text
+            allowFontScaling={false}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.printedNumber, { fontSize: Math.round(height * 0.5) }]}
+          >
+            {printed}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 });
 
@@ -302,6 +303,20 @@ export function DigitalClockAnswer({
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: spacing.md },
+  printedWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // The recognized time, printed in a friendly blue with a little extra weight
+  // so it reads as clean and deliberate (matches the operations answer colour).
+  printedNumber: {
+    color: colors.answerInk,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    textAlign: 'center',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

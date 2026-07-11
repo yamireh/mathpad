@@ -6,7 +6,7 @@ import { colors, radius } from '../../../constants/design';
 import { NotebookGrid } from '../NotebookGrid';
 import { type InkStroke, strokeToPath, useInkCapture } from '../ink';
 
-const STROKE_WIDTH = 3;
+const STROKE_WIDTH = 4;
 
 export interface HandwritingFieldHandle {
   /** Remove the last stroke. */
