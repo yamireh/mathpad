@@ -5,10 +5,14 @@ import { IconButton } from '../../ui';
 import { spacing } from '../../../constants/design';
 
 export interface ScratchToolbarProps {
-  /** Wipe every scratch stroke. */
+  /** Wipe every scratch stroke (or, in the done state, restart the question). */
   onClear: () => void;
-  /** Undo the last scratch stroke. */
+  /** Undo the last scratch stroke (or, in the done state, the last box). */
   onUndo: () => void;
+  /** Override the clear button's accessibility label (default: clear scratch). */
+  clearLabel?: string;
+  /** Dim + disable the undo button when there's nothing to undo. */
+  undoDisabled?: boolean;
 }
 
 /**
@@ -17,19 +21,25 @@ export interface ScratchToolbarProps {
  * header so the icons stay in the same visual position across both
  * states.
  */
-export function ScratchToolbar({ onClear, onUndo }: ScratchToolbarProps) {
+export function ScratchToolbar({
+  onClear,
+  onUndo,
+  clearLabel,
+  undoDisabled = false,
+}: ScratchToolbarProps) {
   const { t } = useTranslation();
   return (
     <View style={styles.row}>
       <IconButton
         name="trash-outline"
-        accessibilityLabel={t('practice.clearScratch')}
+        accessibilityLabel={clearLabel ?? t('practice.clearScratch')}
         onPress={onClear}
       />
       <IconButton
         name="arrow-undo-outline"
         accessibilityLabel={t('practice.undo')}
         onPress={onUndo}
+        disabled={undoDisabled}
       />
     </View>
   );

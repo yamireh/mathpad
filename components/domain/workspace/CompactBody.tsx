@@ -13,7 +13,7 @@
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { Button, TipBubble } from '../../ui';
+import { TipBubble } from '../../ui';
 import { colors, radius, shadows, spacing } from '../../../constants/design';
 import { AnswerArea } from '../AnswerArea';
 import { ProblemDisplay } from '../problem';
@@ -302,16 +302,26 @@ export function CompactBody({ core }: CompactBodyProps) {
           canUndo={canUndo}
         />
       ) : allBoxesFilled ? (
-        // Every box is answered: no scratch surface (nothing left to work out) —
-        // just a "Clear all" that restarts the whole question.
-        <View style={styles.doneRegion}>
-          <Button
-            label={t('common.clearAll')}
-            icon="trash-outline"
-            variant="secondary"
-            fullWidth={false}
-            onPress={clearAllAnswers}
+        // Every box is answered. Keep the writing surface for a clean, consistent
+        // look but make it non-touchable (nothing left to work out). Clear all
+        // restarts the whole question; Undo empties the last box — which
+        // re-enables writing, since the boxes are no longer all filled.
+        <View style={styles.bottomRegion}>
+          <ScratchToolbar
+            onClear={clearAllAnswers}
+            onUndo={() => onUndo?.()}
+            clearLabel={t('common.clearAll')}
+            undoDisabled={!canUndo}
           />
+          <View style={styles.doneCanvas} pointerEvents="none">
+            <ScratchCanvas
+              tool="pen"
+              initialStrokes={[]}
+              onStrokesChange={() => {}}
+              accessibilityLabel={t('a11y.scratchCanvas')}
+              label={t('practice.workspace')}
+            />
+          </View>
         </View>
       ) : (
         <View style={styles.bottomRegion}>
@@ -367,12 +377,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
-  doneRegion: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
+  doneCanvas: { flex: 1 },
   bottomTip: { marginBottom: spacing.sm },
 });
