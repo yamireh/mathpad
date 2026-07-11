@@ -48,3 +48,6 @@ coverage/
 
 # Local native module Gradle build output
 modules/*/android/build/
+
+# Google Play service account key — secret, never commit
+google-service-account.json
