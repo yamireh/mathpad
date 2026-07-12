@@ -10,6 +10,7 @@ export {
   type DeviceRoleContextValue,
 } from './useDeviceRole';
 export { useAuthUser, type AuthUserState } from './useAuthUser';
+export { useFamily, type FamilyState } from './useFamily';
 export {
   useParentalGate,
   type UseParentalGateResult,

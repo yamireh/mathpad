@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { FamilyCode } from './parent/FamilyCode';
 import { ParentAuthForm } from './parent/ParentAuthForm';
 import { Button, Header, ScreenContainer } from '../ui';
 import { colors, operationColors, spacing, typography } from '../../constants/design';
@@ -32,16 +32,15 @@ export function ParentPanel() {
   } else {
     content = (
       <View style={styles.body}>
-        <Ionicons name="checkmark-circle" size={72} color={colors.correct} />
-        <Text style={styles.headline}>
+        <Text style={styles.signedIn}>
           {t('parentAuth.signedInAs', { email: user.email ?? '' })}
         </Text>
-        <Text style={styles.text}>{t('parentAuth.dashboardSoon')}</Text>
+        <FamilyCode ownerUid={user.uid} />
         <View style={styles.action}>
           <Button
             label={t('parentAuth.signOut')}
             icon="log-out-outline"
-            variant="secondary"
+            variant="ghost"
             onPress={() => void signOut()}
             fullWidth
           />
@@ -65,17 +64,10 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
   },
-  headline: {
-    fontSize: typography.size.title,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  text: {
+  signedIn: {
     fontSize: typography.size.body,
     color: colors.textMuted,
     textAlign: 'center',
-    maxWidth: 320,
   },
   action: {
     alignSelf: 'stretch',

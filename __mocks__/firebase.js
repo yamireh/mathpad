@@ -29,8 +29,13 @@ module.exports = {
   initializeFirestore: () => ({}),
   doc: () => ({}),
   collection: () => ({}),
+  query: () => ({}),
+  where: () => ({}),
+  limit: () => ({}),
   setDoc: async () => {},
+  addDoc: async () => ({ id: 'test-id' }),
   getDoc: async () => ({ exists: () => false, data: () => undefined }),
+  getDocs: async () => ({ docs: [] }),
   onSnapshot: () => noopUnsub,
   serverTimestamp: () => ({}),
 };

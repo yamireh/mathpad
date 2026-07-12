@@ -325,6 +325,9 @@
     "signedInAs": "Signed in as {{email}}",
     "signOut": "Sign out",
     "dashboardSoon": "Your child's progress dashboard is coming soon.",
+    "familyCodeLabel": "Your family code",
+    "familyInstructions": "Your child's device enters this code to join your family. Connecting the child device is the next step we're building.",
+    "familyError": "Couldn't load your family code — check your connection and try again.",
     "errors": {
       "invalidEmail": "That email doesn't look right.",
       "missingPassword": "Please enter a password.",
