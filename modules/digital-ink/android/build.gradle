@@ -20,5 +20,7 @@ android {
 dependencies {
   // On-device handwriting recognition. The model is downloaded at runtime via
   // RemoteModelManager (mirrors the iOS MLKitDigitalInkRecognition pod).
-  implementation 'com.google.mlkit:digital-ink-recognition:18.1.0'
+  // 19.0.0 is the first release with 16 KB page-size-aligned native libs
+  // (Android 15 / Google Play requirement) — 18.1.0's libdigitalink.so is 4 KB.
+  implementation 'com.google.mlkit:digital-ink-recognition:19.0.0'
 }
