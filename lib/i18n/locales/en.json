@@ -35,7 +35,13 @@
     "subtitle": "Choose your practice adventure",
     "history": "History",
     "settings": "Settings",
-    "support": "Help & Support"
+    "support": "Help & Support",
+    "parents": "Parents",
+    "grownUps": "Grown-ups"
+  },
+  "grownUps": {
+    "title": "Grown-ups",
+    "parents": "Parents"
   },
   "support": {
     "title": "Support",
@@ -286,6 +292,19 @@
     "title": "A fresh update is ready!",
     "body": "We've made MathPen even better. Update to keep practicing your math.",
     "cta": "Update MathPen"
+  },
+  "deviceRole": {
+    "title": "Whose device is this?",
+    "body": "Set this once so we know how to show MathPen. You can change it later in Settings.",
+    "child": "My child's — let's practice",
+    "parent": "I'm a parent"
+  },
+  "parent": {
+    "title": "Parents",
+    "comingSoonTitle": "Parent dashboard coming soon",
+    "comingSoonBody": "Soon you'll sign in here to see what your child is practicing and how they're doing.",
+    "switchToChild": "This is my child's device",
+    "askAgain": "Ask me again"
   },
   "hints": {
     "button": "Hint",

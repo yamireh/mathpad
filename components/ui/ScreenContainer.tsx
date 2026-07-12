@@ -14,6 +14,8 @@ export interface ScreenContainerProps {
   edges?: readonly Edge[];
   /** Extra style for the content container. */
   contentStyle?: ViewStyle;
+  /** Fixed content pinned above the (optionally scrolling) body — stays put. */
+  header?: ReactNode;
 }
 
 /** Standard screen wrapper — safe-area inset, app background, optional scroll. */
@@ -23,9 +25,11 @@ export function ScreenContainer({
   padded = true,
   edges,
   contentStyle,
+  header,
 }: ScreenContainerProps) {
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
+      {header}
       {scroll ? (
         <ScrollView
           contentContainerStyle={[

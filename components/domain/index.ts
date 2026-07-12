@@ -73,6 +73,7 @@ export {
   ForceUpdateGate,
   type ForceUpdateGateProps,
 } from './ForceUpdateGate';
+export { RolePickerGate } from './RolePickerGate';
 export {
   type AnswerInk,
   type InkPoint,

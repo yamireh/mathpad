@@ -5,6 +5,11 @@ export {
 } from './useForceUpdate';
 export { useDevPreferences } from './useDevPreferences';
 export {
+  DeviceRoleProvider,
+  useDeviceRole,
+  type DeviceRoleContextValue,
+} from './useDeviceRole';
+export {
   useParentalGate,
   type UseParentalGateResult,
 } from './useParentalGate';

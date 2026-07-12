@@ -1,9 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { ScreenContainer } from '../../ui';
+import { IconButton, ScreenContainer } from '../../ui';
 import {
   colors,
   operationColors,
@@ -12,7 +11,7 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { usePurchases } from '../../../hooks';
+import { useParentalGate, usePurchases } from '../../../hooks';
 import { tapFeedback } from '../../../lib/feedback';
 import { TopicCard } from './TopicCard';
 import { TOPICS } from './topics';
@@ -30,9 +29,23 @@ export function MainPanel() {
   const router = useRouter();
   const { t } = useTranslation();
   const { clockOwned } = usePurchases();
+  const { runGated, gate } = useParentalGate();
 
   return (
-    <ScreenContainer scroll>
+    <ScreenContainer
+      scroll
+      header={
+        // Grown-ups entry: a discreet gear pinned top-right (stays put while the
+        // page scrolls). Behind the parental gate so kids can't wander in.
+        <View style={styles.topBar}>
+          <IconButton
+            name="settings-outline"
+            accessibilityLabel={t('home.grownUps')}
+            onPress={() => runGated(() => router.push('/grown-ups'))}
+          />
+        </View>
+      }
+    >
       <View style={styles.hero}>
         <View style={styles.heroText}>
           {/* Keep the greeting on one line: at full size on a normal-width
@@ -78,18 +91,7 @@ export function MainPanel() {
         })}
       </View>
 
-      <Pressable
-        style={styles.support}
-        accessibilityRole="button"
-        accessibilityLabel={t('home.support')}
-        onPress={() => {
-          tapFeedback();
-          router.push('/support');
-        }}
-      >
-        <Ionicons name="help-buoy-outline" size={18} color={colors.textMuted} />
-        <Text style={styles.supportLabel}>{t('home.support')}</Text>
-      </Pressable>
+      {gate}
     </ScreenContainer>
   );
 }
@@ -125,17 +127,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   grid: { gap: spacing.md },
-  support: {
+  topBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  supportLabel: {
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    color: colors.textMuted,
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
 });

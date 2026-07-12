@@ -28,6 +28,7 @@ const KEYS = {
   dev: 'mathpad:dev:v1',
   entitlement: 'mathpad:entitlement:v1',
   clockEntitlement: 'mathpad:entitlement-clock:v1',
+  deviceRole: 'mathpad:device-role:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -243,6 +244,30 @@ export const clockEntitlementStore = {
   },
   async set(clockOwned: boolean): Promise<void> {
     await writeJSON(KEYS.clockEntitlement, { clockOwned });
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/* Device role                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which side of the app this device is set up as (Parent Mode). Chosen once on
+ * first run and remembered. `'unset'` means the first-run picker hasn't been
+ * answered yet. Local-only — the parent's *account* lives in the cloud later,
+ * but the device's role is just a local preference.
+ */
+export type DeviceRole = 'unset' | 'child' | 'parent';
+
+export const deviceRoleStore = {
+  async get(): Promise<DeviceRole> {
+    const data = await readJSON<{ role: DeviceRole }>(KEYS.deviceRole, {
+      role: 'unset',
+    });
+    return data.role;
+  },
+  async set(role: DeviceRole): Promise<void> {
+    await writeJSON(KEYS.deviceRole, { role });
   },
 };
 

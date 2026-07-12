@@ -3,11 +3,13 @@ import { I18nManager, Text, TextInput } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ForceUpdateGate } from '../components/domain';
+import { ForceUpdateGate, RolePickerGate } from '../components/domain';
 import {
+  DeviceRoleProvider,
   PracticeSessionProvider,
   PurchasesProvider,
   TipsProvider,
+  useDeviceRole,
   useForceUpdate,
 } from '../hooks';
 // Side-effect import: initialises i18next before any screen renders.
@@ -53,21 +55,33 @@ for (const Component of [Text, TextInput] as unknown as Renderable[]) {
  * provider (so the session survives Practice → Score → Review navigation),
  * and hosts the navigation Stack.
  */
+/**
+ * First-run overlay: once the persisted role has loaded and is still unset, ask
+ * whose device this is. Sits above the Stack until answered.
+ */
+function RoleGate() {
+  const { hydrated, role } = useDeviceRole();
+  return hydrated && role === 'unset' ? <RolePickerGate /> : null;
+}
+
 export default function RootLayout() {
   const { required, appStoreId } = useForceUpdate();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PurchasesProvider>
-          <TipsProvider>
-            <PracticeSessionProvider>
-              <Stack screenOptions={{ headerShown: false }} />
-            </PracticeSessionProvider>
-          </TipsProvider>
-        </PurchasesProvider>
-        {/* Sits above everything: when the installed version is below the
-            remote minimum, nothing else is reachable until they update. */}
-        {required ? <ForceUpdateGate appStoreId={appStoreId} /> : null}
+        <DeviceRoleProvider>
+          <PurchasesProvider>
+            <TipsProvider>
+              <PracticeSessionProvider>
+                <Stack screenOptions={{ headerShown: false }} />
+              </PracticeSessionProvider>
+            </TipsProvider>
+          </PurchasesProvider>
+          {/* Sits above everything: when the installed version is below the
+              remote minimum, nothing else is reachable until they update. */}
+          {required ? <ForceUpdateGate appStoreId={appStoreId} /> : null}
+          <RoleGate />
+        </DeviceRoleProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
