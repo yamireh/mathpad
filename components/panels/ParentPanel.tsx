@@ -1,56 +1,65 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { ParentAuthForm } from './parent/ParentAuthForm';
 import { Button, Header, ScreenContainer } from '../ui';
 import { colors, operationColors, spacing, typography } from '../../constants/design';
-import { useDeviceRole } from '../../hooks';
+import { useAuthUser, useDeviceRole } from '../../hooks';
+import { signOut } from '../../lib/firebase/auth';
 
 /**
- * Parent area — placeholder home. The account/sign-in flow + progress dashboard
- * land here in the next milestones. Rendered directly by the root route when the
- * device role is 'parent' (not via navigation), so changing the role reactively
- * swaps back to the kid home. Also offers escape hatches: switch this device to
- * child mode, or re-show the first-run picker.
+ * Parent area. Rendered directly by the root route when the device role is
+ * 'parent' (not via navigation), so role changes reactively swap back to the
+ * kid home. Signed-out shows the auth form (with a "continue as child" escape);
+ * signed-in shows a (placeholder) dashboard.
  */
 export function ParentPanel() {
   const { t } = useTranslation();
   const { setRole } = useDeviceRole();
-  return (
-    <ScreenContainer>
-      <Header title={t('parent.title')} />
+  const { user, initializing } = useAuthUser();
+
+  let content: React.ReactNode;
+  if (initializing) {
+    content = (
+      <View style={styles.center}>
+        <ActivityIndicator color={operationColors.addition.accent} />
+      </View>
+    );
+  } else if (!user || user.isAnonymous) {
+    // Anonymous = a leftover kid/health-check session — still "signed out" here.
+    content = <ParentAuthForm onContinueAsChild={() => setRole('child')} />;
+  } else {
+    content = (
       <View style={styles.body}>
-        <Ionicons
-          name="people-circle-outline"
-          size={64}
-          color={operationColors.addition.accent}
-        />
-        <Text style={styles.headline}>{t('parent.comingSoonTitle')}</Text>
-        <Text style={styles.text}>{t('parent.comingSoonBody')}</Text>
+        <Ionicons name="checkmark-circle" size={72} color={colors.correct} />
+        <Text style={styles.headline}>
+          {t('parentAuth.signedInAs', { email: user.email ?? '' })}
+        </Text>
+        <Text style={styles.text}>{t('parentAuth.dashboardSoon')}</Text>
         <View style={styles.action}>
           <Button
-            label={t('parent.switchToChild')}
-            icon="swap-horizontal-outline"
+            label={t('parentAuth.signOut')}
+            icon="log-out-outline"
             variant="secondary"
-            onPress={() => setRole('child')}
-            fullWidth
-          />
-          <Button
-            label={t('parent.askAgain')}
-            icon="refresh-outline"
-            variant="ghost"
-            onPress={() => setRole('unset')}
+            onPress={() => void signOut()}
             fullWidth
           />
         </View>
       </View>
+    );
+  }
+
+  return (
+    <ScreenContainer scroll header={<Header title={t('parent.title')} />}>
+      {content}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
+  center: { padding: spacing.xl, alignItems: 'center' },
   body: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -71,6 +80,5 @@ const styles = StyleSheet.create({
   action: {
     alignSelf: 'stretch',
     marginTop: spacing.lg,
-    gap: spacing.sm,
   },
 });

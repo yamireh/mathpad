@@ -294,9 +294,9 @@
     "cta": "Update MathPen"
   },
   "deviceRole": {
-    "title": "Whose device is this?",
-    "body": "Set this once so we know how to show MathPen. You can change it later in Settings.",
-    "child": "My child's — let's practice",
+    "title": "Welcome to MathPen!",
+    "body": "Jump in and start practicing. A grown-up can set up a parent account any time from the ⚙️ Settings menu.",
+    "child": "Let's practice!",
     "parent": "I'm a parent"
   },
   "parent": {
@@ -305,6 +305,36 @@
     "comingSoonBody": "Soon you'll sign in here to see what your child is practicing and how they're doing.",
     "switchToChild": "This is my child's device",
     "askAgain": "Ask me again"
+  },
+  "parentAuth": {
+    "signInHeading": "Welcome back",
+    "signUpHeading": "Create your parent account",
+    "intro": "Sign in to see what your child is practicing.",
+    "email": "Email",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "signIn": "Sign in",
+    "signUp": "Create account",
+    "toSignUp": "New here? Create an account",
+    "toSignIn": "I already have an account",
+    "forgot": "Forgot password?",
+    "resetSent": "Check your email — we sent a link to reset your password.",
+    "enterEmailFirst": "Enter your email above first.",
+    "continueAsChild": "Not a parent? Continue as child",
+    "signedInAs": "Signed in as {{email}}",
+    "signOut": "Sign out",
+    "dashboardSoon": "Your child's progress dashboard is coming soon.",
+    "errors": {
+      "invalidEmail": "That email doesn't look right.",
+      "missingPassword": "Please enter a password.",
+      "weakPassword": "Password must be at least 6 characters.",
+      "emailInUse": "That email already has an account — sign in instead.",
+      "badCredentials": "Email or password is incorrect.",
+      "network": "No connection. Check your internet and try again.",
+      "tooMany": "Too many attempts. Please wait a moment.",
+      "generic": "Something went wrong. Please try again."
+    }
   },
   "hints": {
     "button": "Hint",

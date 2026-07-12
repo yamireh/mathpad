@@ -9,6 +9,11 @@ module.exports = {
   preset: 'jest-expo',
   setupFiles: ['<rootDir>/jest.setup.js'],
   testMatch: ['<rootDir>/__tests__/**/*.test.{ts,tsx}'],
+  moduleNameMapper: {
+    // The Firebase JS SDK ships ESM that jest can't parse, and its init touches
+    // native storage/network. Tests never use Firebase, so stub these subpaths.
+    '^firebase/(app|auth|firestore)$': '<rootDir>/__mocks__/firebase.js',
+  },
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@shopify/react-native-skia|react-native-reanimated|react-native-worklets|react-native-safe-area-context|i18next|react-i18next))',
   ],
