@@ -33,6 +33,14 @@ export const RECOGNITION_LANGUAGE = 'en-US';
 /** Characters ML Kit may return for a hand-drawn minus stroke. */
 const MINUS_FORMS = new Set(['-', '−', '–', '—', '‐', '_']);
 
+/** A tiny throwaway stroke used only to warm the recognizer (see prepareModel). */
+const WARMUP_STROKES: Stroke[] = [
+  [
+    [0, 0, 0],
+    [1, 1, 8],
+  ],
+];
+
 /* -------------------------------------------------------------------------- */
 /* Model lifecycle                                                              */
 /* -------------------------------------------------------------------------- */
@@ -47,8 +55,36 @@ export function isModelReady(): Promise<boolean> {
  * Call once at app startup (a one-time, online setup step) — never mid-session.
  */
 export async function prepareModel(): Promise<void> {
-  if (await DigitalInk.isModelDownloaded(RECOGNITION_LANGUAGE)) return;
-  await DigitalInk.downloadModel(RECOGNITION_LANGUAGE);
+  if (!(await DigitalInk.isModelDownloaded(RECOGNITION_LANGUAGE))) {
+    await DigitalInk.downloadModel(RECOGNITION_LANGUAGE);
+  }
+  // Warm the recognizer: the very first recognize per app launch otherwise pays
+  // the model-load cost, during which the kid's first digit would sit as raw ink
+  // before printing. A throwaway recognize forces the native recognizer to be
+  // created + the model loaded into memory now. Best-effort — ignore failures.
+  try {
+    await DigitalInk.recognize(RECOGNITION_LANGUAGE, WARMUP_STROKES);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Run one recognition, tolerating a not-yet-ready model. On a fresh install the
+ * model may still be downloading when the kid writes their first digit — a raw
+ * `DigitalInk.recognize` throws (E_MODEL_NOT_DOWNLOADED), which upstream fails
+ * *open* and leaves the ink un-converted (so the first box shows raw handwriting
+ * while later boxes print cleanly). Preparing + retrying once makes that first
+ * digit wait for the model instead of silently staying as ink. A genuine second
+ * failure rethrows, preserving the fail-open behaviour.
+ */
+async function recognizeStrokes(strokes: Stroke[]) {
+  try {
+    return await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  } catch {
+    await prepareModel();
+    return await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -71,7 +107,7 @@ export async function recognizeDigit(
   if (strokes.length === 0) {
     return { digit: null, confidence: null, raw: null };
   }
-  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const candidates = await recognizeStrokes(strokes);
   const raw = candidates[0]?.text ?? null;
   for (const candidate of candidates) {
     const text = candidate.text.trim();
@@ -246,7 +282,7 @@ export async function recognizeSign(
   if (strokes.length === 0) {
     return { sign: null, confidence: null, raw: null };
   }
-  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const candidates = await recognizeStrokes(strokes);
   const raw = candidates[0]?.text ?? null;
   for (const candidate of candidates) {
     if (MINUS_FORMS.has(candidate.text.trim())) {
@@ -273,7 +309,7 @@ export async function recognizeNumber(
   if (strokes.length === 0) {
     return { integerDigits: [], decimalDigits: [], raw: null };
   }
-  const candidates = await DigitalInk.recognize(RECOGNITION_LANGUAGE, strokes);
+  const candidates = await recognizeStrokes(strokes);
   const raw = candidates[0]?.text ?? null;
   const toDigits = (s: string) => s.split('').map(Number);
   for (const candidate of candidates) {
