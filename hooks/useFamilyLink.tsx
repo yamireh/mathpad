@@ -8,21 +8,21 @@ import {
   useState,
 } from 'react';
 
-import { familyLinkStore } from '../lib/storage';
+import { type FamilyLink, familyLinkStore } from '../lib/storage';
 
 export interface FamilyLinkContextValue {
   /** Whether the persisted link has loaded. */
   hydrated: boolean;
-  /** The family this device is linked to, or null. */
-  familyId: string | null;
-  /** Convenience: `familyId != null`. A linked device is locked to child mode. */
+  /** The linked family + this device's child id, or null. */
+  link: FamilyLink | null;
+  /** Convenience: `link != null`. A linked device is locked to child mode. */
   linked: boolean;
-  setLink: (familyId: string | null) => void;
+  setLink: (link: FamilyLink | null) => void;
 }
 
 const FamilyLinkContext = createContext<FamilyLinkContextValue>({
   hydrated: true,
-  familyId: null,
+  link: null,
   linked: false,
   setLink: () => {},
 });
@@ -32,7 +32,7 @@ const FamilyLinkContext = createContext<FamilyLinkContextValue>({
  * Once linked, the device is locked to child mode until a parent unlinks it.
  */
 export function FamilyLinkProvider({ children }: { children: ReactNode }) {
-  const [familyId, setFamilyId] = useState<string | null>(null);
+  const [link, setLinkState] = useState<FamilyLink | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export function FamilyLinkProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const stored = await familyLinkStore.get();
       if (cancelled) return;
-      setFamilyId(stored);
+      setLinkState(stored);
       setHydrated(true);
     })();
     return () => {
@@ -48,14 +48,14 @@ export function FamilyLinkProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setLink = useCallback((next: string | null) => {
-    setFamilyId(next);
+  const setLink = useCallback((next: FamilyLink | null) => {
+    setLinkState(next);
     void familyLinkStore.set(next);
   }, []);
 
   const value = useMemo(
-    () => ({ hydrated, familyId, linked: familyId != null, setLink }),
-    [hydrated, familyId, setLink],
+    () => ({ hydrated, link, linked: link != null, setLink }),
+    [hydrated, link, setLink],
   );
 
   return (

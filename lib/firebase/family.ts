@@ -114,8 +114,12 @@ export async function joinFamily(
     throw new InvalidCodeError();
   }
   const familyId = data.familyId as string;
-  await setDoc(doc(db, 'families', familyId, 'devices', deviceUid), {
-    linkedAt: serverTimestamp(),
-  });
+  // One kid device = one child, keyed by the device's uid. Its sessions +
+  // summary live under this child doc (see lib/firebase/sync).
+  await setDoc(
+    doc(db, 'families', familyId, 'children', deviceUid),
+    { joinedAt: serverTimestamp() },
+    { merge: true },
+  );
   return familyId;
 }

@@ -32,10 +32,12 @@ module.exports = {
   query: () => ({}),
   where: () => ({}),
   limit: () => ({}),
+  orderBy: () => ({}),
   setDoc: async () => {},
   addDoc: async () => ({ id: 'test-id' }),
   getDoc: async () => ({ exists: () => false, data: () => undefined }),
   getDocs: async () => ({ docs: [] }),
   onSnapshot: () => noopUnsub,
   serverTimestamp: () => ({}),
+  increment: (n) => ({ __increment: n }),
 };

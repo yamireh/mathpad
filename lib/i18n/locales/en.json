@@ -43,7 +43,18 @@
     "title": "Grown-ups",
     "parents": "I'm a parent",
     "connect": "Connect to a parent",
-    "connected": "Family connection"
+    "connected": "Family connection",
+    "devSwitchParent": "Switch to parent (dev)"
+  },
+  "dashboard": {
+    "child": "Child {{n}}",
+    "sessions": "Sessions",
+    "questions": "Questions",
+    "accuracy": "Accuracy",
+    "recent": "Recent sessions",
+    "refresh": "Refresh",
+    "empty": "No practice yet. Connect your child's device with the code below, then their progress shows up here.",
+    "error": "Couldn't load progress. Tap to try again."
   },
   "connect": {
     "title": "Connect to a parent",

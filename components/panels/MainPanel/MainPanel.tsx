@@ -11,7 +11,7 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { useParentalGate, usePurchases } from '../../../hooks';
+import { useAuthUser, useParentalGate, usePurchases } from '../../../hooks';
 import { tapFeedback } from '../../../lib/feedback';
 import { TopicCard } from './TopicCard';
 import { TOPICS } from './topics';
@@ -30,6 +30,10 @@ export function MainPanel() {
   const { t } = useTranslation();
   const { clockOwned } = usePurchases();
   const { runGated, gate } = useParentalGate();
+  const { user } = useAuthUser();
+  // A signed-in (non-anonymous) parent has already proven they're a grown-up, so
+  // the gate is only for a kid (anonymous / no account).
+  const isGrownUp = !!user && !user.isAnonymous;
 
   return (
     <ScreenContainer
@@ -41,7 +45,13 @@ export function MainPanel() {
           <IconButton
             name="settings-outline"
             accessibilityLabel={t('home.grownUps')}
-            onPress={() => runGated(() => router.push('/grown-ups'))}
+            onPress={() => {
+              const open = () => router.push('/grown-ups');
+              // Gate only a kid. A signed-in grown-up (or a dev build) goes
+              // straight in — re-challenging an authenticated adult is pointless.
+              if (isGrownUp || __DEV__) open();
+              else runGated(open);
+            }}
           />
         </View>
       }

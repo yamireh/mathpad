@@ -30,6 +30,7 @@ import {
   markFirstAttempt,
   statusAfterEdit,
 } from '../lib/scoring';
+import { maybeSyncSession } from '../lib/firebase/sync';
 import { historyStore } from '../lib/storage';
 import type {
   Question,
@@ -683,7 +684,12 @@ export function PracticeSessionProvider({
         finishedAt: Date.now(),
       };
       commit(finished);
-      void historyStore.upsert(toSessionResult(finished));
+      const result = toSessionResult(finished);
+      void historyStore.upsert(result);
+      // Sync to the family cloud once, at finish (a no-op unless this device is
+      // linked). Later review-fixes aren't re-synced, to keep the aggregate
+      // counted once per session.
+      void maybeSyncSession(result);
       return results;
     },
     [commit],

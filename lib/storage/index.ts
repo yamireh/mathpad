@@ -275,17 +275,24 @@ export const deviceRoleStore = {
 /**
  * The family this (child) device is linked to, or null. Set when the device
  * joins a family by code; once set, the device is locked to child mode (a linked
- * kid device can't become a parent — the parent unlinks it).
+ * kid device can't become a parent — the parent unlinks it). `childId` is the
+ * device's id at join time, kept stable so every session syncs under the same
+ * child regardless of later auth changes.
  */
+export interface FamilyLink {
+  familyId: string;
+  childId: string;
+}
+
 export const familyLinkStore = {
-  async get(): Promise<string | null> {
-    const data = await readJSON<{ familyId: string | null }>(KEYS.familyLink, {
-      familyId: null,
+  async get(): Promise<FamilyLink | null> {
+    const data = await readJSON<{ link: FamilyLink | null }>(KEYS.familyLink, {
+      link: null,
     });
-    return data.familyId;
+    return data.link;
   },
-  async set(familyId: string | null): Promise<void> {
-    await writeJSON(KEYS.familyLink, { familyId });
+  async set(link: FamilyLink | null): Promise<void> {
+    await writeJSON(KEYS.familyLink, { link });
   },
 };
 

@@ -9,6 +9,8 @@ import { colors, operationColors, radius, spacing, typography } from '../constan
 import { useFamilyLink } from '../hooks';
 import { ensureSignedInUid } from '../lib/firebase/auth';
 import { InvalidCodeError, joinFamily } from '../lib/firebase/family';
+import { backfillSessions } from '../lib/firebase/sync';
+import { historyStore } from '../lib/storage';
 
 /**
  * "Connect to a parent" — a grown-up enters the family code (from the parent's
@@ -29,8 +31,10 @@ export default function ConnectScreen() {
     try {
       const uid = await ensureSignedInUid();
       const familyId = await joinFamily(code, uid);
-      setLink(familyId);
+      setLink({ familyId, childId: uid });
       // `linked` flips true → the connected state renders below.
+      // Push existing local history so the parent sees past practice too.
+      void backfillSessions(familyId, uid, await historyStore.list());
     } catch (e) {
       setError(t(e instanceof InvalidCodeError ? 'connect.invalid' : 'connect.error'));
     } finally {

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import {
   colors,
@@ -9,28 +9,18 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { useFamily } from '../../../hooks';
 
 /**
- * The parent's family pairing code — created on first sign-in, shown here so a
- * child's device can join the family with it. (The kid-side join flow is the
- * next milestone.)
+ * The family's pairing code — shown so a child's device can join the family
+ * with it. Presentational; the caller loads the family.
  */
-export function FamilyCode({ ownerUid }: { ownerUid: string }) {
+export function FamilyCode({ code }: { code: string }) {
   const { t } = useTranslation();
-  const { family, loading, error } = useFamily(ownerUid);
-
-  if (loading) {
-    return <ActivityIndicator color={operationColors.addition.accent} />;
-  }
-  if (error || !family) {
-    return <Text style={styles.error}>{t('parentAuth.familyError')}</Text>;
-  }
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{t('parentAuth.familyCodeLabel')}</Text>
       <Text style={styles.code} selectable>
-        {family.pairingCode}
+        {code}
       </Text>
       <Text style={styles.hint}>{t('parentAuth.familyInstructions')}</Text>
     </View>
@@ -67,10 +57,5 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     maxWidth: 300,
-  },
-  error: {
-    fontSize: typography.size.body,
-    color: colors.wrong,
-    textAlign: 'center',
   },
 });

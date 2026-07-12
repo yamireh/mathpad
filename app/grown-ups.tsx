@@ -48,6 +48,10 @@ export default function GrownUpsScreen() {
   const router = useRouter();
   const { setRole } = useDeviceRole();
   const { linked } = useFamilyLink();
+  const becomeParent = () => {
+    setRole('parent');
+    router.dismissAll();
+  };
   return (
     <ScreenContainer>
       <Header
@@ -62,15 +66,19 @@ export default function GrownUpsScreen() {
       />
       <View style={styles.menu}>
         {/* Becoming a parent is only offered while unlinked — once this device
-            has joined a family it's locked to child mode. */}
+            has joined a family it's locked to child mode. In dev we still allow
+            it (keeping the link) so a single device can test both sides. */}
         {!linked ? (
           <MenuRow
             icon="people-circle-outline"
             label={t('grownUps.parents')}
-            onPress={() => {
-              setRole('parent');
-              router.dismissAll();
-            }}
+            onPress={becomeParent}
+          />
+        ) : __DEV__ ? (
+          <MenuRow
+            icon="construct-outline"
+            label={t('grownUps.devSwitchParent')}
+            onPress={becomeParent}
           />
         ) : null}
         <MenuRow
