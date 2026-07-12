@@ -4,9 +4,7 @@ import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '../../../constants/design';
 import { NotebookGrid } from '../NotebookGrid';
-import { type InkStroke, strokeToPath, useInkCapture } from '../ink';
-
-const STROKE_WIDTH = 4;
+import { type InkStroke, strokeToFreehandPath, useInkCapture } from '../ink';
 
 export interface HandwritingFieldHandle {
   /** Remove the last stroke. */
@@ -29,7 +27,7 @@ export interface HandwritingFieldProps {
 
 /**
  * A small notebook-grid box the child writes a number into by hand. Reuses the
- * shared ink primitives (`useInkCapture`, `strokeToPath`, `NotebookGrid`) — the
+ * shared ink primitives (`useInkCapture`, `strokeToFreehandPath`, `NotebookGrid`) — the
  * same drawing stack as the scratch canvas — so it stays consistent and touches
  * no operation-specific code. Recognition is applied by the consumer.
  */
@@ -53,6 +51,9 @@ export const HandwritingField = forwardRef<
     ink.undo,
     ink.clear,
   ]);
+  // Pen weight scaled to this (smaller) field — tuned to sit between the big
+  // pad's 12px (too bold here) and a strictly-proportional ~7px (too thin).
+  const penSize = Math.max(9, Math.round(height * 0.05));
   const at = (e: GestureResponderEvent): [number, number] => [
     e.nativeEvent.locationX,
     e.nativeEvent.locationY,
@@ -86,22 +87,16 @@ export const HandwritingField = forwardRef<
         {ink.strokes.map((stroke, i) => (
           <Path
             key={i}
-            path={strokeToPath(stroke)}
+            path={strokeToFreehandPath(stroke, true, penSize)}
             color={colors.text}
-            style="stroke"
-            strokeWidth={STROKE_WIDTH}
-            strokeCap="round"
-            strokeJoin="round"
+            style="fill"
           />
         ))}
         {ink.currentStroke ? (
           <Path
-            path={strokeToPath(ink.currentStroke)}
+            path={strokeToFreehandPath(ink.currentStroke, false, penSize)}
             color={colors.text}
-            style="stroke"
-            strokeWidth={STROKE_WIDTH}
-            strokeCap="round"
-            strokeJoin="round"
+            style="fill"
           />
         ) : null}
       </Canvas>

@@ -7,6 +7,7 @@
  */
 import { useCallback, useReducer, useRef } from 'react';
 import { Skia, type SkPath } from '@shopify/react-native-skia';
+import { getStroke } from 'perfect-freehand';
 
 import type { ProblemLayout } from '../../types';
 import type { AnswerShape } from './layout';
@@ -42,6 +43,54 @@ export function strokeToPath(
   if (stroke.length === 1) {
     path.lineTo(tx(stroke[0][0]) + 0.5, ty(stroke[0][1]) + 0.5);
   }
+  return path;
+}
+
+/**
+ * Velocity-tapered "assisted pen" rendering (perfect-freehand): turns a stroke's
+ * samples into a filled outline that's thicker when drawn slowly and thinner /
+ * tapered when fast — the pen-like feel note apps use. `done` tapers the end cap
+ * (pass false while a stroke is still being drawn).
+ *
+ * Display-only: the raw captured points are untouched, so recognition (which
+ * reads the original strokes) is completely unaffected. Render the result with
+ * `style="fill"`. Tune the feel in {@link FREEHAND_OPTIONS}. Used while we
+ * evaluate the look on the writing pad + scratch canvas.
+ */
+const FREEHAND_OPTIONS = {
+  /** Base line weight. */
+  size: 12,
+  /** How much width varies with speed (0–1). */
+  thinning: 0.7,
+  smoothing: 0.5,
+  /** Input smoothing — higher is smoother but lags the fingertip more. */
+  streamline: 0.5,
+  /** Derive pressure from velocity (we have no real pressure input). */
+  simulatePressure: true,
+};
+
+export function strokeToFreehandPath(
+  stroke: InkStroke,
+  done: boolean,
+  // Pen weight in px. Defaults suit the large pad/worksheet; smaller writing
+  // surfaces (e.g. the clock field) pass a smaller value so the line doesn't
+  // look proportionally bolder.
+  size: number = FREEHAND_OPTIONS.size,
+): SkPath {
+  const outline = getStroke(
+    stroke.map((p) => [p[0], p[1]]),
+    { ...FREEHAND_OPTIONS, size, last: done },
+  );
+  const path = Skia.Path.Make();
+  if (outline.length === 0) return path;
+  path.moveTo(outline[0][0], outline[0][1]);
+  for (let i = 1; i < outline.length; i += 1) {
+    const [x0, y0] = outline[i];
+    const [x1, y1] = outline[(i + 1) % outline.length];
+    // Curve through midpoints so the filled outline reads as a smooth shape.
+    path.quadTo(x0, y0, (x0 + x1) / 2, (y0 + y1) / 2);
+  }
+  path.close();
   return path;
 }
 

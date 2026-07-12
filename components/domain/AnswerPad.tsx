@@ -12,7 +12,7 @@ import { IconButton, TipBubble } from '../ui';
 import { colors, radius, spacing, typography } from '../../constants/design';
 import { useCursorTarget } from './cursorTarget';
 import { NotebookGrid } from './NotebookGrid';
-import { type InkStroke, strokeToPath, useInkCapture } from './ink';
+import { type InkStroke, strokeToFreehandPath, useInkCapture } from './ink';
 
 export interface AnswerPadProps {
   /** The active answer box's current ink. */
@@ -32,9 +32,6 @@ export interface AnswerPadProps {
   /** When true, the pad shrinks to its toolbar + a small touch sliver. */
   collapsed?: boolean;
 }
-
-/** Stroke width on the big pad (thicker — strokes are scaled down in the box). */
-const STROKE_WIDTH = 4;
 
 /**
  * The large writing pad for the focused answer box. The kid writes a digit
@@ -128,22 +125,16 @@ export function AnswerPad({
           {ink.strokes.map((stroke, i) => (
             <Path
               key={i}
-              path={strokeToPath(stroke)}
+              path={strokeToFreehandPath(stroke, true)}
               color={colors.text}
-              style="stroke"
-              strokeWidth={STROKE_WIDTH}
-              strokeCap="round"
-              strokeJoin="round"
+              style="fill"
             />
           ))}
           {ink.currentStroke ? (
             <Path
-              path={strokeToPath(ink.currentStroke)}
+              path={strokeToFreehandPath(ink.currentStroke, false)}
               color={colors.text}
-              style="stroke"
-              strokeWidth={STROKE_WIDTH}
-              strokeCap="round"
-              strokeJoin="round"
+              style="fill"
             />
           ) : null}
         </Canvas>

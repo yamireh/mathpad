@@ -16,7 +16,7 @@ import {
 import { colors, radius, spacing, typography } from '../../constants/design';
 import { useScratchSound } from '../../hooks/useScratchSound';
 import { NotebookGrid } from './NotebookGrid';
-import { type InkStroke, strokeToPath, useInkCapture } from './ink';
+import { type InkStroke, strokeToFreehandPath, useInkCapture } from './ink';
 
 export type ScratchTool = 'pen' | 'eraser';
 
@@ -39,7 +39,6 @@ export interface ScratchCanvasProps {
   label?: string;
 }
 
-const STROKE_WIDTH = 3;
 /** Whole strokes within this radius of an eraser touch are removed. */
 const ERASER_RADIUS = 24;
 /**
@@ -164,22 +163,16 @@ export const ScratchCanvas = forwardRef<
         {ink.strokes.map((stroke, i) => (
           <Path
             key={i}
-            path={strokeToPath(stroke)}
+            path={strokeToFreehandPath(stroke, true)}
             color={colors.text}
-            style="stroke"
-            strokeWidth={STROKE_WIDTH}
-            strokeCap="round"
-            strokeJoin="round"
+            style="fill"
           />
         ))}
         {ink.currentStroke ? (
           <Path
-            path={strokeToPath(ink.currentStroke)}
+            path={strokeToFreehandPath(ink.currentStroke, false)}
             color={colors.text}
-            style="stroke"
-            strokeWidth={STROKE_WIDTH}
-            strokeCap="round"
-            strokeJoin="round"
+            style="fill"
           />
         ) : null}
       </Canvas>
