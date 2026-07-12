@@ -41,7 +41,21 @@
   },
   "grownUps": {
     "title": "Grown-ups",
-    "parents": "Parents"
+    "parents": "I'm a parent",
+    "connect": "Connect to a parent",
+    "connected": "Family connection"
+  },
+  "connect": {
+    "title": "Connect to a parent",
+    "heading": "Enter your family code",
+    "intro": "Ask a parent for the 6-character code shown on their MathPen.",
+    "placeholder": "Family code",
+    "connect": "Connect",
+    "invalid": "That code didn't work. Check it and try again.",
+    "error": "Couldn't connect — check your internet and try again.",
+    "connectedTitle": "You're connected! 🎉",
+    "connectedBody": "This device is linked to your family, so a parent can see the practice progress.",
+    "disconnect": "Disconnect this device"
   },
   "support": {
     "title": "Support",

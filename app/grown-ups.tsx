@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Header, IconButton, ScreenContainer } from '../components/ui';
 import { colors, radius, shadows, spacing, typography } from '../constants/design';
-import { useDeviceRole } from '../hooks';
+import { useDeviceRole, useFamilyLink } from '../hooks';
 import { tapFeedback } from '../lib/feedback';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -47,6 +47,7 @@ export default function GrownUpsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { setRole } = useDeviceRole();
+  const { linked } = useFamilyLink();
   return (
     <ScreenContainer>
       <Header
@@ -60,13 +61,22 @@ export default function GrownUpsScreen() {
         }
       />
       <View style={styles.menu}>
+        {/* Becoming a parent is only offered while unlinked — once this device
+            has joined a family it's locked to child mode. */}
+        {!linked ? (
+          <MenuRow
+            icon="people-circle-outline"
+            label={t('grownUps.parents')}
+            onPress={() => {
+              setRole('parent');
+              router.dismissAll();
+            }}
+          />
+        ) : null}
         <MenuRow
-          icon="people-circle-outline"
-          label={t('grownUps.parents')}
-          onPress={() => {
-            setRole('parent');
-            router.dismissAll();
-          }}
+          icon={linked ? 'link' : 'link-outline'}
+          label={t(linked ? 'grownUps.connected' : 'grownUps.connect')}
+          onPress={() => router.push('/connect')}
         />
         <MenuRow
           icon="help-buoy-outline"

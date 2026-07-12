@@ -12,6 +12,11 @@ export {
 export { useAuthUser, type AuthUserState } from './useAuthUser';
 export { useFamily, type FamilyState } from './useFamily';
 export {
+  FamilyLinkProvider,
+  useFamilyLink,
+  type FamilyLinkContextValue,
+} from './useFamilyLink';
+export {
   useParentalGate,
   type UseParentalGateResult,
 } from './useParentalGate';

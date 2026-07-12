@@ -29,6 +29,7 @@ const KEYS = {
   entitlement: 'mathpad:entitlement:v1',
   clockEntitlement: 'mathpad:entitlement-clock:v1',
   deviceRole: 'mathpad:device-role:v1',
+  familyLink: 'mathpad:family-link:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -268,6 +269,23 @@ export const deviceRoleStore = {
   },
   async set(role: DeviceRole): Promise<void> {
     await writeJSON(KEYS.deviceRole, { role });
+  },
+};
+
+/**
+ * The family this (child) device is linked to, or null. Set when the device
+ * joins a family by code; once set, the device is locked to child mode (a linked
+ * kid device can't become a parent — the parent unlinks it).
+ */
+export const familyLinkStore = {
+  async get(): Promise<string | null> {
+    const data = await readJSON<{ familyId: string | null }>(KEYS.familyLink, {
+      familyId: null,
+    });
+    return data.familyId;
+  },
+  async set(familyId: string | null): Promise<void> {
+    await writeJSON(KEYS.familyLink, { familyId });
   },
 };
 

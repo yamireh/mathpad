@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ForceUpdateGate, RolePickerGate } from '../components/domain';
 import {
   DeviceRoleProvider,
+  FamilyLinkProvider,
   PracticeSessionProvider,
   PurchasesProvider,
   TipsProvider,
@@ -70,13 +71,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <DeviceRoleProvider>
-          <PurchasesProvider>
-            <TipsProvider>
-              <PracticeSessionProvider>
-                <Stack screenOptions={{ headerShown: false }} />
-              </PracticeSessionProvider>
-            </TipsProvider>
-          </PurchasesProvider>
+          <FamilyLinkProvider>
+            <PurchasesProvider>
+              <TipsProvider>
+                <PracticeSessionProvider>
+                  <Stack screenOptions={{ headerShown: false }} />
+                </PracticeSessionProvider>
+              </TipsProvider>
+            </PurchasesProvider>
+          </FamilyLinkProvider>
           {/* Sits above everything: when the installed version is below the
               remote minimum, nothing else is reachable until they update. */}
           {required ? <ForceUpdateGate appStoreId={appStoreId} /> : null}

@@ -6,11 +6,23 @@
 import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  signInAnonymously,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
 
 import { auth } from './index';
+
+/**
+ * Ensure there's a signed-in identity and return its uid — used by the kid
+ * device (anonymous, no credentials) before it joins a family. Reuses an
+ * existing session if present.
+ */
+export async function ensureSignedInUid(): Promise<string> {
+  if (auth.currentUser) return auth.currentUser.uid;
+  const cred = await signInAnonymously(auth);
+  return cred.user.uid;
+}
 
 export function signIn(email: string, password: string) {
   return signInWithEmailAndPassword(auth, email, password);

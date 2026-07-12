@@ -88,3 +88,34 @@ export async function createFamily(ownerUid: string): Promise<Family> {
 export async function ensureFamily(ownerUid: string): Promise<Family> {
   return (await getFamilyForOwner(ownerUid)) ?? createFamily(ownerUid);
 }
+
+/** Thrown when a pairing code doesn't resolve to an active family. */
+export class InvalidCodeError extends Error {
+  constructor() {
+    super('invalid-code');
+    this.name = 'InvalidCodeError';
+  }
+}
+
+/**
+ * Link a (kid) device to a family by pairing code. Resolves the code to its
+ * family, then registers the device under it. Returns the family id. Throws
+ * {@link InvalidCodeError} for a bad/inactive code; other errors bubble up
+ * (network, permissions).
+ */
+export async function joinFamily(
+  code: string,
+  deviceUid: string,
+): Promise<string> {
+  const normalized = code.trim().toUpperCase();
+  const codeSnap = await getDoc(doc(db, 'pairingCodes', normalized));
+  const data = codeSnap.data();
+  if (!codeSnap.exists() || !data || data.active === false || !data.familyId) {
+    throw new InvalidCodeError();
+  }
+  const familyId = data.familyId as string;
+  await setDoc(doc(db, 'families', familyId, 'devices', deviceUid), {
+    linkedAt: serverTimestamp(),
+  });
+  return familyId;
+}
