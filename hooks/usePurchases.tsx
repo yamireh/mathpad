@@ -40,6 +40,7 @@ import { LogBox } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   getAvailablePurchases as queryAvailablePurchases,
+  restorePurchases,
   useIAP,
   type Purchase,
 } from 'expo-iap';
@@ -401,6 +402,17 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
 
   const restore = useCallback(async () => {
     try {
+      // iOS: force a StoreKit sync FIRST so family-shared (and any not-yet-cached)
+      // entitlements are pulled from the App Store before we read them.
+      // `getAvailablePurchases` alone only sees the local cache — which is why a
+      // family member's shared purchase didn't appear on Restore. Best-effort:
+      // a failed/cancelled sync (offline, Apple ID prompt dismissed) still falls
+      // through to reading whatever is already available.
+      try {
+        await restorePurchases();
+      } catch {
+        // sync unavailable — continue with the local query below
+      }
       const { ops, clock } = await reconcile();
       return ops || clock;
     } catch {
