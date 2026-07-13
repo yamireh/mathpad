@@ -61,6 +61,10 @@
     "resetting": "Resetting…",
     "resetTitle": "Reset {{name}}'s progress?",
     "resetMessage": "This permanently clears all synced sessions and stats for {{name}}. It can't be undone. (Their device's own history is not affected.)",
+    "remove": "Remove child",
+    "removing": "Removing…",
+    "removeTitle": "Remove {{name}}?",
+    "removeMessage": "This removes {{name}} and all their synced progress from your family. It can't be undone. (Their device's own history is not affected; if it's still connected and they keep practising, they'll reappear.)",
     "corrected_one": "{{count}} corrected",
     "corrected_other": "{{count}} corrected",
     "solvedWithHelp_one": "{{count}} solved with help",
@@ -68,7 +72,7 @@
     "hint_one": "{{count}} hint",
     "hint_other": "{{count}} hints",
     "clean": "All correct, no help 🎉",
-    "empty": "No practice yet. Connect your child's device with the code below, then their progress shows up here.",
+    "empty": "No children connected yet. Open Settings → \"Add a child's device\" and enter the code on your child's device — their progress shows up here.",
     "error": "Couldn't load progress. Tap to try again."
   },
   "familySetup": {

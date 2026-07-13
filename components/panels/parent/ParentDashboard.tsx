@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -19,9 +20,13 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { ConfirmDialog } from '../../ui';
+import { Button, ConfirmDialog } from '../../ui';
 import { useDashboard } from '../../../hooks';
-import { type ChildProgress, resetChild } from '../../../lib/firebase/dashboard';
+import {
+  type ChildProgress,
+  removeChild,
+  resetChild,
+} from '../../../lib/firebase/dashboard';
 
 const pct = (correct: number, total: number) =>
   total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -203,9 +208,11 @@ function ChildHeader({
 function ChildBody({
   child,
   onReset,
+  onRemove,
 }: {
   child: ChildProgress;
   onReset: () => void;
+  onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
@@ -273,15 +280,28 @@ function ChildBody({
         </View>
       ) : null}
 
-      <Pressable
-        onPress={onReset}
-        accessibilityRole="button"
-        hitSlop={8}
-        style={styles.resetBtn}
-      >
-        <Ionicons name="trash-outline" size={14} color={colors.wrong} />
-        <Text style={styles.resetText}>{t('dashboard.reset')}</Text>
-      </Pressable>
+      <View style={styles.childActions}>
+        <Pressable
+          onPress={onReset}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={styles.childAction}
+        >
+          <Ionicons name="refresh-outline" size={14} color={colors.textMuted} />
+          <Text style={styles.childActionText}>{t('dashboard.reset')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={onRemove}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={styles.childAction}
+        >
+          <Ionicons name="person-remove-outline" size={14} color={colors.wrong} />
+          <Text style={[styles.childActionText, styles.removeText]}>
+            {t('dashboard.remove')}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -293,26 +313,30 @@ function ChildBody({
  */
 export function ParentDashboard({ familyId }: { familyId: string }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { children, loading, error, reload } = useDashboard(familyId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [pendingReset, setPendingReset] = useState<{
+  const [pending, setPending] = useState<{
+    action: 'reset' | 'remove';
     childId: string;
     name: string;
   } | null>(null);
-  const [resetting, setResetting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const seeded = useRef(false);
 
-  const doReset = async () => {
-    if (!pendingReset) return;
-    setResetting(true);
+  const isRemove = pending?.action === 'remove';
+  const confirmAction = async () => {
+    if (!pending) return;
+    setBusy(true);
     try {
-      await resetChild(familyId, pendingReset.childId);
+      if (pending.action === 'remove') await removeChild(familyId, pending.childId);
+      else await resetChild(familyId, pending.childId);
       reload();
     } catch {
       // best-effort; the dialog closes and they can retry
     } finally {
-      setResetting(false);
-      setPendingReset(null);
+      setBusy(false);
+      setPending(null);
     }
   };
 
@@ -340,8 +364,14 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   if (children.length === 0) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="bar-chart-outline" size={44} color={colors.textMuted} />
+        <Ionicons name="people-outline" size={44} color={colors.textMuted} />
         <Text style={styles.emptyText}>{t('dashboard.empty')}</Text>
+        <Button
+          label={t('coParent.addChildDevice')}
+          icon="phone-portrait-outline"
+          variant="secondary"
+          onPress={() => router.push('/family-settings')}
+        />
       </View>
     );
   }
@@ -386,33 +416,43 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
             onToggle={() => toggle(section.child.childId)}
           />
         )}
-        renderItem={({ item, section }) => (
-          <ChildBody
-            child={item}
-            onReset={() =>
-              setPendingReset({
-                childId: item.childId,
-                name:
-                  item.name?.trim() ||
-                  t('dashboard.child', { n: section.index + 1 }),
-              })
-            }
-          />
-        )}
+        renderItem={({ item, section }) => {
+          const name =
+            item.name?.trim() || t('dashboard.child', { n: section.index + 1 });
+          return (
+            <ChildBody
+              child={item}
+              onReset={() =>
+                setPending({ action: 'reset', childId: item.childId, name })
+              }
+              onRemove={() =>
+                setPending({ action: 'remove', childId: item.childId, name })
+              }
+            />
+          );
+        }}
         renderSectionFooter={() => <View style={styles.sectionGap} />}
         contentContainerStyle={styles.dashListContent}
         showsVerticalScrollIndicator={false}
       />
 
       <ConfirmDialog
-        visible={pendingReset !== null}
-        title={t('dashboard.resetTitle', { name: pendingReset?.name ?? '' })}
-        message={t('dashboard.resetMessage', { name: pendingReset?.name ?? '' })}
-        confirmLabel={resetting ? t('dashboard.resetting') : t('dashboard.reset')}
+        visible={pending !== null}
+        title={t(isRemove ? 'dashboard.removeTitle' : 'dashboard.resetTitle', {
+          name: pending?.name ?? '',
+        })}
+        message={t(isRemove ? 'dashboard.removeMessage' : 'dashboard.resetMessage', {
+          name: pending?.name ?? '',
+        })}
+        confirmLabel={
+          busy
+            ? t(isRemove ? 'dashboard.removing' : 'dashboard.resetting')
+            : t(isRemove ? 'dashboard.remove' : 'dashboard.reset')
+        }
         cancelLabel={t('common.cancel')}
         destructive
-        onConfirm={doReset}
-        onCancel={() => setPendingReset(null)}
+        onConfirm={confirmAction}
+        onCancel={() => setPending(null)}
       />
     </View>
   );
@@ -473,20 +513,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionGap: { height: spacing.md },
-  resetBtn: {
+  childActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
+    justifyContent: 'space-around',
+    gap: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  resetText: {
+  childAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  childActionText: {
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,
-    color: colors.wrong,
+    color: colors.textMuted,
   },
+  removeText: { color: colors.wrong },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

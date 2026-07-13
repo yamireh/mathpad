@@ -118,3 +118,18 @@ export async function resetChild(
     byTopic: {},
   });
 }
+
+/**
+ * Remove a child from the family entirely: delete every session doc and the
+ * child doc itself. Any family member may do this. (If that kid device is still
+ * linked and keeps practising, it re-creates its child on the next sync.)
+ */
+export async function removeChild(
+  familyId: string,
+  childId: string,
+): Promise<void> {
+  const childRef = doc(db, 'families', familyId, 'children', childId);
+  const sessions = await getDocs(collection(childRef, 'sessions'));
+  await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
+  await deleteDoc(childRef);
+}

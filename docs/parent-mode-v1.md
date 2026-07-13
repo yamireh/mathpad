@@ -106,9 +106,11 @@ parentIndex/{parentUid}                     { familyId }           // "my family
   (Firebase has one auth user per device, so a device signed in as a parent
   couldn't otherwise write kid data). Kids are never members, so a kid still only
   writes its own child doc. Session **delete** is allowed the same way — used by
-  the per-child **Reset progress** action (`resetChild` deletes the session docs
-  + zeroes the aggregate, keeping the child's identity; cloud-only, the device's
-  local history is untouched).
+  the per-child **Reset progress** (`resetChild`: delete session docs + zero the
+  aggregate, keep identity) and **Remove child** (`removeChild`: delete sessions
+  + the child doc) actions. Both cloud-only; the device's local history is
+  untouched. (Child-doc delete is covered by the member `write` rule, so no extra
+  rule beyond the session-delete one Reset already needs.)
 - **Join by invite code**: the co-parent enters it → writes their `parents/{uid}`
   doc carrying the code as `invite`. The **security rule verifies the code** via
   `get()`
