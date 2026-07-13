@@ -39,7 +39,8 @@ export function ParentAuthForm({
   onContinueAsChild?: () => void;
 }) {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -47,43 +48,64 @@ export function ParentAuthForm({
   const [notice, setNotice] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const isSignup = mode === 'signup';
+  const isReset = mode === 'reset';
+
+  const go = (next: 'signin' | 'signup' | 'reset') => {
+    setMode(next);
+    setError(null);
+    setNotice(null);
+  };
 
   const submit = async () => {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      if (isSignup) await signUp(email.trim(), password);
-      else await signIn(email.trim(), password);
-      // Success unmounts this form (auth state flips) — no need to reset busy.
+      if (isReset) {
+        await resetPassword(email.trim());
+        setNotice(t('parentAuth.resetSent'));
+        setBusy(false);
+      } else if (isSignup) {
+        await signUp(email.trim(), password, name);
+      } else {
+        await signIn(email.trim(), password);
+      }
+      // Sign in/up success unmounts this form (auth flips) — no need to reset busy.
     } catch (e) {
       setError(t(authErrorKey(e)));
       setBusy(false);
     }
   };
 
-  const forgot = async () => {
-    if (!email.trim()) {
-      setNotice(null);
-      setError(t('parentAuth.enterEmailFirst'));
-      return;
-    }
-    setError(null);
-    setNotice(null);
-    try {
-      await resetPassword(email.trim());
-      setNotice(t('parentAuth.resetSent'));
-    } catch (e) {
-      setError(t(authErrorKey(e)));
-    }
-  };
-
   return (
     <View style={styles.form}>
       <Text style={styles.heading}>
-        {t(isSignup ? 'parentAuth.signUpHeading' : 'parentAuth.signInHeading')}
+        {t(
+          isReset
+            ? 'parentAuth.resetHeading'
+            : isSignup
+              ? 'parentAuth.signUpHeading'
+              : 'parentAuth.signInHeading',
+        )}
       </Text>
-      <Text style={styles.intro}>{t('parentAuth.intro')}</Text>
+      <Text style={styles.intro}>
+        {t(isReset ? 'parentAuth.resetIntro' : 'parentAuth.intro')}
+      </Text>
+
+      {isSignup ? (
+        <TextInput
+          style={styles.input}
+          placeholder={t('parentAuth.name')}
+          placeholderTextColor={colors.textMuted}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          autoCorrect={false}
+          textContentType="name"
+          maxLength={40}
+          editable={!busy}
+        />
+      ) : null}
 
       <TextInput
         style={styles.input}
@@ -97,55 +119,72 @@ export function ParentAuthForm({
         textContentType="emailAddress"
         editable={!busy}
       />
-      <View style={styles.passwordWrap}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder={t('parentAuth.password')}
-          placeholderTextColor={colors.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          autoCapitalize="none"
-          textContentType={isSignup ? 'newPassword' : 'password'}
-          editable={!busy}
-        />
-        <Pressable
-          onPress={() => setShowPassword((s) => !s)}
-          accessibilityRole="button"
-          accessibilityLabel={t(
-            showPassword ? 'parentAuth.hidePassword' : 'parentAuth.showPassword',
-          )}
-          hitSlop={8}
-          style={styles.eye}
-        >
-          <Ionicons
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-            size={22}
-            color={colors.textMuted}
+
+      {!isReset ? (
+        <View style={styles.passwordWrap}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder={t('parentAuth.password')}
+            placeholderTextColor={colors.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            textContentType={isSignup ? 'newPassword' : 'password'}
+            editable={!busy}
           />
-        </Pressable>
-      </View>
+          <Pressable
+            onPress={() => setShowPassword((s) => !s)}
+            accessibilityRole="button"
+            accessibilityLabel={t(
+              showPassword ? 'parentAuth.hidePassword' : 'parentAuth.showPassword',
+            )}
+            hitSlop={8}
+            style={styles.eye}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={colors.textMuted}
+            />
+          </Pressable>
+        </View>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
       <Button
-        label={t(isSignup ? 'parentAuth.signUp' : 'parentAuth.signIn')}
+        label={t(
+          isReset
+            ? 'parentAuth.sendReset'
+            : isSignup
+              ? 'parentAuth.signUp'
+              : 'parentAuth.signIn',
+        )}
         onPress={submit}
         loading={busy}
+        disabled={!email.trim() || (isSignup && !name.trim())}
         fullWidth
       />
 
       <View style={styles.links}>
-        {!isSignup ? <TextLink label={t('parentAuth.forgot')} onPress={forgot} /> : null}
-        <TextLink
-          label={t(isSignup ? 'parentAuth.toSignIn' : 'parentAuth.toSignUp')}
-          onPress={() => {
-            setMode(isSignup ? 'signin' : 'signup');
-            setError(null);
-            setNotice(null);
-          }}
-        />
+        {isReset ? (
+          <TextLink
+            label={t('parentAuth.backToSignIn')}
+            onPress={() => go('signin')}
+          />
+        ) : (
+          <>
+            {!isSignup ? (
+              <TextLink label={t('parentAuth.forgot')} onPress={() => go('reset')} />
+            ) : null}
+            <TextLink
+              label={t(isSignup ? 'parentAuth.toSignIn' : 'parentAuth.toSignUp')}
+              onPress={() => go(isSignup ? 'signin' : 'signup')}
+            />
+          </>
+        )}
       </View>
 
       {onContinueAsChild ? (

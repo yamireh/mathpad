@@ -233,6 +233,8 @@ export interface QuestionResult {
   status: QuestionStatus;
   /** The kid used a hint on this question during practice. */
   hinted?: boolean;
+  /** The kid used Solve (the app filled the answer) on this question. */
+  solved?: boolean;
 }
 
 /**

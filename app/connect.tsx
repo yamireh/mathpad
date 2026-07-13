@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,7 +8,7 @@ import { Button, Header, IconButton, ScreenContainer } from '../components/ui';
 import { colors, operationColors, radius, spacing, typography } from '../constants/design';
 import { useFamilyLink } from '../hooks';
 import { ensureSignedInUid } from '../lib/firebase/auth';
-import { InvalidCodeError, joinFamily } from '../lib/firebase/family';
+import { InvalidCodeError, joinFamily, updateChildName } from '../lib/firebase/family';
 import { backfillSessions } from '../lib/firebase/sync';
 import { historyStore } from '../lib/storage';
 
@@ -20,11 +20,17 @@ import { historyStore } from '../lib/storage';
 export default function ConnectScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { linked, setLink } = useFamilyLink();
+  const { link, linked, setLink } = useFamilyLink();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameNotice, setNameNotice] = useState<string | null>(null);
+
+  // Pre-fill the name field with the saved name once linked.
+  useEffect(() => {
+    if (link?.name) setName(link.name);
+  }, [link?.name]);
 
   const connect = async () => {
     setBusy(true);
@@ -32,12 +38,27 @@ export default function ConnectScreen() {
     try {
       const uid = await ensureSignedInUid();
       const familyId = await joinFamily(code, uid, name);
-      setLink({ familyId, childId: uid });
+      setLink({ familyId, childId: uid, name: name.trim() });
       // `linked` flips true → the connected state renders below.
       // Push existing local history so the parent sees past practice too.
       void backfillSessions(familyId, uid, await historyStore.list());
     } catch (e) {
       setError(t(e instanceof InvalidCodeError ? 'connect.invalid' : 'connect.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveName = async () => {
+    if (!link) return;
+    setBusy(true);
+    setNameNotice(null);
+    try {
+      await updateChildName(link.familyId, link.childId, name);
+      setLink({ ...link, name: name.trim() });
+      setNameNotice(t('connect.nameSaved'));
+    } catch {
+      setNameNotice(t('connect.error'));
     } finally {
       setBusy(false);
     }
@@ -58,6 +79,29 @@ export default function ConnectScreen() {
           <Ionicons name="link" size={64} color={colors.correct} />
           <Text style={styles.heading}>{t('connect.connectedTitle')}</Text>
           <Text style={styles.intro}>{t('connect.connectedBody')}</Text>
+
+          <View style={styles.nameEdit}>
+            <Text style={styles.fieldLabel}>{t('connect.nameLabel')}</Text>
+            <TextInput
+              style={styles.nameInput}
+              placeholder={t('connect.namePlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              maxLength={24}
+              editable={!busy}
+            />
+            {nameNotice ? <Text style={styles.notice}>{nameNotice}</Text> : null}
+            <Button
+              label={t('connect.updateName')}
+              onPress={saveName}
+              loading={busy}
+              disabled={!name.trim() || name.trim() === (link?.name ?? '')}
+              fullWidth
+            />
+          </View>
+
           <View style={styles.action}>
             <Button
               label={t('connect.disconnect')}
@@ -152,6 +196,19 @@ const styles = StyleSheet.create({
     fontSize: typography.size.caption,
     color: colors.wrong,
     textAlign: 'center',
+  },
+  notice: {
+    fontSize: typography.size.caption,
+    color: colors.correct,
+    textAlign: 'center',
+  },
+  nameEdit: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.md },
+  fieldLabel: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
   },
   action: { alignSelf: 'stretch', marginTop: spacing.lg },
 });

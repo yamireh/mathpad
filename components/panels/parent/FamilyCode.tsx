@@ -11,18 +11,26 @@ import {
 } from '../../../constants/design';
 
 /**
- * The family's pairing code — shown so a child's device can join the family
- * with it. Presentational; the caller loads the family.
+ * A shareable code card — the kid pairing code by default, or (with custom
+ * label/hint) a co-parent invite code. Presentational; the caller loads it.
  */
-export function FamilyCode({ code }: { code: string }) {
+export function FamilyCode({
+  code,
+  label,
+  hint,
+}: {
+  code: string;
+  label?: string;
+  hint?: string;
+}) {
   const { t } = useTranslation();
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>{t('parentAuth.familyCodeLabel')}</Text>
+      <Text style={styles.label}>{label ?? t('parentAuth.familyCodeLabel')}</Text>
       <Text style={styles.code} selectable>
         {code}
       </Text>
-      <Text style={styles.hint}>{t('parentAuth.familyInstructions')}</Text>
+      <Text style={styles.hint}>{hint ?? t('parentAuth.familyInstructions')}</Text>
     </View>
   );
 }

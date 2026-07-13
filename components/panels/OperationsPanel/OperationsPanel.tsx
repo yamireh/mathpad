@@ -11,6 +11,7 @@ import {
 } from '../../ui';
 import { spacing } from '../../../constants/design';
 import { usePurchases } from '../../../hooks';
+import { isSignedInParent } from '../../../lib/firebase/auth';
 import { isOperationUnlocked } from '../../../lib/entitlement';
 import { tapFeedback } from '../../../lib/feedback';
 import type { Operation } from '../../../types';
@@ -76,11 +77,14 @@ export function OperationsPanel() {
       </View>
 
       <View style={styles.footer}>
-        <Pill
-          label={t('home.history')}
-          icon="time-outline"
-          onPress={() => router.push('/history')}
-        />
+        {/* Hidden for a parent preview — they shouldn't see/log kid history. */}
+        {!isSignedInParent() ? (
+          <Pill
+            label={t('home.history')}
+            icon="time-outline"
+            onPress={() => router.push('/history')}
+          />
+        ) : null}
         {__DEV__ ? (
           <Pill
             label={owned ? 'DEV: owned ✓' : 'DEV: locked'}

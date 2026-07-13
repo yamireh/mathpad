@@ -12,6 +12,7 @@ import {
   TipsProvider,
   useDeviceRole,
   useForceUpdate,
+  useSyncFlush,
 } from '../hooks';
 // Side-effect import: initialises i18next before any screen renders.
 import '../lib/i18n';
@@ -67,6 +68,8 @@ function RoleGate() {
 
 export default function RootLayout() {
   const { required, appStoreId } = useForceUpdate();
+  // Drain the offline session-sync queue on launch and app-foreground.
+  useSyncFlush();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

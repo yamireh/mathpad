@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   AttentionPulse,
@@ -16,6 +16,7 @@ import {
 } from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
 import { usePurchases } from '../../../hooks';
+import { isSignedInParent } from '../../../lib/firebase/auth';
 import type {
   ClockAnswerType,
   ClockSettings,
@@ -70,93 +71,125 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
   const [step, setStep] = useState<ClockStep>(initial.step);
 
   return (
-    <ScreenContainer scroll>
-      <Header
-        title={t('topics.clock')}
-        left={
-          <IconButton
-            name="arrow-back"
-            accessibilityLabel={t('common.back')}
-            onPress={() => router.back()}
-          />
-        }
-        right={
-          <AttentionPulse active>
+    <ScreenContainer
+      header={
+        <Header
+          title={t('topics.clock')}
+          left={
             <IconButton
-              name="bulb"
-              color={colors.amber}
-              accessibilityLabel={t('howTo.button')}
-              onPress={() => router.push('/how-to/clock')}
+              name="arrow-back"
+              accessibilityLabel={t('common.back')}
+              onPress={() => router.back()}
             />
-          </AttentionPulse>
-        }
-      />
+          }
+          right={
+            <AttentionPulse active>
+              <IconButton
+                name="bulb"
+                color={colors.amber}
+                accessibilityLabel={t('howTo.button')}
+                onPress={() => router.push('/how-to/clock')}
+              />
+            </AttentionPulse>
+          }
+        />
+      }
+    >
+      <View style={styles.container}>
+        {/* Settings scroll if they don't fit; header + footer stay pinned. */}
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <Section title={t('clock.settings.count')}>
+            <View style={styles.stepper}>
+              <IconButton
+                name="remove"
+                accessibilityLabel={t('a11y.decrease')}
+                onPress={() => setCount((c) => stepCount(c, -1))}
+              />
+              <Text style={styles.count}>{count}</Text>
+              <IconButton
+                name="add"
+                accessibilityLabel={t('a11y.increase')}
+                onPress={() => setCount((c) => stepCount(c, 1))}
+              />
+            </View>
+          </Section>
 
-      <Section title={t('clock.settings.count')}>
-        <View style={styles.stepper}>
-          <IconButton
-            name="remove"
-            accessibilityLabel={t('a11y.decrease')}
-            onPress={() => setCount((c) => stepCount(c, -1))}
-          />
-          <Text style={styles.count}>{count}</Text>
-          <IconButton
-            name="add"
-            accessibilityLabel={t('a11y.increase')}
-            onPress={() => setCount((c) => stepCount(c, 1))}
-          />
-        </View>
-      </Section>
+          <Section title={t('clock.settings.type')}>
+            {TYPES.map((o) => (
+              <RadioRow
+                key={o.value}
+                label={t(`clock.settings.${o.key}`)}
+                description={t(`clock.settings.${o.key}Desc`)}
+                icon={o.icon}
+                selected={type === o.value}
+                onPress={() => setType(o.value)}
+                tone={clockColors.hourHand}
+              />
+            ))}
+          </Section>
 
-      <Section title={t('clock.settings.type')}>
-        {TYPES.map((o) => (
-          <RadioRow
-            key={o.value}
-            label={t(`clock.settings.${o.key}`)}
-            description={t(`clock.settings.${o.key}Desc`)}
-            icon={o.icon}
-            selected={type === o.value}
-            onPress={() => setType(o.value)}
+          <Section title={t('clock.settings.complexity')}>
+            {STEPS.map((o) => (
+              <RadioRow
+                key={o.value}
+                label={t(`clock.settings.${o.key}`)}
+                description={t(`clock.settings.${o.key}Desc`)}
+                icon={o.icon}
+                selected={step === o.value}
+                onPress={() => setStep(o.value)}
+                tone={clockColors.hourHand}
+              />
+            ))}
+          </Section>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Button
+            label={t('settings.start')}
             tone={clockColors.hourHand}
+            onPress={() => onStart({ questionCount: count, type, step })}
           />
-        ))}
-      </Section>
-
-      <Section title={t('clock.settings.complexity')}>
-        {STEPS.map((o) => (
-          <RadioRow
-            key={o.value}
-            label={t(`clock.settings.${o.key}`)}
-            description={t(`clock.settings.${o.key}Desc`)}
-            icon={o.icon}
-            selected={step === o.value}
-            onPress={() => setStep(o.value)}
-            tone={clockColors.hourHand}
-          />
-        ))}
-      </Section>
-
-      <Button
-        label={t('settings.start')}
-        tone={clockColors.hourHand}
-        onPress={() => onStart({ questionCount: count, type, step })}
-      />
-
-      {__DEV__ ? (
-        <View style={styles.dev}>
-          <Pill
-            label="DEV: clock owned ✓"
-            icon="bug-outline"
-            onPress={() => devSetClockOwned(false)}
-          />
+          <View style={styles.footerLinks}>
+            {/* Hidden for a parent preview — they shouldn't see/log kid history. */}
+            {!isSignedInParent() ? (
+              <Pill
+                label={t('home.history')}
+                icon="time-outline"
+                onPress={() => router.push('/clock-history')}
+              />
+            ) : null}
+            {__DEV__ ? (
+              <Pill
+                label="DEV: clock owned ✓"
+                icon="bug-outline"
+                onPress={() => devSetClockOwned(false)}
+              />
+            ) : null}
+          </View>
         </View>
-      ) : null}
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  dev: { alignItems: 'center', marginTop: spacing.lg },
+  container: { flex: 1 },
+  scroll: { paddingBottom: spacing.md },
+  footer: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
   section: { marginBottom: spacing.lg, gap: spacing.sm },
   sectionTitle: {
     fontSize: typography.size.body,

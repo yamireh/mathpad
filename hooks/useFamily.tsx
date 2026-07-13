@@ -1,25 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { type Family, ensureFamily } from '../lib/firebase/family';
+import { type Family, getFamilyForParent } from '../lib/firebase/family';
 
 export interface FamilyState {
+  /** The parent's family, or null if they haven't created/joined one yet. */
   family: Family | null;
   loading: boolean;
   error: boolean;
+  /** Re-fetch — call after creating or joining a family. */
+  reload: () => void;
 }
 
 /**
- * Loads (creating on first sign-in) the signed-in parent's family so the parent
- * area can show its pairing code. Pass the parent's uid; anonymous/absent users
- * get no family.
+ * Loads the signed-in parent's family (as creator or co-parent). Does NOT
+ * create one — a parent with no family is offered a Create/Join choice, so a
+ * co-parent's device doesn't spin up an empty family. Pass the parent's uid.
  */
-export function useFamily(ownerUid: string | null): FamilyState {
+export function useFamily(uid: string | null): FamilyState {
   const [family, setFamily] = useState<Family | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [nonce, setNonce] = useState(0);
+
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!ownerUid) {
+    if (!uid) {
       setFamily(null);
       setLoading(false);
       setError(false);
@@ -28,7 +34,7 @@ export function useFamily(ownerUid: string | null): FamilyState {
     let cancelled = false;
     setLoading(true);
     setError(false);
-    ensureFamily(ownerUid)
+    getFamilyForParent(uid)
       .then((f) => {
         if (!cancelled) setFamily(f);
       })
@@ -41,7 +47,7 @@ export function useFamily(ownerUid: string | null): FamilyState {
     return () => {
       cancelled = true;
     };
-  }, [ownerUid]);
+  }, [uid, nonce]);
 
-  return { family, loading, error };
+  return { family, loading, error, reload };
 }

@@ -22,6 +22,8 @@ module.exports = {
   signInAnonymously: async () => ({ user: { uid: 'test-uid' } }),
   signInWithEmailAndPassword: async () => ({ user: { uid: 'test-uid' } }),
   createUserWithEmailAndPassword: async () => ({ user: { uid: 'test-uid' } }),
+  updateProfile: async () => {},
+  sendPasswordResetEmail: async () => {},
   signOut: async () => {},
 
   // firebase/firestore

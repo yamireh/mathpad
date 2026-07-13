@@ -5,6 +5,7 @@
   },
   "common": {
     "cancel": "Cancel",
+    "save": "Save",
     "close": "Close",
     "clear": "Clear",
     "clearAll": "Clear all",
@@ -32,6 +33,7 @@
   },
   "home": {
     "greeting": "Hi, ready for math?",
+    "greetingNamed": "Hi {{name}}, ready for math?",
     "subtitle": "Choose your practice adventure",
     "history": "History",
     "settings": "Settings",
@@ -51,11 +53,44 @@
     "sessions": "Sessions",
     "questions": "Questions",
     "accuracy": "Accuracy",
+    "title": "Progress",
     "recent": "Recent sessions",
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
+    "corrected_one": "{{count}} corrected",
+    "corrected_other": "{{count}} corrected",
+    "solvedWithHelp_one": "{{count}} solved with help",
+    "solvedWithHelp_other": "{{count}} solved with help",
+    "hint_one": "{{count}} hint",
+    "hint_other": "{{count}} hints",
+    "clean": "All correct, no help 🎉",
     "empty": "No practice yet. Connect your child's device with the code below, then their progress shows up here.",
     "error": "Couldn't load progress. Tap to try again."
+  },
+  "familySetup": {
+    "heading": "Set up your family",
+    "intro": "Create a new family, or join the one your partner already set up.",
+    "create": "Create a family",
+    "joinCta": "Join my partner's family",
+    "joinHeading": "Join a family",
+    "joinIntro": "Enter the co-parent invite code from your partner's app.",
+    "codePlaceholder": "Invite code",
+    "join": "Join family",
+    "invalid": "That code didn't work. Ask your partner for a fresh one from Parents → Invite a co-parent.",
+    "error": "Something went wrong. Please try again."
+  },
+  "familySettings": {
+    "title": "Family settings",
+    "account": "Your account",
+    "noName": "No name set"
+  },
+  "coParent": {
+    "invite": "Invite a co-parent",
+    "hideInvite": "Hide co-parent code",
+    "addChildDevice": "Add a child's device",
+    "hideChildCode": "Hide child code",
+    "codeLabel": "Co-parent invite code",
+    "codeHint": "Your partner signs in on their device, then Parents → Join a family and enters this code. They'll see the same progress as an equal parent."
   },
   "connect": {
     "title": "Connect to a parent",
@@ -68,6 +103,9 @@
     "error": "Couldn't connect — check your internet and try again.",
     "connectedTitle": "You're connected! 🎉",
     "connectedBody": "This device is linked to your family, so a parent can see the practice progress.",
+    "nameLabel": "Your name",
+    "updateName": "Update name",
+    "nameSaved": "Name updated ✓",
     "disconnect": "Disconnect this device"
   },
   "support": {
@@ -252,6 +290,14 @@
     }
   },
   "clock": {
+    "history": {
+      "title": "Clock history",
+      "empty": "No clock practice yet",
+      "emptyHint": "Finished clock sessions show up here.",
+      "corrected": "{{count}} fixed",
+      "clearTitle": "Clear clock history?",
+      "clearMessage": "This permanently deletes every saved clock session on this device."
+    },
     "readPrompt": "What time is it?",
     "hours": "Hours",
     "minutes": "Minutes",
@@ -328,6 +374,10 @@
   },
   "parent": {
     "title": "Parents",
+    "greetingNamed": "Hi {{name}} 👋",
+    "greetingPlain": "Hi there 👋",
+    "editName": "Edit name",
+    "addName": "Add your name",
     "comingSoonTitle": "Parent dashboard coming soon",
     "comingSoonBody": "Soon you'll sign in here to see what your child is practicing and how they're doing.",
     "switchToChild": "This is my child's device",
@@ -346,14 +396,20 @@
     "toSignUp": "New here? Create an account",
     "toSignIn": "I already have an account",
     "forgot": "Forgot password?",
+    "resetHeading": "Reset your password",
+    "resetIntro": "Enter your email and we'll send you a link to reset your password.",
+    "sendReset": "Send reset link",
+    "backToSignIn": "Back to sign in",
     "resetSent": "Check your email — we sent a link to reset your password.",
     "enterEmailFirst": "Enter your email above first.",
     "continueAsChild": "Not a parent? Continue as child",
+    "name": "Your name",
     "signedInAs": "Signed in as {{email}}",
     "signOut": "Sign out",
     "dashboardSoon": "Your child's progress dashboard is coming soon.",
     "addMember": "Add a family member",
     "hideCode": "Hide family code",
+    "viewPractice": "Open practice mode",
     "familyCodeLabel": "Your family code",
     "familyInstructions": "Your child's device enters this code to join your family. Connecting the child device is the next step we're building.",
     "familyError": "Couldn't load your family code — check your connection and try again.",

@@ -1,0 +1,115 @@
+rules_version = '2';
+
+// Firestore security rules for MathPen Parent Mode.
+//
+// Model:
+//   families/{familyId}                         { ownerUid, pairingCode, createdAt }
+//   families/{familyId}/parents/{parentUid}     { joinedAt }   // members (equal)
+//   families/{familyId}/children/{childId}      { name, joinedAt, <rolling summary> }
+//   families/{familyId}/children/{childId}/sessions/{sessionId}
+//   pairingCodes/{code}                         { familyId, active }  // kid device join
+//   parentInvites/{code}                        { familyId, active }  // co-parent join
+//   parentIndex/{parentUid}                     { familyId }          // "my family" pointer
+//
+// Identities: parents sign in with email; a kid device signs in anonymously.
+// The child's uid IS the childId. A family has one creator (ownerUid) plus any
+// number of equal co-parents (a doc under parents/). Co-parents join only by
+// presenting a valid invite code, which the rules verify — knowing the familyId
+// alone is NOT enough to gain parent access.
+//
+// Deploy: Firebase console → Firestore Database → Rules → paste → Publish.
+// (Anything not matched below is denied by default.)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
+    }
+    function familyOwner(familyId) {
+      return get(/databases/$(database)/documents/families/$(familyId)).data.ownerUid;
+    }
+    function familyExists(familyId) {
+      return exists(/databases/$(database)/documents/families/$(familyId));
+    }
+    // A member is the creator or anyone with a parents/ membership doc.
+    function isMember(familyId) {
+      return signedIn() && (
+        uid() == familyOwner(familyId) ||
+        exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid()))
+      );
+    }
+    // Proof a co-parent holds a real, active invite for THIS family.
+    function validParentInvite(familyId, code) {
+      return code is string
+        && exists(/databases/$(database)/documents/parentInvites/$(code))
+        && get(/databases/$(database)/documents/parentInvites/$(code)).data.familyId == familyId
+        && get(/databases/$(database)/documents/parentInvites/$(code)).data.active == true;
+    }
+
+    // Kid device → family. Readable only with the exact code (get), never listed.
+    match /pairingCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && familyOwner(request.resource.data.familyId) == uid();
+      allow update, delete: if false;
+    }
+
+    // Co-parent invite → family. Same secrecy; created/deactivated by a member.
+    match /parentInvites/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if isMember(request.resource.data.familyId);
+      allow update: if isMember(resource.data.familyId);
+      allow delete: if false;
+    }
+
+    // "Which family am I in" pointer — private to the parent, not a trust anchor
+    // (all real access is gated by the family/children rules below).
+    match /parentIndex/{parentUid} {
+      allow read, write: if signedIn() && uid() == parentUid;
+    }
+
+    match /families/{familyId} {
+      // Readable by any member; created owning it; owner can't be reassigned.
+      allow read: if isMember(familyId);
+      allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      allow update: if isMember(familyId)
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if false;
+
+      // Membership docs. A device adds its own doc as the creator, or as a
+      // co-parent holding a valid invite (code carried on the doc for the check).
+      match /parents/{parentUid} {
+        allow read: if isMember(familyId);
+        allow create: if signedIn() && uid() == parentUid && (
+          uid() == familyOwner(familyId) ||
+          validParentInvite(familyId, request.resource.data.invite)
+        );
+        allow update, delete: if false;
+      }
+
+      // Each child = one kid device. Writers: the kid's own device (uid ==
+      // childId) OR any family member (a parent — e.g. a shared phone, or the
+      // kid practising while a parent is signed in on the same device). Kids are
+      // never members, so a kid can still only write its OWN child doc. Any
+      // member reads everything for the dashboard.
+      match /children/{childId} {
+        allow read: if uid() == childId || isMember(familyId);
+        allow write: if signedIn()
+          && (uid() == childId || isMember(familyId))
+          && familyExists(familyId);
+
+        match /sessions/{sessionId} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow create, update: if signedIn()
+            && (uid() == childId || isMember(familyId));
+          allow delete: if false;
+        }
+      }
+    }
+  }
+}

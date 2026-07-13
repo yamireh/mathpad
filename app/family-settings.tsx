@@ -1,0 +1,220 @@
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+
+import { FamilyCode } from '../components/panels/parent/FamilyCode';
+import { Button, Header, IconButton, ScreenContainer } from '../components/ui';
+import {
+  colors,
+  operationColors,
+  radius,
+  spacing,
+  typography,
+} from '../constants/design';
+import { useAuthUser, useDeviceRole, useFamily } from '../hooks';
+import { signOut, updateDisplayName } from '../lib/firebase/auth';
+
+/** Account block: the signed-in email + an inline display-name editor. */
+function AccountSection({ email, name }: { email: string; name: string }) {
+  const { t } = useTranslation();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setDraft(name);
+    setEditing(true);
+  };
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updateDisplayName(draft);
+      setEditing(false);
+    } catch {
+      // best-effort — leave the editor open so they can retry
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{t('familySettings.account')}</Text>
+      <Text style={styles.email}>
+        {t('parentAuth.signedInAs', { email })}
+      </Text>
+      {editing ? (
+        <View style={styles.nameEdit}>
+          <TextInput
+            style={styles.nameInput}
+            placeholder={t('parentAuth.name')}
+            placeholderTextColor={colors.textMuted}
+            value={draft}
+            onChangeText={setDraft}
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={40}
+            editable={!saving}
+            autoFocus
+          />
+          <View style={styles.nameEditActions}>
+            <Button
+              label={t('common.cancel')}
+              variant="ghost"
+              onPress={() => setEditing(false)}
+            />
+            <Button
+              label={t('common.save')}
+              onPress={save}
+              loading={saving}
+              disabled={!draft.trim()}
+            />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{name || t('familySettings.noName')}</Text>
+          <Pressable onPress={startEdit} accessibilityRole="button" hitSlop={8}>
+            <Text style={styles.editNameLink}>
+              {t(name ? 'parent.editName' : 'parent.addName')}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Parent settings — reached from the gear on the parent home. Holds the account
+ * (name/email), the family share codes, and the mode/account actions, so the
+ * dashboard itself stays a clean, glanceable view.
+ */
+export default function FamilySettingsScreen() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { setRole } = useDeviceRole();
+  const { user } = useAuthUser();
+  const { family, loading } = useFamily(user?.uid ?? null);
+
+  const back = (
+    <IconButton
+      name="arrow-back"
+      accessibilityLabel={t('common.back')}
+      onPress={() => router.back()}
+    />
+  );
+
+  const openPractice = () => {
+    setRole('child');
+    router.dismissAll();
+  };
+  const doSignOut = () => {
+    void signOut();
+    router.back();
+  };
+
+  return (
+    <ScreenContainer
+      scroll
+      header={<Header title={t('familySettings.title')} left={back} />}
+    >
+      <View style={styles.body}>
+        {user ? (
+          <AccountSection
+            email={user.email ?? ''}
+            name={user.displayName?.trim() ?? ''}
+          />
+        ) : null}
+
+        {loading && !family ? (
+          <ActivityIndicator color={operationColors.addition.accent} />
+        ) : family ? (
+          <>
+            <Text style={styles.sectionTitle}>{t('coParent.invite')}</Text>
+            <FamilyCode
+              code={family.parentCode}
+              label={t('coParent.codeLabel')}
+              hint={t('coParent.codeHint')}
+            />
+            <Text style={styles.sectionTitle}>{t('coParent.addChildDevice')}</Text>
+            <FamilyCode code={family.pairingCode} />
+          </>
+        ) : null}
+
+        <View style={styles.actions}>
+          {/* Peek at practice mode — stays signed in; grown-ups → "I'm a parent"
+              returns here. */}
+          <Button
+            label={t('parentAuth.viewPractice')}
+            icon="happy-outline"
+            variant="secondary"
+            onPress={openPractice}
+            fullWidth
+          />
+          <Button
+            label={t('parentAuth.signOut')}
+            icon="log-out-outline"
+            variant="ghost"
+            onPress={doSignOut}
+            fullWidth
+          />
+        </View>
+      </View>
+    </ScreenContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  body: { padding: spacing.lg, gap: spacing.md },
+  section: { gap: spacing.sm },
+  sectionTitle: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+  },
+  email: { fontSize: typography.size.body, color: colors.textMuted },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  name: {
+    fontSize: typography.size.title,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  editNameLink: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: operationColors.addition.accent,
+  },
+  nameEdit: { gap: spacing.sm },
+  nameInput: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.body,
+    color: colors.text,
+  },
+  nameEditActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+  },
+  actions: { gap: spacing.sm, marginTop: spacing.lg },
+});

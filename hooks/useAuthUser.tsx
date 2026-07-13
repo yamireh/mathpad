@@ -1,7 +1,8 @@
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 
 import { auth } from '../lib/firebase';
+import { onProfileChanged } from '../lib/firebase/auth';
 
 export interface AuthUserState {
   /** The signed-in Firebase user, or null. Anonymous users have `isAnonymous`. */
@@ -18,12 +19,20 @@ export interface AuthUserState {
 export function useAuthUser(): AuthUserState {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [initializing, setInitializing] = useState(true);
+  // Profile edits (e.g. a just-set displayName) mutate the same user object
+  // without a new auth event — bump to re-read it.
+  const [, forceRender] = useReducer((n: number) => n + 1, 0);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (next) => {
+    const unsubAuth = onAuthStateChanged(auth, (next) => {
       setUser(next);
       setInitializing(false);
     });
+    const unsubProfile = onProfileChanged(forceRender);
+    return () => {
+      unsubAuth();
+      unsubProfile();
+    };
   }, []);
 
   return { user, initializing };

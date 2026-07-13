@@ -11,9 +11,13 @@ planning docs (below) describe intent and are partly stale.
 
 ## Status & gating
 
-- Built, gated by `CLOCK_ENABLED` (`lib/featureFlags.ts`, currently `= __DEV__`)
-  — visible/working in dev, "Coming Soon" in production until flipped.
+- Built, gated by `CLOCK_ENABLED` (`lib/featureFlags.ts`) — **currently `= true`,
+  i.e. LIVE in production** (V1.2, paid Clock IAP). The flag flips it to
+  "Coming Soon" only if set back to `__DEV__`/`false`. Always check the code, not
+  this line, for the live value.
 - `app/clock.tsx`: `CLOCK_ENABLED ? <ClockModule/> : <ComingSoon/>`.
+- Parent-mode: Clock sessions sync to the parent dashboard (`ClockModule` commits
+  once on Home/Again via `maybeSync`; shows as a blue "Clock" group).
 - Topic card: `components/panels/MainPanel/topics.ts` (Clock entry, `enabled` flag;
   placed above Shapes).
 - Planned as **V2.0** (see `versions` skill / `V2.0.md`). Pricing: its own module

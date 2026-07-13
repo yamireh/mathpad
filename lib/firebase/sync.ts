@@ -4,25 +4,60 @@
  * parent dashboard reads cheaply. Only summaries are stored (scores/topic/time),
  * never answer content.
  *
+ *   families/{id}/children/{childId}            (rolling aggregate lives here)
  *   families/{id}/children/{childId}/sessions/{sessionId}
- *   families/{id}/children/{childId}/summary   (aggregate, one doc)
  *
- * `childId` is the device's (anonymous) uid — one kid device = one child.
+ * `childId` is the device's (anonymous) uid — one kid device = one child. The
+ * core is topic-agnostic (`SessionSyncData`): the Operations module maps its
+ * SessionResult here, and Clock (or any future module) builds the same shape.
  */
 import { doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import type { SessionResult } from '../../types';
-import { familyLinkStore } from '../storage';
+import { familyLinkStore, pendingSyncStore } from '../storage';
+import { isSignedInParent } from './auth';
 import { db } from './index';
 
-/** The cloud-safe summary of one session — no answer content. */
-function sessionSummary(s: SessionResult) {
+/** The cloud-safe, module-neutral summary of one session — no answer content. */
+export interface SessionSyncData {
+  /** Stable session id (the Firestore session doc id). */
+  id: string;
+  /** Module/operation key the dashboard groups by (e.g. 'addition', 'clock'). */
+  topic: string;
+  completedAt: string;
+  totalQuestions: number;
+  /** Correct on the first attempt (drives the accuracy stat). */
+  correctFirstTry: number;
+  /** Correct after any fixes. */
+  finalScore: number;
+  /** Wrong first, then corrected by the kid themselves. */
+  corrected: number;
+  /** The app filled the answer (Solve). */
+  solvedWithHelp: number;
+  /** Questions where a hint was used. */
+  hintsUsed: number;
+  durationSec: number;
+}
+
+/** Map an Operations `SessionResult` to the neutral sync shape. */
+function operationsSummary(s: SessionResult): SessionSyncData {
+  // Break the "help" signal into three so the parent sees the story behind the
+  // final score: self-corrected after an error vs the app solving it vs a hint.
+  const solvedWithHelp = s.questions.filter((q) => q.solved).length;
+  const corrected = s.questions.filter(
+    (q) => q.status === 'fixed' && !q.solved,
+  ).length;
+  const hintsUsed = s.questions.filter((q) => q.hinted).length;
   return {
+    id: s.id,
     topic: s.operation,
     completedAt: s.completedAt,
     totalQuestions: s.totalQuestions,
     correctFirstTry: s.firstTryScore,
-    fixed: Math.max(0, s.finalScore - s.firstTryScore),
+    finalScore: s.finalScore,
+    corrected,
+    solvedWithHelp,
+    hintsUsed,
     durationSec: s.durationSeconds,
   };
 }
@@ -30,28 +65,28 @@ function sessionSummary(s: SessionResult) {
 async function writeSession(
   familyId: string,
   childId: string,
-  s: SessionResult,
+  data: SessionSyncData,
 ): Promise<void> {
-  const summary = sessionSummary(s);
+  const { id, ...fields } = data;
   // The rolling aggregate lives ON the child document (a valid 4-segment doc);
   // individual sessions are a subcollection under it.
   const childRef = doc(db, 'families', familyId, 'children', childId);
-  await setDoc(doc(childRef, 'sessions', s.id), {
-    ...summary,
+  await setDoc(doc(childRef, 'sessions', id), {
+    ...fields,
     syncedAt: serverTimestamp(),
   });
   await setDoc(
     childRef,
     {
       totalSessions: increment(1),
-      totalQuestions: increment(summary.totalQuestions),
-      totalCorrect: increment(summary.correctFirstTry),
+      totalQuestions: increment(data.totalQuestions),
+      totalCorrect: increment(data.correctFirstTry),
       lastActiveAt: serverTimestamp(),
       byTopic: {
-        [summary.topic]: {
+        [data.topic]: {
           sessions: increment(1),
-          questions: increment(summary.totalQuestions),
-          correct: increment(summary.correctFirstTry),
+          questions: increment(data.totalQuestions),
+          correct: increment(data.correctFirstTry),
         },
       },
     },
@@ -59,25 +94,66 @@ async function writeSession(
   );
 }
 
+// One flush at a time — two concurrent flushes could push the same queued
+// session twice (the aggregate increments, so that would double-count).
+let flushing = false;
+
 /**
- * Fire-and-forget: sync a just-finished session if this device is linked to a
- * family. Best-effort — a failure is retried by back-fill / the offline queue,
- * and an unlinked device is a no-op.
+ * Push every queued session to the cloud, removing each on success. Stops on the
+ * first failure (offline / permission) and leaves the rest for the next flush.
+ * A no-op when the device isn't linked to a family. Safe to call often (launch,
+ * app-foreground, after each finish).
  */
-export async function maybeSyncSession(s: SessionResult): Promise<void> {
+export async function flushPending(): Promise<void> {
+  if (flushing) return;
+  flushing = true;
   try {
     const link = await familyLinkStore.get();
     if (!link) return;
-    await writeSession(link.familyId, link.childId, s);
+    const pending = await pendingSyncStore.list();
+    for (const data of pending) {
+      try {
+        await writeSession(link.familyId, link.childId, data);
+        await pendingSyncStore.remove(data.id);
+      } catch {
+        break; // offline / rejected — keep the rest queued, retry later
+      }
+    }
+  } catch {
+    // ignore — best-effort
+  } finally {
+    flushing = false;
+  }
+}
+
+/**
+ * Queue a just-finished session (any module) and try to push it now. Offline
+ * friendly: the session is persisted locally first, so a failed push is retried
+ * on the next flush. A no-op when the device isn't linked to a family. Enqueue
+ * is idempotent by id, so calling twice for one session won't double-count.
+ */
+export async function maybeSync(data: SessionSyncData): Promise<void> {
+  try {
+    // A signed-in parent is previewing practice — don't record it as the kid's.
+    if (isSignedInParent()) return;
+    const link = await familyLinkStore.get();
+    if (!link) return;
+    await pendingSyncStore.enqueue(data);
+    await flushPending();
   } catch {
     // ignore — best-effort
   }
 }
 
+/** Operations adapter: sync a just-finished `SessionResult`. */
+export async function maybeSyncSession(s: SessionResult): Promise<void> {
+  await maybeSync(operationsSummary(s));
+}
+
 /**
- * On first link, push existing local history so the parent sees past practice
- * too. Runs once — skips if the child summary already exists (so reconnecting
- * doesn't double-count).
+ * On first link, push existing local (Operations) history so the parent sees
+ * past practice too. Runs once — skips if the child summary already exists (so
+ * reconnecting doesn't double-count).
  */
 export async function backfillSessions(
   familyId: string,
@@ -92,7 +168,7 @@ export async function backfillSessions(
       return;
     }
     for (const s of sessions) {
-      await writeSession(familyId, childId, s);
+      await writeSession(familyId, childId, operationsSummary(s));
     }
   } catch {
     // ignore — best-effort

@@ -11,7 +11,12 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { useAuthUser, useParentalGate, usePurchases } from '../../../hooks';
+import {
+  useAuthUser,
+  useFamilyLink,
+  useParentalGate,
+  usePurchases,
+} from '../../../hooks';
 import { tapFeedback } from '../../../lib/feedback';
 import { TopicCard } from './TopicCard';
 import { TOPICS } from './topics';
@@ -34,6 +39,18 @@ export function MainPanel() {
   // A signed-in (non-anonymous) parent has already proven they're a grown-up, so
   // the gate is only for a kid (anonymous / no account).
   const isGrownUp = !!user && !user.isAnonymous;
+  // Greet by first name: a signed-in parent "previewing" practice mode is
+  // greeted by their own name (not the child's); an actual kid (anonymous
+  // device) is greeted by their linked family name.
+  const { link } = useFamilyLink();
+  const firstName = (
+    isGrownUp ? user?.displayName : link?.name
+  )
+    ?.trim()
+    .split(' ')[0];
+  const greeting = firstName
+    ? t('home.greetingNamed', { name: firstName })
+    : t('home.greeting');
 
   return (
     <ScreenContainer
@@ -68,7 +85,7 @@ export function MainPanel() {
             adjustsFontSizeToFit
             style={styles.heroGreeting}
           >
-            {t('home.greeting')}
+            {greeting}
           </Text>
           <Text allowFontScaling={false} numberOfLines={2} style={styles.heroSubtitle}>
             {t('home.subtitle')}

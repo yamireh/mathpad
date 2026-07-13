@@ -18,8 +18,8 @@ export type {
   ClockQuestion,
   ClockAnswerSurface,
 } from './question';
-export type { ClockSettings, ClockResult } from './settings';
-export { defaultClockSettings } from './settings';
+export type { ClockSettings, ClockResult, ClockSession } from './settings';
+export { defaultClockSettings, summariseClockSession } from './settings';
 export {
   phraseTokens,
   tokensEqual,

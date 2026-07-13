@@ -19,6 +19,9 @@ import type {
   SessionResult,
   Settings,
 } from '../../types';
+// Type-only imports (erased at runtime) — no runtime cycles.
+import type { SessionSyncData } from '../firebase/sync';
+import type { ClockSession } from '../clock';
 
 /** Versioned AsyncStorage keys (the `:v1` suffix allows future migrations). */
 const KEYS = {
@@ -30,6 +33,8 @@ const KEYS = {
   clockEntitlement: 'mathpad:entitlement-clock:v1',
   deviceRole: 'mathpad:device-role:v1',
   familyLink: 'mathpad:family-link:v1',
+  pendingSync: 'mathpad:pending-sync:v1',
+  clockHistory: 'mathpad:clock-history:v1',
 } as const;
 
 /** Read and JSON-parse a key, returning `fallback` on miss or parse error. */
@@ -182,6 +187,27 @@ export const historyStore = {
   },
 };
 
+/** Completed Clock sessions (Clock is self-contained; its own local history). */
+export const clockHistoryStore = {
+  /** All clock sessions, most recent first. */
+  async list(): Promise<ClockSession[]> {
+    const items = await readJSON<ClockSession[]>(KEYS.clockHistory, []);
+    return [...items].sort((a, b) =>
+      b.completedAt.localeCompare(a.completedAt),
+    );
+  },
+  /** Append a finished clock session. */
+  async add(session: ClockSession): Promise<void> {
+    const items = await readJSON<ClockSession[]>(KEYS.clockHistory, []);
+    items.push(session);
+    await writeJSON(KEYS.clockHistory, items);
+  },
+  /** Delete all clock history. */
+  async clear(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.clockHistory);
+  },
+};
+
 /* -------------------------------------------------------------------------- */
 /* Dev preferences                                                              */
 /* -------------------------------------------------------------------------- */
@@ -282,6 +308,7 @@ export const deviceRoleStore = {
 export interface FamilyLink {
   familyId: string;
   childId: string;
+  name?: string;
 }
 
 export const familyLinkStore = {
@@ -293,6 +320,48 @@ export const familyLinkStore = {
   },
   async set(link: FamilyLink | null): Promise<void> {
     await writeJSON(KEYS.familyLink, { link });
+  },
+};
+
+/* -------------------------------------------------------------------------- */
+/* Pending session sync — offline-resilient upload queue                        */
+/* -------------------------------------------------------------------------- */
+
+// Serialize read-modify-write on the queue so a finish (enqueue) and a flush
+// (remove) can't clobber each other. Best-effort; errors don't break the chain.
+let pendingChain: Promise<unknown> = Promise.resolve();
+function withPendingLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = pendingChain.then(fn, fn);
+  pendingChain = run.catch(() => {});
+  return run;
+}
+
+/**
+ * A durable queue of finished sessions waiting to reach the parent cloud. A
+ * session is enqueued at finish and removed only after a successful push, so
+ * offline practice syncs when connectivity returns — and never double-counts.
+ */
+export const pendingSyncStore = {
+  async list(): Promise<SessionSyncData[]> {
+    return readJSON<SessionSyncData[]>(KEYS.pendingSync, []);
+  },
+  /** Add a session (idempotent by id — a repeat enqueue is ignored). */
+  async enqueue(data: SessionSyncData): Promise<void> {
+    await withPendingLock(async () => {
+      const items = await readJSON<SessionSyncData[]>(KEYS.pendingSync, []);
+      if (items.some((i) => i.id === data.id)) return;
+      await writeJSON(KEYS.pendingSync, [...items, data]);
+    });
+  },
+  /** Remove a session once it's been pushed. */
+  async remove(id: string): Promise<void> {
+    await withPendingLock(async () => {
+      const items = await readJSON<SessionSyncData[]>(KEYS.pendingSync, []);
+      await writeJSON(
+        KEYS.pendingSync,
+        items.filter((i) => i.id !== id),
+      );
+    });
   },
 };
 

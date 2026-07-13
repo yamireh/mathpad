@@ -19,7 +19,13 @@ export interface RecentSession {
   completedAt: string;
   totalQuestions: number;
   correctFirstTry: number;
-  fixed: number;
+  finalScore: number;
+  /** Wrong first, then corrected by the kid themselves. */
+  corrected: number;
+  /** The app filled the answer (Solve). */
+  solvedWithHelp: number;
+  /** Questions where a hint was used. */
+  hintsUsed: number;
 }
 
 export interface ChildProgress {
@@ -65,7 +71,10 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
           completedAt: data.completedAt,
           totalQuestions: data.totalQuestions,
           correctFirstTry: data.correctFirstTry,
-          fixed: data.fixed ?? 0,
+          finalScore: data.finalScore ?? data.correctFirstTry ?? 0,
+          corrected: data.corrected ?? 0,
+          solvedWithHelp: data.solvedWithHelp ?? 0,
+          hintsUsed: data.hintsUsed ?? 0,
         };
       }),
     });

@@ -30,6 +30,7 @@ import {
   markFirstAttempt,
   statusAfterEdit,
 } from '../lib/scoring';
+import { isSignedInParent } from '../lib/firebase/auth';
 import { maybeSyncSession } from '../lib/firebase/sync';
 import { historyStore } from '../lib/storage';
 import type {
@@ -669,14 +670,17 @@ export function PracticeSessionProvider({
       // `'correct_first_try'` to `'fixed'` so it shows the Fixed badge and is
       // excluded from the first-try score.
       const results = markFirstAttempt(data.questions, submissions).map((r) => {
-        const marked =
-          data.solvedQuestions[r.question.id] &&
-          r.status === 'correct_first_try'
+        const wasSolved = !!data.solvedQuestions[r.question.id];
+        // Auto-Solved correct answers downgrade to `'fixed'` (Fixed badge, out of
+        // the first-try score); keep a `solved` flag so the parent view can tell
+        // app-help apart from a self-correction.
+        let out =
+          wasSolved && r.status === 'correct_first_try'
             ? { ...r, status: 'fixed' as const }
             : r;
-        return data.hintedQuestions[r.question.id]
-          ? { ...marked, hinted: true }
-          : marked;
+        if (wasSolved) out = { ...out, solved: true };
+        if (data.hintedQuestions[r.question.id]) out = { ...out, hinted: true };
+        return out;
       });
       const finished: SessionData = {
         ...data,
@@ -685,10 +689,12 @@ export function PracticeSessionProvider({
       };
       commit(finished);
       const result = toSessionResult(finished);
-      void historyStore.upsert(result);
+      // A signed-in parent is previewing ("Open practice mode") — don't record
+      // their run to the kid's local history or sync it.
+      if (!isSignedInParent()) void historyStore.upsert(result);
       // Sync to the family cloud once, at finish (a no-op unless this device is
-      // linked). Later review-fixes aren't re-synced, to keep the aggregate
-      // counted once per session.
+      // linked, and skipped for a parent preview). Later review-fixes aren't
+      // re-synced, to keep the aggregate counted once per session.
       void maybeSyncSession(result);
       return results;
     },
@@ -718,7 +724,7 @@ export function PracticeSessionProvider({
       );
       const updated: SessionData = { ...data, results };
       commit(updated);
-      void historyStore.upsert(toSessionResult(updated));
+      if (!isSignedInParent()) void historyStore.upsert(toSessionResult(updated));
       return results.find((r) => r.question.id === questionId) as QuestionResult;
     },
     [commit],
