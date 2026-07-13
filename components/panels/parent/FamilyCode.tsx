@@ -24,13 +24,15 @@ export function FamilyCode({
   hint?: string;
 }) {
   const { t } = useTranslation();
+  // undefined -> default hint; empty string -> no hint (caller shows steps).
+  const hintText = hint === undefined ? t('parentAuth.familyInstructions') : hint;
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{label ?? t('parentAuth.familyCodeLabel')}</Text>
       <Text style={styles.code} selectable>
         {code}
       </Text>
-      <Text style={styles.hint}>{hint ?? t('parentAuth.familyInstructions')}</Text>
+      {hintText ? <Text style={styles.hint}>{hintText}</Text> : null}
     </View>
   );
 }

@@ -94,7 +94,17 @@
     "addChildDevice": "Add a child's device",
     "hideChildCode": "Hide child code",
     "codeLabel": "Co-parent invite code",
-    "codeHint": "Your partner signs in on their device, then Parents → Join a family and enters this code. They'll see the same progress as an equal parent."
+    "codeHint": "Share this code with your partner to add them as a parent.",
+    "childSteps": "How to add your child's device",
+    "coParentSteps": "How to add another parent",
+    "child1": "On your child's device, open MathPen (choose \"My child's\" the first time).",
+    "child2": "Tap the ⚙️ settings, then \"Connect to a parent\".",
+    "child3": "Enter your child's name and the code below.",
+    "child4": "Tap Connect — their progress shows up here.",
+    "parent1": "Ask your partner to install MathPen and open it.",
+    "parent2": "Have them choose \"I'm a parent\" and sign in or create an account.",
+    "parent3": "On the setup screen, tap \"Join my partner's family\".",
+    "parent4": "They enter the code below — they'll see the same dashboard."
   },
   "connect": {
     "title": "Connect to a parent",
@@ -415,7 +425,7 @@
     "hideCode": "Hide family code",
     "viewPractice": "Open practice mode",
     "familyCodeLabel": "Your family code",
-    "familyInstructions": "Your child's device enters this code to join your family. Connecting the child device is the next step we're building.",
+    "familyInstructions": "Enter this code on your child's device to connect it to your family.",
     "familyError": "Couldn't load your family code — check your connection and try again.",
     "errors": {
       "invalidEmail": "That email doesn't look right.",

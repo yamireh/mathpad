@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -93,6 +94,54 @@ function AccountSection({ email, name }: { email: string; name: string }) {
   );
 }
 
+/** A tappable, expandable settings section (chevron shows open/closed). */
+function CollapsibleSection({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.collapsible}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={styles.collapsibleHead}
+      >
+        <Ionicons name={icon} size={18} color={operationColors.addition.accent} />
+        <Text style={styles.collapsibleTitle}>{title}</Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={colors.textMuted}
+        />
+      </Pressable>
+      {open ? <View style={styles.collapsibleBody}>{children}</View> : null}
+    </View>
+  );
+}
+
+/** A numbered how-to list. */
+function Steps({ steps }: { steps: string[] }) {
+  return (
+    <View style={styles.steps}>
+      {steps.map((s, i) => (
+        <View key={i} style={styles.step}>
+          <View style={styles.stepNum}>
+            <Text style={styles.stepNumText}>{i + 1}</Text>
+          </View>
+          <Text style={styles.stepText}>{s}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /**
  * Parent settings — reached from the gear on the parent home. Holds the account
  * (name/email), the family share codes, and the mode/account actions, so the
@@ -139,14 +188,39 @@ export default function FamilySettingsScreen() {
           <ActivityIndicator color={operationColors.addition.accent} />
         ) : family ? (
           <>
-            <Text style={styles.sectionTitle}>{t('coParent.invite')}</Text>
-            <FamilyCode
-              code={family.parentCode}
-              label={t('coParent.codeLabel')}
-              hint={t('coParent.codeHint')}
-            />
-            <Text style={styles.sectionTitle}>{t('coParent.addChildDevice')}</Text>
-            <FamilyCode code={family.pairingCode} />
+            <CollapsibleSection
+              title={t('coParent.addChildDevice')}
+              icon="phone-portrait-outline"
+            >
+              <Steps
+                steps={[
+                  t('coParent.child1'),
+                  t('coParent.child2'),
+                  t('coParent.child3'),
+                  t('coParent.child4'),
+                ]}
+              />
+              <FamilyCode code={family.pairingCode} hint="" />
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title={t('coParent.invite')}
+              icon="people-outline"
+            >
+              <Steps
+                steps={[
+                  t('coParent.parent1'),
+                  t('coParent.parent2'),
+                  t('coParent.parent3'),
+                  t('coParent.parent4'),
+                ]}
+              />
+              <FamilyCode
+                code={family.parentCode}
+                label={t('coParent.codeLabel')}
+                hint=""
+              />
+            </CollapsibleSection>
           </>
         ) : null}
 
@@ -175,6 +249,43 @@ export default function FamilySettingsScreen() {
 
 const styles = StyleSheet.create({
   body: { padding: spacing.lg, gap: spacing.md },
+  collapsible: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  collapsibleHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  collapsibleTitle: {
+    flex: 1,
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  collapsibleBody: {
+    padding: spacing.md,
+    paddingTop: 0,
+    gap: spacing.md,
+  },
+  steps: { gap: spacing.sm },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  stepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: operationColors.addition.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  stepNumText: { color: '#FFFFFF', fontSize: typography.size.caption, fontWeight: '700' },
+  stepText: { flex: 1, fontSize: typography.size.body, color: colors.text },
   section: { gap: spacing.sm },
   sectionTitle: {
     fontSize: typography.size.caption,
