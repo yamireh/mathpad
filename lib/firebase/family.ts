@@ -106,6 +106,7 @@ export class InvalidCodeError extends Error {
 export async function joinFamily(
   code: string,
   deviceUid: string,
+  name: string,
 ): Promise<string> {
   const normalized = code.trim().toUpperCase();
   const codeSnap = await getDoc(doc(db, 'pairingCodes', normalized));
@@ -114,11 +115,11 @@ export async function joinFamily(
     throw new InvalidCodeError();
   }
   const familyId = data.familyId as string;
-  // One kid device = one child, keyed by the device's uid. Its sessions +
-  // summary live under this child doc (see lib/firebase/sync).
+  // One kid device = one child, keyed by the device's uid. Its name, sessions,
+  // and summary live under this child doc (see lib/firebase/sync).
   await setDoc(
     doc(db, 'families', familyId, 'children', deviceUid),
-    { joinedAt: serverTimestamp() },
+    { joinedAt: serverTimestamp(), name: name.trim() },
     { merge: true },
   );
   return familyId;

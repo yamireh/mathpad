@@ -24,6 +24,7 @@ export interface RecentSession {
 
 export interface ChildProgress {
   childId: string;
+  name?: string;
   totalSessions: number;
   totalQuestions: number;
   totalCorrect: number;
@@ -51,6 +52,7 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
     const s = (child.data() ?? {}) as Partial<ChildProgress>;
     out.push({
       childId: child.id,
+      name: s.name,
       totalSessions: s.totalSessions ?? 0,
       totalQuestions: s.totalQuestions ?? 0,
       totalCorrect: s.totalCorrect ?? 0,

@@ -21,6 +21,7 @@ export default function ConnectScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { linked, setLink } = useFamilyLink();
+  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +31,7 @@ export default function ConnectScreen() {
     setError(null);
     try {
       const uid = await ensureSignedInUid();
-      const familyId = await joinFamily(code, uid);
+      const familyId = await joinFamily(code, uid, name);
       setLink({ familyId, childId: uid });
       // `linked` flips true → the connected state renders below.
       // Push existing local history so the parent sees past practice too.
@@ -77,6 +78,16 @@ export default function ConnectScreen() {
         <Text style={styles.heading}>{t('connect.heading')}</Text>
         <Text style={styles.intro}>{t('connect.intro')}</Text>
         <TextInput
+          style={styles.nameInput}
+          placeholder={t('connect.namePlaceholder')}
+          placeholderTextColor={colors.textMuted}
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          maxLength={24}
+          editable={!busy}
+        />
+        <TextInput
           style={styles.input}
           placeholder={t('connect.placeholder')}
           placeholderTextColor={colors.textMuted}
@@ -92,7 +103,7 @@ export default function ConnectScreen() {
           label={t('connect.connect')}
           onPress={connect}
           loading={busy}
-          disabled={code.trim().length < 4}
+          disabled={name.trim().length === 0 || code.trim().length < 4}
           fullWidth
         />
       </View>
@@ -114,6 +125,16 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     maxWidth: 320,
+  },
+  nameInput: {
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.body,
+    color: colors.text,
   },
   input: {
     borderWidth: 1.5,

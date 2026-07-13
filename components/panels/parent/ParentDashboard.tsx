@@ -43,7 +43,9 @@ function ChildCard({ child, index }: { child: ChildProgress; index: number }) {
   const topics = Object.entries(child.byTopic);
   return (
     <View style={styles.card}>
-      <Text style={styles.childName}>{t('dashboard.child', { n: index + 1 })}</Text>
+      <Text style={styles.childName}>
+        {child.name?.trim() || t('dashboard.child', { n: index + 1 })}
+      </Text>
       <View style={styles.stats}>
         <Stat value={String(child.totalSessions)} caption={t('dashboard.sessions')} />
         <Stat value={String(child.totalQuestions)} caption={t('dashboard.questions')} />
@@ -113,9 +115,20 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
       {children.map((child, i) => (
         <ChildCard key={child.childId} child={child} index={i} />
       ))}
-      <Pressable onPress={reload} style={styles.refresh} accessibilityRole="button">
-        <Ionicons name="refresh" size={16} color={operationColors.addition.accent} />
-        <Text style={styles.refreshText}>{t('dashboard.refresh')}</Text>
+      <Pressable
+        onPress={reload}
+        disabled={loading}
+        style={styles.refresh}
+        accessibilityRole="button"
+      >
+        {loading ? (
+          <ActivityIndicator size="small" color={operationColors.addition.accent} />
+        ) : (
+          <Ionicons name="refresh" size={16} color={operationColors.addition.accent} />
+        )}
+        <Text style={styles.refreshText}>
+          {t(loading ? 'dashboard.refreshing' : 'dashboard.refresh')}
+        </Text>
       </Pressable>
     </View>
   );

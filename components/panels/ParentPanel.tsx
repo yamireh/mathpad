@@ -1,4 +1,5 @@
 import { type User } from 'firebase/auth';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -14,6 +15,7 @@ import { signOut } from '../../lib/firebase/auth';
 function SignedInParent({ user }: { user: User }) {
   const { t } = useTranslation();
   const { family, loading, error } = useFamily(user.uid);
+  const [showCode, setShowCode] = useState(false);
 
   if (loading && !family) {
     return (
@@ -31,8 +33,15 @@ function SignedInParent({ user }: { user: User }) {
         {t('parentAuth.signedInAs', { email: user.email ?? '' })}
       </Text>
       <ParentDashboard familyId={family.id} />
-      <FamilyCode code={family.pairingCode} />
+      {showCode ? <FamilyCode code={family.pairingCode} /> : null}
       <View style={styles.action}>
+        <Button
+          label={t(showCode ? 'parentAuth.hideCode' : 'parentAuth.addMember')}
+          icon="qr-code-outline"
+          variant="secondary"
+          onPress={() => setShowCode((s) => !s)}
+          fullWidth
+        />
         <Button
           label={t('parentAuth.signOut')}
           icon="log-out-outline"
@@ -97,5 +106,6 @@ const styles = StyleSheet.create({
   action: {
     alignSelf: 'stretch',
     marginTop: spacing.lg,
+    gap: spacing.sm,
   },
 });

@@ -122,6 +122,19 @@ long time.
 4. A kid who never links still plays completely normally.
 5. Opening the parent dashboard = ~1–2 Firestore reads.
 
+## Hardening (later)
+
+- **Stable child identity across reinstall.** `childId` is currently the
+  anonymous auth uid (stored in the family link at join). Renaming and
+  disconnect→reconnect both preserve progress, but **reinstall / clear-data**
+  wipes the session → a fresh uid → a new empty child (old one orphaned). To
+  block that casual reset, key the child on a reinstall-stable **device id**
+  (`expo-application`: `getAndroidId()` / `getIosIdForVendorAsync()`) instead —
+  so re-entering the family code resolves to the same child. Needs a native
+  module + rebuild. Caveat: not cryptographic — a kid owns their device and can
+  ultimately tamper with its data; this only stops the trivial reinstall dodge.
+  A reinstall also shows up as a duplicate/stale child on the dashboard.
+
 ## Suggested build order
 
 1. Firebase project + SDK wired into the app (Auth + Firestore).
