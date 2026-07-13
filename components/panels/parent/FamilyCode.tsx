@@ -5,7 +5,6 @@ import {
   colors,
   operationColors,
   radius,
-  shadows,
   spacing,
   typography,
 } from '../../../constants/design';
@@ -38,15 +37,18 @@ export function FamilyCode({
 }
 
 const styles = StyleSheet.create({
+  // A distinct inset "well" (light fill + border) so the code stands apart from
+  // the white instruction card it sits inside.
   card: {
     alignSelf: 'stretch',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
     borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
-    ...shadows.sm,
   },
   label: {
     fontSize: typography.size.caption,
