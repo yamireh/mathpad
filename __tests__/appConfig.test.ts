@@ -1,4 +1,5 @@
 import {
+  DEFAULT_MAX_HISTORY,
   DEFAULT_MIN_VERSION,
   appStoreUrl,
   compareVersions,
@@ -24,18 +25,30 @@ describe('compareVersions', () => {
 describe('parseAppConfig', () => {
   it('reads a well-formed iOS block', () => {
     const c = parseAppConfig({ ios: { minVersion: '1.2.0', appStoreId: '12345' } });
-    expect(c).toEqual({ minVersion: '1.2.0', appStoreId: '12345' });
+    expect(c).toEqual({
+      minVersion: '1.2.0',
+      appStoreId: '12345',
+      maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+    });
   });
   it('falls back to safe defaults on missing/garbage', () => {
     expect(parseAppConfig({})).toEqual({
       minVersion: DEFAULT_MIN_VERSION,
       appStoreId: null,
+      maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
     });
     expect(parseAppConfig(null)).toEqual({
       minVersion: DEFAULT_MIN_VERSION,
       appStoreId: null,
+      maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
     });
     expect(parseAppConfig({ ios: { appStoreId: 'not-numeric' } }).appStoreId).toBeNull();
+  });
+  it('reads and clamps the history cap tunable', () => {
+    expect(parseAppConfig({ maxHistorySessionsPerChild: 120 }).maxHistorySessionsPerChild).toBe(120);
+    expect(parseAppConfig({ maxHistorySessionsPerChild: 99999 }).maxHistorySessionsPerChild).toBe(500);
+    expect(parseAppConfig({ maxHistorySessionsPerChild: 0 }).maxHistorySessionsPerChild).toBe(DEFAULT_MAX_HISTORY);
+    expect(parseAppConfig({ maxHistorySessionsPerChild: 'lots' }).maxHistorySessionsPerChild).toBe(DEFAULT_MAX_HISTORY);
   });
 });
 

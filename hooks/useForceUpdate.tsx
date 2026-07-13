@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import {
   CONFIG_URL,
+  applyRuntimeConfig,
   isUpdateRequired,
   parseAppConfig,
 } from '../lib/appConfig';
@@ -47,6 +48,8 @@ export function useForceUpdate(): UseForceUpdateResult {
         });
         if (!res.ok) return;
         const config = parseAppConfig(await res.json());
+        // Publish for non-force-update consumers (e.g. dashboard history cap).
+        applyRuntimeConfig(config);
         if (cancelled) return;
         const installed = Constants.expoConfig?.version ?? null;
         setAppStoreId(config.appStoreId);

@@ -19,8 +19,9 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
+import { ConfirmDialog } from '../../ui';
 import { useDashboard } from '../../../hooks';
-import type { ChildProgress } from '../../../lib/firebase/dashboard';
+import { type ChildProgress, resetChild } from '../../../lib/firebase/dashboard';
 
 const pct = (correct: number, total: number) =>
   total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -106,14 +107,20 @@ function SessionBadges({
   corrected,
   solvedWithHelp,
   hintsUsed,
+  allCorrect,
 }: {
   corrected: number;
   solvedWithHelp: number;
   hintsUsed: number;
+  allCorrect: boolean;
 }) {
   const { t } = useTranslation();
   if (corrected + solvedWithHelp + hintsUsed === 0) {
-    return <Text style={styles.cleanNote}>{t('dashboard.clean')}</Text>;
+    // No help used. Only celebrate if they actually got everything right —
+    // otherwise (e.g. 0/10, all wrong, no help) show nothing; the score says it.
+    return allCorrect ? (
+      <Text style={styles.cleanNote}>{t('dashboard.clean')}</Text>
+    ) : null;
   }
   return (
     <View style={styles.badges}>
@@ -193,7 +200,13 @@ function ChildHeader({
   );
 }
 
-function ChildBody({ child }: { child: ChildProgress }) {
+function ChildBody({
+  child,
+  onReset,
+}: {
+  child: ChildProgress;
+  onReset: () => void;
+}) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
   return (
@@ -249,6 +262,7 @@ function ChildBody({ child }: { child: ChildProgress }) {
                         corrected={r.corrected}
                         solvedWithHelp={r.solvedWithHelp}
                         hintsUsed={r.hintsUsed}
+                        allCorrect={r.finalScore >= r.totalQuestions}
                       />
                     </View>
                   </View>
@@ -258,6 +272,16 @@ function ChildBody({ child }: { child: ChildProgress }) {
           </View>
         </View>
       ) : null}
+
+      <Pressable
+        onPress={onReset}
+        accessibilityRole="button"
+        hitSlop={8}
+        style={styles.resetBtn}
+      >
+        <Ionicons name="trash-outline" size={14} color={colors.wrong} />
+        <Text style={styles.resetText}>{t('dashboard.reset')}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -271,7 +295,26 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const { t } = useTranslation();
   const { children, loading, error, reload } = useDashboard(familyId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [pendingReset, setPendingReset] = useState<{
+    childId: string;
+    name: string;
+  } | null>(null);
+  const [resetting, setResetting] = useState(false);
   const seeded = useRef(false);
+
+  const doReset = async () => {
+    if (!pendingReset) return;
+    setResetting(true);
+    try {
+      await resetChild(familyId, pendingReset.childId);
+      reload();
+    } catch {
+      // best-effort; the dialog closes and they can retry
+    } finally {
+      setResetting(false);
+      setPendingReset(null);
+    }
+  };
 
   // Open the first child by default; the rest collapse so every name is visible
   // at once without scrolling to reach the last child.
@@ -343,10 +386,33 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
             onToggle={() => toggle(section.child.childId)}
           />
         )}
-        renderItem={({ item }) => <ChildBody child={item} />}
+        renderItem={({ item, section }) => (
+          <ChildBody
+            child={item}
+            onReset={() =>
+              setPendingReset({
+                childId: item.childId,
+                name:
+                  item.name?.trim() ||
+                  t('dashboard.child', { n: section.index + 1 }),
+              })
+            }
+          />
+        )}
         renderSectionFooter={() => <View style={styles.sectionGap} />}
         contentContainerStyle={styles.dashListContent}
         showsVerticalScrollIndicator={false}
+      />
+
+      <ConfirmDialog
+        visible={pendingReset !== null}
+        title={t('dashboard.resetTitle', { name: pendingReset?.name ?? '' })}
+        message={t('dashboard.resetMessage', { name: pendingReset?.name ?? '' })}
+        confirmLabel={resetting ? t('dashboard.resetting') : t('dashboard.reset')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        onConfirm={doReset}
+        onCancel={() => setPendingReset(null)}
       />
     </View>
   );
@@ -407,6 +473,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionGap: { height: spacing.md },
+  resetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  resetText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.wrong,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

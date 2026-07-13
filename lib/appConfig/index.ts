@@ -16,12 +16,19 @@ export const CONFIG_URL =
 /** Safe default when the config can't be read — never force an update. */
 export const DEFAULT_MIN_VERSION = '0.0.0';
 
+/** Default cap on recent sessions the parent dashboard loads per child. */
+export const DEFAULT_MAX_HISTORY = 50;
+/** Upper guard so a bad remote value can't trigger a huge read. */
+const MAX_HISTORY_CEILING = 500;
+
 /** The bits of the remote config the app understands today. */
 export interface AppConfig {
   /** Installed versions below this must update before using the app. */
   minVersion: string;
   /** Numeric App Store id, for the "Update now" deep link. Null until known. */
   appStoreId: string | null;
+  /** Recent sessions per child the dashboard loads (remotely tunable). */
+  maxHistorySessionsPerChild: number;
 }
 
 /**
@@ -60,7 +67,36 @@ export function parseAppConfig(raw: unknown): AppConfig {
     typeof block.appStoreId === 'string' && /^[0-9]+$/.test(block.appStoreId)
       ? block.appStoreId
       : null;
-  return { minVersion, appStoreId };
+  // Top-level (not iOS-specific) tunable; clamped to a sane range so garbage
+  // can't blow up dashboard reads.
+  const top =
+    raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const rawMax = top.maxHistorySessionsPerChild;
+  const maxHistorySessionsPerChild =
+    typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1
+      ? Math.min(MAX_HISTORY_CEILING, Math.floor(rawMax))
+      : DEFAULT_MAX_HISTORY;
+  return { minVersion, appStoreId, maxHistorySessionsPerChild };
+}
+
+// Runtime config cache — the launch fetch (useForceUpdate) applies the parsed
+// config here so non-React code (e.g. dashboard reads) can use remotely-tuned
+// values. Fail-safe defaults until (and if) the fetch resolves; parseAppConfig
+// itself stays pure.
+let runtimeConfig: AppConfig = {
+  minVersion: DEFAULT_MIN_VERSION,
+  appStoreId: null,
+  maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+};
+
+/** Publish the freshly-fetched config for the rest of the app to read. */
+export function applyRuntimeConfig(config: AppConfig): void {
+  runtimeConfig = config;
+}
+
+/** The current runtime config (remote if fetched, else safe defaults). */
+export function getRuntimeConfig(): AppConfig {
+  return runtimeConfig;
 }
 
 /** True only when we know the installed version AND it's below the minimum. */

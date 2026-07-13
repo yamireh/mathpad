@@ -107,7 +107,9 @@ service cloud.firestore {
           allow read: if uid() == childId || isMember(familyId);
           allow create, update: if signedIn()
             && (uid() == childId || isMember(familyId));
-          allow delete: if false;
+          // Delete only for a reset — the kid's own device or a parent (member).
+          allow delete: if signedIn()
+            && (uid() == childId || isMember(familyId));
         }
       }
     }

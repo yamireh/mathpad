@@ -3,8 +3,19 @@
  * summary and a few recent sessions — cheap (one summary doc + a small session
  * query per child).
  */
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  setDoc,
+} from 'firebase/firestore';
 
+import { getRuntimeConfig } from '../appConfig';
 import { db } from './index';
 
 export interface TopicStat {
@@ -38,10 +49,11 @@ export interface ChildProgress {
   recent: RecentSession[];
 }
 
-const RECENT_LIMIT = 5;
-
 /** Every child in the family with its summary + recent sessions. */
 export async function loadDashboard(familyId: string): Promise<ChildProgress[]> {
+  // How many recent sessions per child to load (then group by method) — a
+  // remotely-tunable cap so it stays a cheap read; safe default until fetched.
+  const recentLimit = getRuntimeConfig().maxHistorySessionsPerChild;
   const children = await getDocs(
     collection(db, 'families', familyId, 'children'),
   );
@@ -52,7 +64,7 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
       query(
         collection(child.ref, 'sessions'),
         orderBy('completedAt', 'desc'),
-        limit(RECENT_LIMIT),
+        limit(recentLimit),
       ),
     );
     const s = (child.data() ?? {}) as Partial<ChildProgress>;
@@ -80,4 +92,29 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
     });
   }
   return out;
+}
+
+/**
+ * Reset one child's progress: delete every session doc and zero the rolling
+ * aggregate, keeping the child's identity (name / joinedAt). Cloud-only — the
+ * kid device's local history is untouched. Any family member (a parent) may do
+ * this; see firestore.rules.
+ */
+export async function resetChild(
+  familyId: string,
+  childId: string,
+): Promise<void> {
+  const childRef = doc(db, 'families', familyId, 'children', childId);
+  const sessions = await getDocs(collection(childRef, 'sessions'));
+  await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
+  // Full replace (not merge) so byTopic and lastActiveAt clear too; preserve id.
+  const data = (await getDoc(childRef)).data() ?? {};
+  await setDoc(childRef, {
+    name: data.name ?? '',
+    joinedAt: data.joinedAt ?? null,
+    totalSessions: 0,
+    totalQuestions: 0,
+    totalCorrect: 0,
+    byTopic: {},
+  });
 }

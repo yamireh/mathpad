@@ -105,7 +105,10 @@ parentIndex/{parentUid}                     { familyId }           // "my family
   family member** (parent). This supports a shared phone / one-device testing
   (Firebase has one auth user per device, so a device signed in as a parent
   couldn't otherwise write kid data). Kids are never members, so a kid still only
-  writes its own child doc.
+  writes its own child doc. Session **delete** is allowed the same way — used by
+  the per-child **Reset progress** action (`resetChild` deletes the session docs
+  + zeroes the aggregate, keeping the child's identity; cloud-only, the device's
+  local history is untouched).
 - **Join by invite code**: the co-parent enters it → writes their `parents/{uid}`
   doc carrying the code as `invite`. The **security rule verifies the code** via
   `get()`
