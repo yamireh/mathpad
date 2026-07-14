@@ -25,6 +25,9 @@ module.exports = {
   updateProfile: async () => {},
   sendPasswordResetEmail: async () => {},
   signOut: async () => {},
+  EmailAuthProvider: { credential: () => ({}) },
+  reauthenticateWithCredential: async () => {},
+  deleteUser: async () => {},
 
   // firebase/firestore
   getFirestore: () => ({}),
@@ -37,6 +40,7 @@ module.exports = {
   orderBy: () => ({}),
   setDoc: async () => {},
   addDoc: async () => ({ id: 'test-id' }),
+  deleteDoc: async () => {},
   getDoc: async () => ({ exists: () => false, data: () => undefined }),
   getDocs: async () => ({ docs: [] }),
   onSnapshot: () => noopUnsub,

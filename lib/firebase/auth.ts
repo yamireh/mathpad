@@ -4,7 +4,10 @@
  * small and swappable.
  */
 import {
+  EmailAuthProvider,
   createUserWithEmailAndPassword,
+  deleteUser,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   signInAnonymously,
   signInWithEmailAndPassword,
@@ -12,6 +15,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 
+import { deleteParentData } from './family';
 import { auth } from './index';
 
 // `updateProfile` mutates the current user in place but does NOT re-fire
@@ -75,6 +79,22 @@ export async function updateDisplayName(name: string): Promise<void> {
 
 export function signOut() {
   return firebaseSignOut(auth);
+}
+
+/**
+ * Permanently delete the signed-in parent's account (Apple Guideline 5.1.1(v)):
+ * re-authenticate with the password (Firebase requires a recent login to
+ * delete), remove their Firestore data, then delete the auth user itself.
+ * `authErrorKey` maps a wrong password to a friendly message.
+ */
+export async function deleteAccount(password: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error('not-signed-in');
+  const cred = EmailAuthProvider.credential(user.email, password);
+  await reauthenticateWithCredential(user, cred);
+  // Delete Firestore data while still authenticated, then the account.
+  await deleteParentData(user.uid);
+  await deleteUser(user);
 }
 
 export function resetPassword(email: string) {

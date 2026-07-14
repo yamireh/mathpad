@@ -111,6 +111,12 @@ parentIndex/{parentUid}                     { familyId }           // "my family
   + the child doc) actions. Both cloud-only; the device's local history is
   untouched. (Child-doc delete is covered by the member `write` rule, so no extra
   rule beyond the session-delete one Reset already needs.)
+- **Account deletion (Apple 5.1.1(v))**: `deleteAccount(password)` re-authenticates,
+  then `deleteParentData` removes the whole family if they own it (children +
+  sessions + memberships + codes + family doc) or just their own membership if a
+  co-parent, then deletes the auth user. Rules allow: owner deletes `families/{id}`
+  + code lookups; a parent deletes their own `parents/{uid}`. In-app under
+  Settings → **Delete account**. **Rules re-deploy required.**
 - **Join by invite code**: the co-parent enters it → writes their `parents/{uid}`
   doc carrying the code as `invite`. The **security rule verifies the code** via
   `get()`
@@ -194,6 +200,12 @@ child (limit 5). Kid session finish = 1 session doc + 1 merge onto the child doc
   **History link is hidden** on the Operations & Clock pages. Only an anonymous
   kid device records/syncs. Corollary: to test kid sync, use a device that is NOT
   signed in as a parent.
+- **Rules + list queries gotcha**: `get()`/`exists()` inside a read rule make a
+  **`list`/query permission-denied**. The `families` read rule therefore matches
+  the owner via `resource.data.ownerUid == uid()` (no `get()`) so
+  `getFamilyForOwner`'s `where ownerUid == uid` query works — otherwise a
+  brand-new account (no `parentIndex` pointer yet, so it hits the query fallback)
+  fails to load with "couldn't load your family," and account deletion breaks too.
 - **childId stability**: stored in the family link **at join time** (not read from
   `auth.currentUser` at practice time) — an auth change mid-session used to
   mismatch and write to the wrong/empty child. All syncs use `link.childId`.

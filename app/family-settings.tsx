@@ -21,7 +21,12 @@ import {
   typography,
 } from '../constants/design';
 import { useAuthUser, useDeviceRole, useFamily } from '../hooks';
-import { signOut, updateDisplayName } from '../lib/firebase/auth';
+import {
+  authErrorKey,
+  deleteAccount,
+  signOut,
+  updateDisplayName,
+} from '../lib/firebase/auth';
 
 /** Account block: the signed-in email + an inline display-name editor. */
 function AccountSection({ email, name }: { email: string; name: string }) {
@@ -90,6 +95,94 @@ function AccountSection({ email, name }: { email: string; name: string }) {
           </Pressable>
         </View>
       )}
+    </View>
+  );
+}
+
+/** Danger zone: permanently delete the parent account (Apple 5.1.1(v)). */
+function DeleteAccountSection({ onDeleted }: { onDeleted: () => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(password);
+      onDeleted();
+    } catch (e) {
+      setError(t(authErrorKey(e)));
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <Pressable
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+        hitSlop={8}
+        style={styles.deleteLink}
+      >
+        <Ionicons name="trash-outline" size={16} color={colors.wrong} />
+        <Text style={styles.deleteLinkText}>{t('deleteAccount.button')}</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.deleteBox}>
+      <Text style={styles.deleteWarning}>{t('deleteAccount.warning')}</Text>
+      <View style={styles.passwordWrap}>
+        <TextInput
+          style={styles.passwordInput}
+          placeholder={t('deleteAccount.passwordPlaceholder')}
+          placeholderTextColor={colors.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          textContentType="password"
+          editable={!busy}
+        />
+        <Pressable
+          onPress={() => setShowPassword((s) => !s)}
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            showPassword ? 'parentAuth.hidePassword' : 'parentAuth.showPassword',
+          )}
+          hitSlop={8}
+          style={styles.eye}
+        >
+          <Ionicons
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            size={22}
+            color={colors.textMuted}
+          />
+        </Pressable>
+      </View>
+      {error ? <Text style={styles.deleteError}>{error}</Text> : null}
+      <Button
+        label={busy ? t('deleteAccount.deleting') : t('deleteAccount.confirm')}
+        tone={colors.wrong}
+        onPress={submit}
+        loading={busy}
+        disabled={!password}
+        fullWidth
+      />
+      <Button
+        label={t('common.cancel')}
+        variant="ghost"
+        onPress={() => {
+          setOpen(false);
+          setError(null);
+        }}
+        fullWidth
+      />
     </View>
   );
 }
@@ -242,6 +335,8 @@ export default function FamilySettingsScreen() {
             fullWidth
           />
         </View>
+
+        <DeleteAccountSection onDeleted={() => router.dismissAll()} />
       </View>
     </ScreenContainer>
   );
@@ -328,4 +423,50 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   actions: { gap: spacing.sm, marginTop: spacing.lg },
+  deleteLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  deleteLinkText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.wrong,
+  },
+  deleteBox: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.wrong,
+  },
+  deleteWarning: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+  },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.body,
+    color: colors.text,
+  },
+  eye: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  deleteError: {
+    fontSize: typography.size.caption,
+    color: colors.wrong,
+    textAlign: 'center',
+  },
 });

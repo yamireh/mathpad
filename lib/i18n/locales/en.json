@@ -92,6 +92,13 @@
     "account": "Your account",
     "noName": "No name set"
   },
+  "deleteAccount": {
+    "button": "Delete account",
+    "warning": "This permanently deletes your parent account and all your family's synced data (children, progress, and codes). Your children's devices keep their own local history. This can't be undone.",
+    "passwordPlaceholder": "Enter your password to confirm",
+    "confirm": "Permanently delete account",
+    "deleting": "Deleting…"
+  },
   "coParent": {
     "invite": "Invite a co-parent",
     "hideInvite": "Hide co-parent code",

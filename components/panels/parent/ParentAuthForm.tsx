@@ -93,37 +93,40 @@ export function ParentAuthForm({
       </Text>
 
       {isSignup ? (
-        <TextInput
-          style={styles.input}
-          placeholder={t('parentAuth.name')}
-          placeholderTextColor={colors.textMuted}
-          value={name}
-          onChangeText={setName}
-          autoCapitalize="words"
-          autoCorrect={false}
-          textContentType="name"
-          maxLength={40}
-          editable={!busy}
-        />
+        <View style={styles.fieldWrap}>
+          <TextInput
+            style={styles.fieldInput}
+            placeholder={t('parentAuth.name')}
+            placeholderTextColor={colors.textMuted}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            autoCorrect={false}
+            textContentType="name"
+            maxLength={40}
+            editable={!busy}
+          />
+        </View>
       ) : null}
 
-      <TextInput
-        style={styles.input}
-        placeholder={t('parentAuth.email')}
-        placeholderTextColor={colors.textMuted}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        editable={!busy}
-      />
+      <View style={styles.fieldWrap}>
+        <TextInput
+          style={styles.fieldInput}
+          placeholder={t('parentAuth.email')}
+          placeholderTextColor={colors.textMuted}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          editable={!busy}
+        />
+      </View>
 
       {!isReset ? (
-        <View style={styles.passwordWrap}>
+        <View style={styles.fieldWrap}>
           <TextInput
-            style={styles.passwordInput}
+            style={styles.fieldInput}
             placeholder={t('parentAuth.password')}
             placeholderTextColor={colors.textMuted}
             value={password}
@@ -216,18 +219,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
-  input: {
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: typography.size.body,
-    color: colors.text,
-  },
-  // Password field: border on the row so the eye toggle sits inside it.
-  passwordWrap: {
+  // One field style for name / email / password so they align identically. The
+  // border is on the row (not the input) so the password eye toggle sits inside.
+  fieldWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
@@ -235,7 +229,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
-  passwordInput: {
+  fieldInput: {
     flex: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,

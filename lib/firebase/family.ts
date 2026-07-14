@@ -13,6 +13,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -180,6 +181,40 @@ export class InvalidCodeError extends Error {
     super('invalid-code');
     this.name = 'InvalidCodeError';
   }
+}
+
+/** Delete a whole family: children + sessions, memberships, codes, family doc. */
+async function deleteFamily(fam: Family): Promise<void> {
+  const famRef = doc(db, 'families', fam.id);
+  const children = await getDocs(collection(famRef, 'children'));
+  for (const child of children.docs) {
+    const sessions = await getDocs(collection(child.ref, 'sessions'));
+    await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
+    await deleteDoc(child.ref);
+  }
+  const parents = await getDocs(collection(famRef, 'parents'));
+  await Promise.all(parents.docs.map((d) => deleteDoc(d.ref)));
+  // Codes must go before the family doc (their delete rule reads the family).
+  await deleteDoc(doc(db, 'pairingCodes', fam.pairingCode)).catch(() => {});
+  await deleteDoc(doc(db, 'parentInvites', fam.parentCode)).catch(() => {});
+  await deleteDoc(famRef);
+}
+
+/**
+ * Delete a parent's data ahead of deleting their auth account: the whole family
+ * if they own it, otherwise just their own co-parent membership. Always drops
+ * their "my family" pointer. Call while still authenticated (rules need it).
+ */
+export async function deleteParentData(uid: string): Promise<void> {
+  const fam = await getFamilyForParent(uid);
+  if (fam) {
+    if (fam.ownerUid === uid) {
+      await deleteFamily(fam);
+    } else {
+      await deleteDoc(doc(db, 'families', fam.id, 'parents', uid));
+    }
+  }
+  await deleteDoc(doc(db, 'parentIndex', uid)).catch(() => {});
 }
 
 async function resolveCode(

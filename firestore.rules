@@ -55,7 +55,10 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && familyOwner(request.resource.data.familyId) == uid();
-      allow update, delete: if false;
+      allow update: if false;
+      // The family owner may delete it (account deletion / family teardown).
+      allow delete: if signedIn()
+        && familyOwner(resource.data.familyId) == uid();
     }
 
     // Co-parent invite → family. Same secrecy; created/deactivated by a member.
@@ -64,7 +67,7 @@ service cloud.firestore {
       allow list: if false;
       allow create: if isMember(request.resource.data.familyId);
       allow update: if isMember(resource.data.familyId);
-      allow delete: if false;
+      allow delete: if isMember(resource.data.familyId);
     }
 
     // "Which family am I in" pointer — private to the parent, not a trust anchor
@@ -74,12 +77,19 @@ service cloud.firestore {
     }
 
     match /families/{familyId} {
-      // Readable by any member; created owning it; owner can't be reassigned.
-      allow read: if isMember(familyId);
+      // Readable by any member. Uses resource.data.ownerUid (NOT familyOwner()'s
+      // get()) for the owner, because get()/exists() on the queried doc make a
+      // LIST query permission-denied — and getFamilyForOwner queries families by
+      // ownerUid for any parent without a pointer yet (e.g. a brand-new account).
+      allow read: if signedIn() && (
+        resource.data.ownerUid == uid() ||
+        exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid()))
+      );
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       allow update: if isMember(familyId)
         && request.resource.data.ownerUid == resource.data.ownerUid;
-      allow delete: if false;
+      // The owner may delete their family (account deletion / teardown).
+      allow delete: if signedIn() && resource.data.ownerUid == uid();
 
       // Membership docs. A device adds its own doc as the creator, or as a
       // co-parent holding a valid invite (code carried on the doc for the check).
@@ -89,7 +99,11 @@ service cloud.firestore {
           uid() == familyOwner(familyId) ||
           validParentInvite(familyId, request.resource.data.invite)
         );
-        allow update, delete: if false;
+        allow update: if false;
+        // A parent may remove their own membership; the owner may remove any
+        // (tearing the family down when they delete their account).
+        allow delete: if signedIn()
+          && (uid() == parentUid || uid() == familyOwner(familyId));
       }
 
       // Each child = one kid device. Writers: the kid's own device (uid ==
