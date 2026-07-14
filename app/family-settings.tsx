@@ -99,8 +99,17 @@ function AccountSection({ email, name }: { email: string; name: string }) {
   );
 }
 
-/** Danger zone: permanently delete the parent account (Apple 5.1.1(v)). */
-function DeleteAccountSection({ onDeleted }: { onDeleted: () => void }) {
+/**
+ * Account footer: Sign out and Delete account on one line (Delete in red), with
+ * the delete confirm (password) expanding beneath it. Apple 5.1.1(v).
+ */
+function AccountFooter({
+  onSignOut,
+  onDeleted,
+}: {
+  onSignOut: () => void;
+  onDeleted: () => void;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
@@ -120,69 +129,74 @@ function DeleteAccountSection({ onDeleted }: { onDeleted: () => void }) {
     }
   };
 
-  if (!open) {
-    return (
-      <Pressable
-        onPress={() => setOpen(true)}
-        accessibilityRole="button"
-        hitSlop={8}
-        style={styles.deleteLink}
-      >
-        <Ionicons name="trash-outline" size={16} color={colors.wrong} />
-        <Text style={styles.deleteLinkText}>{t('deleteAccount.button')}</Text>
-      </Pressable>
-    );
-  }
-
   return (
-    <View style={styles.deleteBox}>
-      <Text style={styles.deleteWarning}>{t('deleteAccount.warning')}</Text>
-      <View style={styles.passwordWrap}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder={t('deleteAccount.passwordPlaceholder')}
-          placeholderTextColor={colors.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          autoCapitalize="none"
-          textContentType="password"
-          editable={!busy}
-        />
+    <View style={styles.footer}>
+      <View style={styles.footerRow}>
         <Pressable
-          onPress={() => setShowPassword((s) => !s)}
+          onPress={onSignOut}
           accessibilityRole="button"
-          accessibilityLabel={t(
-            showPassword ? 'parentAuth.hidePassword' : 'parentAuth.showPassword',
-          )}
           hitSlop={8}
-          style={styles.eye}
+          style={styles.footerAction}
         >
-          <Ionicons
-            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-            size={22}
-            color={colors.textMuted}
-          />
+          <Ionicons name="log-out-outline" size={16} color={colors.textMuted} />
+          <Text style={styles.footerLink}>{t('parentAuth.signOut')}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setOpen((o) => !o)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
+          hitSlop={8}
+          style={styles.footerAction}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.wrong} />
+          <Text style={[styles.footerLink, styles.footerDanger]}>
+            {t('deleteAccount.button')}
+          </Text>
         </Pressable>
       </View>
-      {error ? <Text style={styles.deleteError}>{error}</Text> : null}
-      <Button
-        label={busy ? t('deleteAccount.deleting') : t('deleteAccount.confirm')}
-        tone={colors.wrong}
-        onPress={submit}
-        loading={busy}
-        disabled={!password}
-        fullWidth
-      />
-      <Button
-        label={t('common.cancel')}
-        variant="ghost"
-        onPress={() => {
-          setOpen(false);
-          setError(null);
-        }}
-        fullWidth
-      />
+
+      {open ? (
+        <View style={styles.deleteBox}>
+          <Text style={styles.deleteWarning}>{t('deleteAccount.warning')}</Text>
+          <View style={styles.passwordWrap}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder={t('deleteAccount.passwordPlaceholder')}
+              placeholderTextColor={colors.textMuted}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              textContentType="password"
+              editable={!busy}
+            />
+            <Pressable
+              onPress={() => setShowPassword((s) => !s)}
+              accessibilityRole="button"
+              accessibilityLabel={t(
+                showPassword ? 'parentAuth.hidePassword' : 'parentAuth.showPassword',
+              )}
+              hitSlop={8}
+              style={styles.eye}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={22}
+                color={colors.textMuted}
+              />
+            </Pressable>
+          </View>
+          {error ? <Text style={styles.deleteError}>{error}</Text> : null}
+          <Button
+            label={busy ? t('deleteAccount.deleting') : t('deleteAccount.confirm')}
+            tone={colors.wrong}
+            onPress={submit}
+            loading={busy}
+            disabled={!password}
+            fullWidth
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -327,16 +341,12 @@ export default function FamilySettingsScreen() {
             onPress={openPractice}
             fullWidth
           />
-          <Button
-            label={t('parentAuth.signOut')}
-            icon="log-out-outline"
-            variant="ghost"
-            onPress={doSignOut}
-            fullWidth
-          />
         </View>
 
-        <DeleteAccountSection onDeleted={() => router.dismissAll()} />
+        <AccountFooter
+          onSignOut={doSignOut}
+          onDeleted={() => router.dismissAll()}
+        />
       </View>
     </ScreenContainer>
   );
@@ -423,19 +433,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   actions: { gap: spacing.sm, marginTop: spacing.lg },
-  deleteLink: {
+  footer: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: spacing.md,
+  },
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+  },
+  footerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  deleteLinkText: {
-    fontSize: typography.size.caption,
+  footerLink: {
+    fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
-    color: colors.wrong,
+    color: colors.text,
   },
+  footerDanger: { color: colors.wrong },
   deleteBox: {
     gap: spacing.sm,
     marginTop: spacing.md,
