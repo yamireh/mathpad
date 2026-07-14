@@ -25,6 +25,7 @@ export { useHowToDemo } from './useHowToDemo';
 export { useSettings, type UseSettingsResult } from './useSettings';
 export { useHistory, type UseHistoryResult } from './useHistory';
 export { useSyncFlush } from './useSyncFlush';
+export { useVerifyLink } from './useVerifyLink';
 export { useTimer, type UseTimerResult } from './useTimer';
 export {
   useRecognition,

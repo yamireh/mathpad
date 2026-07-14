@@ -194,6 +194,11 @@ child (limit 5). Kid session finish = 1 session doc + 1 merge onto the child doc
 - **Parental gate**: kids get a math gate before the grown-ups menu; a **signed-in
   parent (non-anonymous) or a `__DEV__` build skips it** — re-challenging an
   authenticated adult is pointless. `isGrownUp = !!user && !user.isAnonymous`.
+- **Child auto-disconnect on removal**: `useVerifyLink` (mounted in `_layout` as
+  `<LinkVerifier/>`) checks on launch + app-foreground whether the linked child
+  doc still exists (`childLinkValid`). If the parent removed the child / deleted
+  the family, it clears the local link so the child device shows as
+  not-connected and stops syncing. Uncertainty never disconnects a valid device.
 - **Parent preview doesn't record**: when a signed-in (non-anonymous) parent
   practices via "Open practice mode", it's a preview — `isSignedInParent()` gates
   it out of **local history AND cloud sync** (operations + clock), and the

@@ -372,6 +372,23 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
           variant="secondary"
           onPress={() => router.push('/family-settings')}
         />
+        {/* The dashboard doesn't live-update, so a parent who just shared the
+            code needs a way to pull the newly-connected child in. */}
+        <Pressable
+          onPress={reload}
+          disabled={loading}
+          style={styles.refresh}
+          accessibilityRole="button"
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={operationColors.addition.accent} />
+          ) : (
+            <Ionicons name="refresh" size={16} color={operationColors.addition.accent} />
+          )}
+          <Text style={styles.refreshText}>
+            {t(loading ? 'dashboard.refreshing' : 'dashboard.refresh')}
+          </Text>
+        </Pressable>
       </View>
     );
   }

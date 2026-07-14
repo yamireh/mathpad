@@ -13,6 +13,7 @@ import {
   useDeviceRole,
   useForceUpdate,
   useSyncFlush,
+  useVerifyLink,
 } from '../hooks';
 // Side-effect import: initialises i18next before any screen renders.
 import '../lib/i18n';
@@ -66,6 +67,15 @@ function RoleGate() {
   return hydrated && role === 'unset' ? <RolePickerGate /> : null;
 }
 
+/**
+ * Inside FamilyLinkProvider: disconnect a child device whose parent removed it
+ * (checks on launch + foreground). Renders nothing.
+ */
+function LinkVerifier() {
+  useVerifyLink();
+  return null;
+}
+
 export default function RootLayout() {
   const { required, appStoreId } = useForceUpdate();
   // Drain the offline session-sync queue on launch and app-foreground.
@@ -75,6 +85,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <DeviceRoleProvider>
           <FamilyLinkProvider>
+            <LinkVerifier />
             <PurchasesProvider>
               <TipsProvider>
                 <PracticeSessionProvider>

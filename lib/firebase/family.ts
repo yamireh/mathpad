@@ -24,7 +24,7 @@ import {
   where,
 } from 'firebase/firestore';
 
-import { db } from './index';
+import { auth, db } from './index';
 
 export interface Family {
   id: string;
@@ -180,6 +180,28 @@ export class InvalidCodeError extends Error {
   constructor() {
     super('invalid-code');
     this.name = 'InvalidCodeError';
+  }
+}
+
+/**
+ * Whether this device's linked child still exists in its family. Returns `false`
+ * ONLY when we can definitively see it's gone (the parent removed the child or
+ * deleted the family); `null` for any uncertainty (offline, permission, or the
+ * signed-in identity isn't this child) so a transient hiccup never disconnects a
+ * still-valid device.
+ */
+export async function childLinkValid(
+  familyId: string,
+  childId: string,
+): Promise<boolean | null> {
+  try {
+    if (auth.currentUser?.uid !== childId) return null;
+    const snap = await getDoc(
+      doc(db, 'families', familyId, 'children', childId),
+    );
+    return snap.exists();
+  } catch {
+    return null;
   }
 }
 
