@@ -50,9 +50,16 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-iap",
-      "./plugins/withDisableRtl.js"
+      "./plugins/withDisableRtl.js",
+      "./plugins/withTrimAudio.js"
     ],
     "extra": {
       "router": {},
