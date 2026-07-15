@@ -72,6 +72,9 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
 
   return (
     <ScreenContainer
+      // Tighten the gap under the pinned header — the header already sits at
+      // the safe-area top, so the body's default xl top padding is too airy.
+      contentStyle={{ paddingTop: spacing.md }}
       header={
         <Header
           title={t('topics.clock')}

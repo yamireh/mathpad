@@ -14,6 +14,11 @@ export {
   type IconButtonProps,
   type IoniconName,
 } from './IconButton';
+export {
+  MascotReaction,
+  type MascotMood,
+  type MascotReactionProps,
+} from './MascotReaction';
 export { NoticeDialog, type NoticeDialogProps } from './NoticeDialog';
 export { ParentalGate, type ParentalGateProps } from './ParentalGate';
 export { Pill, type PillProps } from './Pill';

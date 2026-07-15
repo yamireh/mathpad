@@ -37,18 +37,24 @@ export function OperationsPanel() {
   const { owned, devSetOwned } = usePurchases();
 
   return (
-    <ScreenContainer scroll>
-      <Header
-        title={t('topics.operations')}
-        left={
-          <IconButton
-            name="arrow-back"
-            accessibilityLabel={t('common.back')}
-            onPress={() => router.back()}
-          />
-        }
-      />
-
+    <ScreenContainer
+      scroll
+      // Pin the header so it stays put while the cards scroll; the body's
+      // default xl top padding is trimmed since the header owns the top.
+      contentStyle={{ paddingTop: spacing.md }}
+      header={
+        <Header
+          title={t('topics.operations')}
+          left={
+            <IconButton
+              name="arrow-back"
+              accessibilityLabel={t('common.back')}
+              onPress={() => router.back()}
+            />
+          }
+        />
+      }
+    >
       <View style={styles.grid}>
         {OPERATIONS.map((operation) => {
           const locked = !isOperationUnlocked(operation, owned);

@@ -404,16 +404,29 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
     try {
       // iOS: force a StoreKit sync FIRST so family-shared (and any not-yet-cached)
       // entitlements are pulled from the App Store before we read them.
-      // `getAvailablePurchases` alone only sees the local cache — which is why a
-      // family member's shared purchase didn't appear on Restore. Best-effort:
-      // a failed/cancelled sync (offline, Apple ID prompt dismissed) still falls
-      // through to reading whatever is already available.
+      // Best-effort: a failed/cancelled sync (offline, Apple ID prompt dismissed)
+      // still falls through to reading whatever is already available.
       try {
         await restorePurchases();
       } catch {
-        // sync unavailable — continue with the local query below
+        // sync unavailable — continue with the query below
       }
-      const { ops, clock } = await reconcile();
+      // StoreKit delivers the restored transactions ASYNCHRONOUSLY, so reading
+      // once right after the sync often comes back empty (which looked like
+      // "nothing happened" until an app restart re-read them). Poll a few times
+      // so the unlock happens in place. Grant-only: a laggy empty read never
+      // revokes a cached entitlement — the launch reconcile owns honest sync.
+      let ops = false;
+      let clock = false;
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const purchases = await queryAvailablePurchases();
+        ops = ops || purchases.some((p) => p.productId === OPERATIONS_PRODUCT_ID);
+        clock = clock || purchases.some((p) => p.productId === CLOCK_PRODUCT_ID);
+        if (ops && clock) break;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+      if (ops) await applyOps(true);
+      if (clock) await applyClock(true);
       return ops || clock;
     } catch {
       // Offline: fall back to whatever we last validated.
@@ -423,7 +436,7 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
       ]);
       return ops || clock;
     }
-  }, [reconcile]);
+  }, [applyOps, applyClock]);
 
   const value = usePurchasesValue(core, {
     price,

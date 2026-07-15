@@ -208,7 +208,7 @@ If the recognition library doesn't natively support a `−` class, fall back to 
 - **Style:** Clean Apple-style — minimal, calm, focused. Not babyish, not corporate.
 - **Typography:** System sans, two weights (regular + medium), sentence case throughout (in English; respect target-language conventions when localized).
 - **Color:** Mostly neutral. One accent color per operation (+ blue, − coral, × purple, ÷ teal, mix neutral). Green for correct, coral for wrong.
-- **Encouragement:** Text only ("Great job!"). No stars, streaks, characters, mascots, sound effects.
+- **Encouragement:** Text only ("Great job!"). No stars, streaks, sound effects, or reward-driven characters/mascots. (A brand mascot may appear as decoration — e.g. the home-screen hero — but never as a gamified reward or feedback mechanic.)
 - **Accessibility:** Large tap targets (≥44pt), VoiceOver labels on all interactive elements, scalable text size, high-contrast colors, Dynamic Type support.
 - **Responsive:** Tablet (iPad — primary) and phone, both portrait and landscape. iPad landscape gives scratch area a larger side panel.
 
@@ -332,7 +332,7 @@ All data stays on the device. No cloud, no sync, no external calls.
 - User accounts, login, multi-kid profiles
 - Cloud sync, backups, multi-device
 - Teacher dashboards, classroom features, sharing
-- Leaderboards, achievements, stars, streaks, characters, mascots
+- Leaderboards, achievements, stars, streaks, reward-driven characters/mascots (a brand mascot as decoration is allowed)
 - Word problems, fractions as input, negative answers in multiplication
 - Sound effects, music, haptics beyond default
 - Onboarding tutorial (defer to v1.1 based on user feedback)

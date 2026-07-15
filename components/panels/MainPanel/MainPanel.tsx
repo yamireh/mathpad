@@ -22,11 +22,11 @@ import { TopicCard } from './TopicCard';
 import { TOPICS } from './topics';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const APP_ART = require('../../../assets/icon.png');
+const APP_ART = require('../../../assets/mascot.png');
 
 /**
  * MainPanel — top-level topic chooser. A small colourful hero greets the
- * kid (with the app's abacus art), then every kid-facing topic shows as a
+ * kid (with the app mascot), then every kid-facing topic shows as a
  * premium tappable card. Disabled topics still navigate, landing on the
  * shared ComingSoon placeholder. The list comes from `topics.ts`.
  */
@@ -55,6 +55,10 @@ export function MainPanel() {
   return (
     <ScreenContainer
       scroll
+      // Tighten the gap between the pinned gear and the hero — the gear row
+      // already sits below the safe-area inset, so the body's default xl top
+      // padding leaves too much air above the banner.
+      contentStyle={{ paddingTop: spacing.md }}
       header={
         // Grown-ups entry: a discreet gear pinned top-right (stays put while the
         // page scrolls). Behind the parental gate so kids can't wander in.

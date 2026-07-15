@@ -296,7 +296,8 @@
     "ctaModule": "Unlock Operations — {{price}}",
     "ctaAll": "Unlock everything — {{price}}",
     "purchaseNote": "One-time purchase — no subscription. Unlocks on all your devices; restore anytime.",
-    "restore": "Restore purchase",
+    "restore": "Already bought it? Restore",
+    "restoreHint": "Already paid — on this device, another device, or through Family Sharing? Tap Restore.",
     "lockedCard": "{{operation}}, locked — tap to unlock"
   },
   "unlockClock": {
@@ -305,7 +306,8 @@
     "subtitle": "Learn to tell the time — read an analog clock, then answer your way.",
     "watch": "Watch how it works",
     "cta": "Unlock Clock — {{price}}",
-    "restore": "Restore purchase",
+    "restore": "Already bought it? Restore",
+    "restoreHint": "Already paid — on this device, another device, or through Family Sharing? Tap Restore.",
     "lockedCard": "Clock, locked — tap to unlock",
     "features": {
       "read": "Read an analog clock",

@@ -132,6 +132,7 @@ export default function UnlockClockScreen() {
           loading={pending === 'restore'}
           onPress={() => runPurchase('restore', restore)}
         />
+        <Text style={styles.restoreHint}>{t('unlockClock.restoreHint')}</Text>
         {__DEV__ ? (
           <View style={styles.dev}>
             <Pill
@@ -182,5 +183,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowText: { fontSize: typography.size.bodyLarge, color: colors.text },
   actions: { gap: spacing.md, marginTop: spacing.xxl },
+  restoreHint: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: -spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
   dev: { alignItems: 'center', marginTop: spacing.sm },
 });

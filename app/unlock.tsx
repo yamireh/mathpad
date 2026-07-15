@@ -140,6 +140,7 @@ export default function UnlockScreen() {
           loading={pending === 'restore'}
           onPress={() => runPurchase('restore', restore)}
         />
+        <Text style={styles.restoreHint}>{t('unlock.restoreHint')}</Text>
       </View>
 
       {gate}
@@ -155,6 +156,13 @@ export default function UnlockScreen() {
 }
 
 const styles = StyleSheet.create({
+  restoreHint: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: -spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
   hero: { alignItems: 'center', gap: spacing.sm, paddingTop: spacing.xl },
   badge: {
     width: 64,
