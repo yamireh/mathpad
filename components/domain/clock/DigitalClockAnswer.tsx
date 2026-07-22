@@ -13,6 +13,7 @@ import { clockColors, colors, spacing, typography } from '../../../constants/des
 import { recognizeNumber } from '../../../lib/recognition';
 import { digitInk } from '../../../lib/solver/digitInk';
 import { type InkPoint, type InkStroke } from '../ink';
+import { type ClockFieldValue } from './answerDigits';
 import { HandwritingField } from './HandwritingField';
 
 /** Fixed width for the colon (and the spacer above it), so the Hours/Minutes
@@ -70,9 +71,9 @@ interface TimeFieldProps {
   width: number;
   height: number;
   accessibilityLabel: string;
-  /** Report the field's current strokes (raw while writing, clean glyphs once
-   *  converted) — the consumer still recognizes these at judge time. */
-  onStrokes: (strokes: InkStroke[]) => void;
+  /** Report the field's value — raw strokes while writing, or the recognized
+   *  digits once converted (see {@link ClockFieldValue}). */
+  onValue: (value: ClockFieldValue) => void;
   /** The kid wrote something unreadable — surface the "try again" prompt. */
   onUnreadable: () => void;
   /** Fired when the kid draws into this field (marks it as last-written). */
@@ -95,7 +96,7 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
     width,
     height,
     accessibilityLabel,
-    onStrokes,
+    onValue,
     onUnreadable,
     onWrite,
     onDrawStart,
@@ -123,7 +124,7 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
     cancel();
     setPrinted(null);
     clearField();
-    onStrokes([]);
+    onValue({ strokes: [], digits: null });
   };
 
   useImperativeHandle(ref, () => ({ clear: reset, undo: reset }), []);
@@ -136,9 +137,14 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
           onUnreadable();
           return;
         }
-        // Report the canonical glyphs (judge re-recognizes these) and show the
-        // number as a clean printed overlay over the now-emptied field.
-        onStrokes(numberToFieldInk(integerDigits, width, height));
+        // Report our own recognized digits so the consumer judges from exactly
+        // what we print here — NOT a second recognition of regenerated ink,
+        // which used to disagree (a canonical "1" glyph re-read as "7"). The
+        // canonical glyphs still ride along for the strokes-as-source model.
+        onValue({
+          strokes: numberToFieldInk(integerDigits, width, height),
+          digits: integerDigits,
+        });
         setPrinted(integerDigits.join(''));
         clearField();
       })
@@ -164,7 +170,9 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
 
   const handleStrokes = (strokes: InkStroke[]) => {
     if (strokes.length) onWrite();
-    onStrokes(strokes);
+    // Raw handwriting (not yet converted) — no known digits, so the consumer
+    // recognizes these strokes if the kid submits before the convert pause.
+    onValue({ strokes, digits: null });
     schedule(strokes);
   };
 
@@ -196,8 +204,8 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
 });
 
 export interface DigitalClockAnswerProps {
-  onHourChange: (strokes: InkStroke[]) => void;
-  onMinuteChange: (strokes: InkStroke[]) => void;
+  onHourChange: (value: ClockFieldValue) => void;
+  onMinuteChange: (value: ClockFieldValue) => void;
   /** Lock page scrolling while a field is being drawn in. */
   onDrawStart?: () => void;
   onDrawEnd?: () => void;
@@ -252,7 +260,7 @@ export function DigitalClockAnswer({
           ref={hourField}
           width={fieldW}
           height={fieldH}
-          onStrokes={onHourChange}
+          onValue={onHourChange}
           onUnreadable={() => setNotice(true)}
           onWrite={() => {
             lastField.current = 'hour';
@@ -266,7 +274,7 @@ export function DigitalClockAnswer({
           ref={minuteField}
           width={fieldW}
           height={fieldH}
-          onStrokes={onMinuteChange}
+          onValue={onMinuteChange}
           onUnreadable={() => setNotice(true)}
           onWrite={() => {
             lastField.current = 'minute';

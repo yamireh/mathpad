@@ -11,7 +11,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Pill } from '../../ui';
 import { colors, spacing, typography } from '../../../constants/design';
-import { prepareModel, recognizeNumber } from '../../../lib/recognition';
+import { prepareModel } from '../../../lib/recognition';
 import {
   checkPattern,
   checkSet,
@@ -22,7 +22,7 @@ import {
   type ClockTime,
   type ClockToken,
 } from '../../../lib/clock';
-import { type InkStroke } from '../ink';
+import { fieldDigits, type ClockFieldValue } from './answerDigits';
 import { ClockFace } from './ClockFace';
 import { ClockLegend } from './ClockLegend';
 import { DigitalClockAnswer } from './DigitalClockAnswer';
@@ -68,8 +68,8 @@ export const ClockQuestionView = forwardRef<
   const [built, setBuilt] = useState<ClockToken[]>([]);
   const [setValue, setSetValue] = useState<ClockTime>(SET_START);
   const [selectedHand, setSelectedHand] = useState<'hour' | 'minute'>('hour');
-  const hourRef = useRef<InkStroke[]>([]);
-  const minuteRef = useRef<InkStroke[]>([]);
+  const hourRef = useRef<ClockFieldValue>({ strokes: [], digits: null });
+  const minuteRef = useRef<ClockFieldValue>({ strokes: [], digits: null });
 
   useEffect(() => {
     void prepareModel();
@@ -96,12 +96,12 @@ export const ClockQuestionView = forwardRef<
         };
       }
       try {
-        const [h, m] = await Promise.all([
-          recognizeNumber(hourRef.current),
-          recognizeNumber(minuteRef.current),
+        const [hDigits, mDigits] = await Promise.all([
+          fieldDigits(hourRef.current),
+          fieldDigits(minuteRef.current),
         ]);
-        const hour = digitsToNumber(h.integerDigits);
-        const minute = digitsToNumber(m.integerDigits);
+        const hour = digitsToNumber(hDigits);
+        const minute = digitsToNumber(mDigits);
         const blank = Number.isNaN(hour) || Number.isNaN(minute);
         return {
           correct: hour === question.time.hour && minute === question.time.minute,
@@ -151,11 +151,11 @@ export const ClockQuestionView = forwardRef<
         />
       ) : (
         <DigitalClockAnswer
-          onHourChange={(s) => {
-            hourRef.current = s;
+          onHourChange={(v) => {
+            hourRef.current = v;
           }}
-          onMinuteChange={(s) => {
-            minuteRef.current = s;
+          onMinuteChange={(v) => {
+            minuteRef.current = v;
           }}
           onDrawStart={onDrawStart}
           onDrawEnd={onDrawEnd}

@@ -299,9 +299,83 @@ export interface NumberRecognitionResult {
   raw: string | null;
 }
 
+/** X extent [minX, maxX] of one stroke. */
+function strokeXRange(stroke: Stroke): [number, number] {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const [x] of stroke) {
+    if (x < min) min = x;
+    if (x > max) max = x;
+  }
+  return [min, max];
+}
+
+/** Overall vertical extent of the ink — a stable scale (digits share height). */
+function inkHeight(strokes: Stroke[]): number {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const stroke of strokes) {
+    for (const [, y] of stroke) {
+      if (y < min) min = y;
+      if (y > max) max = y;
+    }
+  }
+  return max > min ? max - min : 0;
+}
+
 /**
- * Recognise a whole multi-digit number from one wide writing area — used for
- * the long-division answer. Accepts a `.` or `,` decimal separator.
+ * Split ink into left-to-right digit clusters. Strokes of one digit overlap
+ * horizontally (a `4`'s two strokes, a `5`'s cap + bowl); separate digits sit
+ * apart with a gap. We group by X, starting a new cluster only when the next
+ * stroke begins clear of the current one (gap > 20% of the ink's height). Used
+ * both to disambiguate each digit and to recover a number ML Kit misreads whole.
+ */
+function segmentDigits(strokes: Stroke[]): Stroke[][] {
+  if (strokes.length <= 1) return strokes.length ? [[...strokes]] : [];
+  const gapTol = inkHeight(strokes) * 0.2;
+  const ranged = strokes
+    .map((s) => ({ s, range: strokeXRange(s) }))
+    .sort((a, b) => a.range[0] - b.range[0]);
+  const clusters: { strokes: Stroke[]; maxX: number }[] = [];
+  for (const { s, range } of ranged) {
+    const last = clusters[clusters.length - 1];
+    if (last && range[0] - last.maxX <= gapTol) {
+      last.strokes.push(s);
+      last.maxX = Math.max(last.maxX, range[1]);
+    } else {
+      clusters.push({ strokes: [s], maxX: range[1] });
+    }
+  }
+  return clusters.map((c) => c.strokes);
+}
+
+/**
+ * Apply the same `1↔7` / `0↔6` stroke-shape corrections `recognizeDigit` uses,
+ * but per digit of a multi-digit number: segment the ink and, when the cluster
+ * count matches the digit count, re-check each ambiguous digit against its own
+ * strokes. If segmentation is uncertain (counts disagree) the digits stand.
+ */
+function refineIntegerDigits(digits: number[], strokes: Stroke[]): number[] {
+  const clusters = segmentDigits(strokes);
+  if (clusters.length !== digits.length) return digits;
+  return digits.map((d, i) => {
+    if (d === 1 || d === 7) return disambiguateOneAndSeven(clusters[i], d as 1 | 7);
+    if (d === 0 || d === 6) return disambiguateZeroAndSix(clusters[i], d as 0 | 6);
+    return d;
+  });
+}
+
+/**
+ * Recognise a whole multi-digit number from one wide writing area (the clock's
+ * "write the time" fields). Accepts a `.` or `,` decimal separator.
+ *
+ * Two robustness layers over raw ML Kit, both aimed at kid handwriting:
+ *  - **Per-digit disambiguation** of an integer result — ML Kit routinely
+ *    confuses `1↔7` (and `0↔6`), and `recognizeNumber` had none of the
+ *    correction `recognizeDigit` carries, so a written `1` scored as `7`.
+ *  - **Per-digit fallback** when ML Kit can't read a clean number at all
+ *    (e.g. `11` drawn as two bare vertical lines often comes back as letters):
+ *    split the ink into digit clusters and recognise each on its own.
  */
 export async function recognizeNumber(
   strokes: Stroke[],
@@ -316,12 +390,31 @@ export async function recognizeNumber(
     const cleaned = candidate.text.trim().replace(/\s+/g, '');
     const match = cleaned.match(/^(\d+)(?:[.,](\d+))?$/);
     if (match) {
+      // Only refine a pure integer: with a decimal part, pairing clusters to
+      // digits across the separator is unreliable, so leave those untouched.
+      const integerDigits = match[2]
+        ? toDigits(match[1])
+        : refineIntegerDigits(toDigits(match[1]), strokes);
       return {
-        integerDigits: toDigits(match[1]),
+        integerDigits,
         decimalDigits: match[2] ? toDigits(match[2]) : [],
         raw,
       };
     }
+  }
+
+  // No clean whole-number reading — recover it digit by digit. Any cluster that
+  // isn't a digit fails the whole read (stays "unreadable"), so a real scribble
+  // won't be forced into a number.
+  const clusters = segmentDigits(strokes);
+  if (clusters.length > 0) {
+    const digits: number[] = [];
+    for (const cluster of clusters) {
+      const { digit } = await recognizeDigit(cluster);
+      if (digit === null) return { integerDigits: [], decimalDigits: [], raw };
+      digits.push(digit);
+    }
+    return { integerDigits: digits, decimalDigits: [], raw };
   }
   return { integerDigits: [], decimalDigits: [], raw };
 }

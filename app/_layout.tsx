@@ -3,7 +3,7 @@ import { I18nManager, Text, TextInput } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ForceUpdateGate, RolePickerGate } from '../components/domain';
+import { AppPrewarm, ForceUpdateGate, RolePickerGate } from '../components/domain';
 import {
   DeviceRoleProvider,
   FamilyLinkProvider,
@@ -90,6 +90,10 @@ export default function RootLayout() {
               <TipsProvider>
                 <PracticeSessionProvider>
                   <Stack screenOptions={{ headerShown: false }} />
+                  {/* Topmost at launch: warms the heavy modules / Skia /
+                      recognition and waits for entitlements, so navigation is
+                      instant. Removes itself once ready. */}
+                  <AppPrewarm />
                 </PracticeSessionProvider>
               </TipsProvider>
             </PurchasesProvider>

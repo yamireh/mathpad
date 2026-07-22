@@ -158,6 +158,57 @@ describe('recognizeNumber', () => {
       raw: null,
     });
   });
+
+  it('fixes a 1 misread as 7 per-digit (single tall vertical)', async () => {
+    recognize.mockResolvedValueOnce([{ text: '7', score: 0.6 }]);
+    const one: Stroke[] = [
+      [
+        [10, 0, 0],
+        [10, 50, 50], // straight vertical → a clear 1
+      ],
+    ];
+    expect((await recognizeNumber(one)).integerDigits).toEqual([1]);
+  });
+
+  it('fixes 11 misread as 77 (both digits, two clusters)', async () => {
+    recognize.mockResolvedValueOnce([{ text: '77', score: 0.6 }]);
+    const eleven: Stroke[] = [
+      [
+        [10, 0, 0],
+        [10, 50, 50], // left vertical
+      ],
+      [
+        [40, 0, 0],
+        [40, 50, 50], // right vertical, clear X gap
+      ],
+    ];
+    expect((await recognizeNumber(eleven)).integerDigits).toEqual([1, 1]);
+  });
+
+  it('recovers 11 from bare verticals ML Kit read as non-numeric', async () => {
+    recognize
+      .mockResolvedValueOnce([{ text: 'll', score: 0.5 }]) // whole read fails
+      .mockResolvedValueOnce([{ text: '1', score: 0.9 }]) // left cluster
+      .mockResolvedValueOnce([{ text: '1', score: 0.9 }]); // right cluster
+    const eleven: Stroke[] = [
+      [
+        [10, 0, 0],
+        [10, 50, 50],
+      ],
+      [
+        [40, 0, 0],
+        [40, 50, 50],
+      ],
+    ];
+    expect((await recognizeNumber(eleven)).integerDigits).toEqual([1, 1]);
+  });
+
+  it('leaves a decimal reading untouched (no per-digit refinement)', async () => {
+    recognize.mockResolvedValueOnce([{ text: '1.5', score: 0.9 }]);
+    const result = await recognizeNumber(strokes);
+    expect(result.integerDigits).toEqual([1]);
+    expect(result.decimalDigits).toEqual([5]);
+  });
 });
 
 describe('model lifecycle', () => {

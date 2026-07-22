@@ -74,6 +74,7 @@ export {
   type ForceUpdateGateProps,
 } from './ForceUpdateGate';
 export { RolePickerGate } from './RolePickerGate';
+export { AppPrewarm } from './AppPrewarm';
 export {
   type AnswerInk,
   type InkPoint,
