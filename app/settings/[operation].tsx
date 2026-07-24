@@ -266,6 +266,20 @@ function DivisionDigitSelectors({
   tone: string;
 }) {
   const { t } = useTranslation();
+  // Invariant: the divisor never has more digits than the dividend — otherwise
+  // clean division is impossible (you can't split a smaller number by a larger
+  // one) and the generator has nothing to make. Honor the chip just tapped and
+  // nudge the other so the pair always yields real, varied questions.
+  const setDividend = (n: DigitCount) =>
+    onChange({
+      dividendDigits: n,
+      divisorDigits: Math.min(divisorDigits, n) as DigitCount,
+    });
+  const setDivisor = (n: DigitCount) =>
+    onChange({
+      divisorDigits: n,
+      dividendDigits: Math.max(dividendDigits, n) as DigitCount,
+    });
   return (
     <View style={styles.divisionDigits}>
       <View style={styles.divisionDigitsRow}>
@@ -278,7 +292,7 @@ function DivisionDigitSelectors({
               key={n}
               label={String(n)}
               selected={dividendDigits === n}
-              onPress={() => onChange({ dividendDigits: n })}
+              onPress={() => setDividend(n)}
               tone={tone}
             />
           ))}
@@ -294,7 +308,7 @@ function DivisionDigitSelectors({
               key={n}
               label={String(n)}
               selected={divisorDigits === n}
-              onPress={() => onChange({ divisorDigits: n })}
+              onPress={() => setDivisor(n)}
               tone={tone}
             />
           ))}

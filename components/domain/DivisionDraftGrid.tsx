@@ -8,6 +8,7 @@ import { AnswerBox, fitTransform } from './AnswerBox';
 import { BorrowArrow } from './BorrowArrow';
 import { computeBorrowDisplay } from './borrow';
 import { strokeToPath, type InkStroke } from './ink';
+import { canonicalDigit } from '../../lib/solver/digitInk';
 import {
   DIVISION_DRAFT_CELL_HEIGHT,
   DIVISION_DRAFT_CELL_WIDTH,
@@ -156,6 +157,11 @@ function LabelCell({
   onEdit?: () => void;
 }) {
   const inner = cellWidth - 12;
+  // A committed cell's ink is the canonical `digitInk` glyph (the workspace
+  // swaps recognized handwriting for it), so recover the kid's own digit and
+  // show it as a clean, read-only printed number in the answer-ink blue — same
+  // as the answer boxes. Fall back to the ink only if it isn't a clean glyph.
+  const digit = canonicalDigit(strokes);
   const transform = fitTransform(strokes, inner, DIVISION_DRAFT_CELL_HEIGHT);
   const content = (
     <>
@@ -167,19 +173,31 @@ function LabelCell({
         ) : null}
       </View>
       <View style={[styles.labelBox, { width: inner }]}>
-        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-          {strokes.map((stroke, i) => (
-            <Path
-              key={i}
-              path={strokeToPath(stroke, transform)}
-              color={colors.text}
-              style="stroke"
-              strokeWidth={2.5}
-              strokeCap="round"
-              strokeJoin="round"
-            />
-          ))}
-        </Canvas>
+        {digit !== null ? (
+          <Text
+            allowFontScaling={false}
+            style={[
+              styles.labelDigit,
+              { fontSize: Math.round(DIVISION_DRAFT_CELL_HEIGHT * 0.62) },
+            ]}
+          >
+            {digit}
+          </Text>
+        ) : (
+          <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            {strokes.map((stroke, i) => (
+              <Path
+                key={i}
+                path={strokeToPath(stroke, transform)}
+                color={colors.text}
+                style="stroke"
+                strokeWidth={2.5}
+                strokeCap="round"
+                strokeJoin="round"
+              />
+            ))}
+          </Canvas>
+        )}
         {crossedOut ? (
           <View
             style={[styles.labelStrike, { backgroundColor: tone ?? colors.text }]}
@@ -455,6 +473,13 @@ const styles = StyleSheet.create({
     height: DIVISION_DRAFT_CELL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  labelDigit: {
+    color: colors.answerInk,
+    fontWeight: typography.weight.medium,
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
+    textAlign: 'center',
   },
   labelStrike: {
     position: 'absolute',

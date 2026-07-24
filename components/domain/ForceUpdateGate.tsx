@@ -1,16 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { colors, operationColors, spacing, typography } from '../../constants/design';
-import { appStoreUrl } from '../../lib/appConfig';
+import { storeUpdateUrls } from '../../lib/appConfig';
 import { Button } from '../ui';
 
 export interface ForceUpdateGateProps {
-  /** App Store numeric id for the deep link (null → open the App Store app). */
+  /** App Store numeric id for the iOS deep link (null → App Store front). */
   appStoreId: string | null;
 }
+
+/** This app's package/bundle id, from the embedded config (stable fallback). */
+const PACKAGE_ID =
+  Constants.expoConfig?.android?.package ??
+  Constants.expoConfig?.ios?.bundleIdentifier ??
+  'com.mc.mathpad';
+
+/**
+ * MathPen's App Store numeric id (apps.apple.com/app/id6785151405). Baked in so
+ * iOS "Update" reaches the real listing even before the remote config carries
+ * `ios.appStoreId`; a config value, when present, still overrides it.
+ */
+const DEFAULT_APP_STORE_ID = '6785151405';
 
 /**
  * Full-screen blocking overlay shown when the installed app version is below the
@@ -18,9 +32,22 @@ export interface ForceUpdateGateProps {
  */
 export function ForceUpdateGate({ appStoreId }: ForceUpdateGateProps) {
   const { t } = useTranslation();
-  const openStore = () => {
-    const url = appStoreUrl(appStoreId) ?? 'itms-apps://apps.apple.com';
-    Linking.openURL(url).catch(() => {});
+  // Send the kid to THIS app's listing — Play Store on Android, App Store on
+  // iOS — trying the store-app deep link first, then the https page.
+  const openStore = async () => {
+    const platform = Platform.OS === 'android' ? 'android' : 'ios';
+    const urls = storeUpdateUrls(platform, {
+      appStoreId: appStoreId ?? DEFAULT_APP_STORE_ID,
+      packageId: PACKAGE_ID,
+    });
+    for (const url of urls) {
+      try {
+        await Linking.openURL(url);
+        return;
+      } catch {
+        // Deep link unavailable on this device — try the next candidate.
+      }
+    }
   };
   return (
     <View style={styles.overlay}>

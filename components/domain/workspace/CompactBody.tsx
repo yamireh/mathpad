@@ -32,7 +32,7 @@ import {
 } from '../layout';
 import { fillSequence } from './fillSequence';
 import { nextEmptyBox } from './nextEmptyBox';
-import { PadRegion } from './PadRegion';
+import { PAD_MIN_HEIGHT, PadRegion } from './PadRegion';
 import { ScratchToolbar } from './ScratchToolbar';
 import type { WorkspaceCore } from './types';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -86,6 +86,7 @@ export interface CompactBodyProps {
 export function CompactBody({ core }: CompactBodyProps) {
   const { t } = useTranslation();
   const problemScrollRef = useRef<ScrollView>(null);
+  const problemVScrollRef = useRef<ScrollView>(null);
   const contentWidthRef = useRef(0);
   const { width: windowWidth } = useWindowDimensions();
   const {
@@ -169,6 +170,15 @@ export function CompactBody({ core }: CompactBodyProps) {
     scrollToActive();
   }, [scrollToActive]);
 
+  // Vertical companion to the horizontal auto-scroll: when a tall problem (e.g.
+  // multi-digit multiplication) makes the stage scroll, bring the answer boxes
+  // — which sit at the bottom of the stack — into view as the kid reaches them.
+  useEffect(() => {
+    if (activeBox?.startsWith('int-') || activeBox?.startsWith('dec-')) {
+      problemVScrollRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [activeBox]);
+
   // Every answer digit box has ink — the kid is done (frontierBox can't be used
   // for this: it returns the last box, never null, when all are filled).
   const allBoxesFilled = answerBoxOrder(shape, layout).every(
@@ -193,12 +203,18 @@ export function CompactBody({ core }: CompactBodyProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.problemArea}>
-        <ScrollView
-          ref={problemScrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.problemScroll}
+      <ScrollView
+        ref={problemVScrollRef}
+        style={styles.problemVScroll}
+        contentContainerStyle={styles.problemVContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.problemArea}>
+          <ScrollView
+            ref={problemScrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.problemScroll}
           // Record the content width and position on the active box (the
           // rightmost / units column initially) once laid out, so wide
           // problems open at the right where the kid starts writing.
@@ -233,8 +249,9 @@ export function CompactBody({ core }: CompactBodyProps) {
             sizing={sizing}
             errorMarks={errorMarks}
           />
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
+      </ScrollView>
 
       {activeBox ? (
         <PadRegion
@@ -352,6 +369,12 @@ export function CompactBody({ core }: CompactBodyProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // The problem card scrolls vertically when it's taller than the space left
+  // above the (min-height) pad — so a tall multiplication never squeezes the
+  // writing area. `flexShrink` lets it yield that space; short problems still
+  // sit at their natural height with the pad filling the rest.
+  problemVScroll: { flexShrink: 1 },
+  problemVContent: { flexGrow: 1, justifyContent: 'center' },
   // The math problem's "stage": a soft white card that lifts the question
   // off the screen background. Enough headroom up top that the borrow-arrow's
   // `+10` label (which floats ~24pt above the arc peak) isn't clipped.
@@ -374,6 +397,7 @@ const styles = StyleSheet.create({
   },
   bottomRegion: {
     flex: 1,
+    minHeight: PAD_MIN_HEIGHT,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },

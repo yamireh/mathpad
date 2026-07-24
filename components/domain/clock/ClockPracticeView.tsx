@@ -8,8 +8,13 @@ import {
   View,
 } from 'react-native';
 
-import { Button, IconButton, ScreenContainer } from '../../ui';
-import { clockColors, colors, spacing, typography } from '../../../constants/design';
+import { Button, ConfirmDialog, IconButton, ScreenContainer } from '../../ui';
+import {
+  clockColors,
+  colors,
+  spacing,
+  typography,
+} from '../../../constants/design';
 import { errorFeedback, successFeedback } from '../../../lib/feedback';
 import {
   generateClockQuestions,
@@ -51,6 +56,7 @@ export function ClockPracticeView({
   const [results, setResults] = useState<ClockResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [drawing, setDrawing] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const qRef = useRef<ClockQuestionHandle>(null);
 
   const q = questions[index];
@@ -75,18 +81,42 @@ export function ClockPracticeView({
     setIndex((i) => i + 1);
   };
 
+  // Next / Finish: confirm first if nothing has been entered for this question.
+  const onPrimary = () => {
+    if (qRef.current?.hasAnswer() === false) {
+      setConfirmSkip(true);
+      return;
+    }
+    void advance();
+  };
+
   return (
     <ScreenContainer padded={false}>
       <View style={styles.top}>
-        <IconButton
-          name="close"
-          accessibilityLabel={t('common.back')}
-          onPress={onExit}
-        />
-        <Text style={styles.progress}>
-          {t('practice.progress', { current: index + 1, total })}
-        </Text>
-        <View style={styles.spacer} />
+        <View style={styles.topRow}>
+          <IconButton
+            name="close"
+            accessibilityLabel={t('common.back')}
+            onPress={onExit}
+          />
+          <Text style={styles.progressText}>
+            {t('practice.progress', { current: index + 1, total })}
+          </Text>
+          <View style={styles.spacer} />
+        </View>
+        {/* The progress bar doubles as the header divider: a thin full-width
+            fill that grows across the bottom edge as the kid advances. */}
+        <View
+          style={styles.track}
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('a11y.progressBar', {
+            current: index + 1,
+            total,
+          })}
+        >
+          <View style={{ flex: index + 1, backgroundColor: clockColors.hourHand }} />
+          <View style={{ flex: total - index - 1 }} />
+        </View>
       </View>
 
       <ScrollView
@@ -109,27 +139,51 @@ export function ClockPracticeView({
           label={isLast ? t('practice.finish') : t('common.next')}
           tone={clockColors.hourHand}
           disabled={submitting}
-          onPress={advance}
+          onPress={onPrimary}
         />
       </View>
+
+      <ConfirmDialog
+        visible={confirmSkip}
+        title={t('practice.skipTitle')}
+        message={t('practice.skipMessage')}
+        confirmLabel={t('practice.skipConfirm')}
+        cancelLabel={t('practice.skipCancel')}
+        onConfirm={() => {
+          setConfirmSkip(false);
+          void advance();
+        }}
+        onCancel={() => setConfirmSkip(false)}
+      />
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  top: {
+  // Solid background so the (scrolling) clock can't show through the header;
+  // the progress bar below forms the divider instead of a hard line.
+  top: { backgroundColor: colors.background },
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  progress: {
+  progressText: {
     flex: 1,
-    textAlign: 'center',
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,
     color: colors.textMuted,
+    textAlign: 'center',
+  },
+  // Full-width, edge-to-edge sliver along the header's bottom — both the
+  // progress indicator and the header/content divider.
+  track: {
+    flexDirection: 'row',
+    height: 3,
+    backgroundColor: colors.surfaceAlt,
+    overflow: 'hidden',
   },
   spacer: { width: 40 },
   body: {

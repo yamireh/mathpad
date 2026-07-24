@@ -15,6 +15,7 @@ export {
 export type {
   ClockWord,
   ClockToken,
+  PatternSections,
   ClockQuestion,
   ClockAnswerSurface,
 } from './question';
@@ -24,6 +25,7 @@ export {
   phraseTokens,
   tokensEqual,
   patternBank,
+  patternSections,
   checkDigital,
   checkPattern,
   checkSet,

@@ -5,6 +5,7 @@ import {
   checkSet,
   generateClockQuestions,
   patternBank,
+  patternSections,
   phraseTokens,
   resolveAnswerWith,
   tokensEqual,
@@ -74,6 +75,45 @@ describe('clock — patternBank', () => {
     for (const w of ['oclock', 'quarter', 'half', 'past', 'to']) {
       expect(bank.some((t) => t.kind === 'word' && t.word === w)).toBe(true);
     }
+    // no duplicate tile by kind+value
+    const keys = bank.map((t) =>
+      t.kind === 'word' ? `w:${t.word}` : `n:${t.value}`,
+    );
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('clock — patternSections', () => {
+  const has = (tiles: ClockToken[], token: ClockToken) =>
+    tiles.some((t) => tokensEqual([t], [token]));
+
+  it('groups the answer tokens into the right sections', () => {
+    // twenty past six → 20 (minutes) · past (linker) · 6 (hour)
+    const s = patternSections(clockPhrase({ hour: 6, minute: 20 }));
+    expect(has(s.minutes, { kind: 'number', value: 20 })).toBe(true);
+    expect(has(s.linkers, { kind: 'word', word: 'past' })).toBe(true);
+    expect(has(s.hours, { kind: 'number', value: 6 })).toBe(true);
+    // half/quarter are minute words; past/to are the only linkers; o'clock
+    // lives with the hours (it's said right after the hour).
+    expect(has(s.minutes, { kind: 'word', word: 'half' })).toBe(true);
+    expect(has(s.minutes, { kind: 'word', word: 'quarter' })).toBe(true);
+    expect(has(s.linkers, { kind: 'word', word: 'oclock' })).toBe(false);
+    expect(has(s.hours, { kind: 'word', word: 'oclock' })).toBe(true);
+  });
+
+  it("offers o'clock via the hour section, with no minute number needed", () => {
+    // six o'clock → 6 (hour) · o'clock (also hour section); no minute numbers
+    const s = patternSections(clockPhrase({ hour: 6, minute: 0 }));
+    expect(has(s.hours, { kind: 'number', value: 6 })).toBe(true);
+    expect(has(s.hours, { kind: 'word', word: 'oclock' })).toBe(true);
+    expect(s.minutes.every((t) => t.kind === 'word')).toBe(true);
+  });
+
+  it('puts a value that is both the minute AND the hour in both sections', () => {
+    // ten past ten → needs 10 as the minute AND 10 as the hour
+    const s = patternSections(clockPhrase({ hour: 10, minute: 10 }));
+    expect(has(s.minutes, { kind: 'number', value: 10 })).toBe(true);
+    expect(has(s.hours, { kind: 'number', value: 10 })).toBe(true);
   });
 });
 

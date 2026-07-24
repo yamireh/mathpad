@@ -333,6 +333,10 @@
     "hourHand": "Hour hand",
     "minuteHand": "Minute hand",
     "patternHint": "Tap the words to build the time",
+    "removeTileHint": "Removes it from your answer",
+    "sectionMinutes": "Minutes",
+    "sectionLink": "Past or to",
+    "sectionHour": "Hour",
     "howTo": {
       "title": "How to read a clock",
       "titleSet": "Set the time",

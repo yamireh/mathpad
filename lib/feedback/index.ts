@@ -47,11 +47,26 @@ SCRATCH_A.volume = 0;
 SCRATCH_B.volume = 0;
 
 function blip(player: AudioPlayer): void {
+  const start = () => {
+    try {
+      player.play();
+    } catch {
+      // Not ready yet — the next call retries.
+    }
+  };
   try {
-    player.seekTo(0);
-    player.play();
+    // Rewind to the top, THEN play. `seekTo` is async: playing before it lands
+    // leaves a just-finished player parked at the END of the clip, so nothing is
+    // heard — the cause of the occasional missing correct/wrong sound. Play once
+    // the seek resolves; fall back to a direct play if it isn't a promise.
+    const seek = player.seekTo(0) as unknown;
+    if (seek && typeof (seek as Promise<void>).then === 'function') {
+      (seek as Promise<void>).then(start, start);
+    } else {
+      start();
+    }
   } catch {
-    // expo-audio can throw before the source is ready; the next call retries.
+    start();
   }
 }
 

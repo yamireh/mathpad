@@ -145,6 +145,52 @@ describe('generateSession — structure', () => {
     }
   });
 
+  it('recovers from impossible division settings without repeating one problem', () => {
+    // Regression: a divisor with more digits than the dividend + "no remainder"
+    // is unsatisfiable, so the generator used to fall back to a hardcoded 12÷4
+    // on every call and fill the whole session with that one problem. It must
+    // now degrade to varied, valid clean divisions.
+    const questions = generateSession(
+      divisionSettings({
+        dividendDigits: 1,
+        divisorDigits: 2,
+        answerType: 'noRemainder',
+        questionCount: 20,
+      }),
+    );
+    const sigs = questions.map((q) => q.operands.join('÷'));
+    expect(new Set(sigs).size).toBeGreaterThan(1); // not one repeated problem
+    expect(sigs.filter((s) => s === '12÷4')).toHaveLength(0); // no constant spam
+    for (const q of questions) {
+      const [dividend, divisor] = q.operands;
+      expect(divisor).toBeLessThan(dividend); // divisor clamped to fit
+      expect(dividend % divisor).toBe(0); // genuinely clean
+      expect(dividend / divisor).toBeGreaterThanOrEqual(2); // quotient ≥ 2
+    }
+  });
+
+  it('clamps a too-large divisor so every answer type stays solvable', () => {
+    for (const answerType of ['noRemainder', 'remainder', 'decimal', 'all'] as const) {
+      const questions = generateSession(
+        divisionSettings({
+          dividendDigits: 2,
+          divisorDigits: 4, // impossible as-is; must clamp to ≤ 2 digits
+          answerType,
+          questionCount: 20,
+        }),
+      );
+      for (const q of questions) {
+        // Divisor never has more digits than the dividend (clamp held).
+        expect(digitCount(q.operands[1])).toBeLessThanOrEqual(
+          digitCount(q.operands[0]),
+        );
+      }
+      // Varied — not one repeated fallback problem.
+      const sigs = questions.map((q) => q.operands.join('÷'));
+      expect(new Set(sigs).size).toBeGreaterThan(5);
+    }
+  });
+
   it('never emits a trivial ×1 multiplication', () => {
     for (const settings of [
       multiplicationSettings({ digitCounts: [1, 2] }),

@@ -458,6 +458,13 @@ function generateDivision(
   format: DivisionFormat,
   rng: RNG,
 ): QuestionCore {
+  // Guard: a divisor can't have more digits than the dividend, or clean
+  // division is impossible (a ≤9 number over a ≥10 divisor has no quotient ≥ 2)
+  // and this generator would spin to its fallback every call — filling a whole
+  // session with one repeated problem. The settings UI enforces this too; this
+  // covers any settings persisted before that guard existed.
+  divisorDigits = Math.min(divisorDigits, dividendDigits) as DigitCount;
+
   const resolved: 'noRemainder' | 'remainder' | 'decimal' =
     answerType === 'random' || answerType === 'all'
       ? pick(['noRemainder', 'remainder', 'decimal'] as const, rng)
@@ -525,11 +532,15 @@ function generateDivision(
     };
   }
 
-  // Best-effort fallback: a simple clean division.
+  // Last-resort fallback (unreachable in practice now the divisor is clamped
+  // ≤ the dividend). Emit a *varied* clean division rather than a constant, so
+  // a session can never fill with one repeated problem even if this is hit.
+  const fbDivisor = randInt(2, 9, rng);
+  const fbQuotient = randInt(2, 9, rng);
   return {
     operation: 'division',
-    operands: [12, 4],
-    answer: { kind: 'integer', value: 3 },
+    operands: [fbDivisor * fbQuotient, fbDivisor],
+    answer: { kind: 'integer', value: fbQuotient },
     layout: divisionLayout(false, format),
   };
 }

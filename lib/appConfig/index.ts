@@ -116,3 +116,31 @@ export function appStoreUrl(appStoreId: string | null): string | null {
   if (!appStoreId || appStoreId === '0000000000') return null;
   return `https://apps.apple.com/app/id${appStoreId}`;
 }
+
+/** Google Play product page URL for an app's package id. */
+export function playStoreUrl(packageId: string): string {
+  return `https://play.google.com/store/apps/details?id=${packageId}`;
+}
+
+/**
+ * Ordered "Update now" links to try for the running platform. The caller opens
+ * each in turn until one succeeds: the store-app deep link first (jumps
+ * straight to this app in the App Store / Play Store), then the https page as a
+ * universal fallback (store app if present, else browser).
+ *
+ * Android needs no remote id — the package id identifies the listing. iOS needs
+ * the numeric App Store id from the remote config; without it we can only reach
+ * the store front, so set `ios.appStoreId` in the config for a direct link.
+ */
+export function storeUpdateUrls(
+  platform: 'ios' | 'android',
+  opts: { appStoreId: string | null; packageId: string },
+): string[] {
+  if (platform === 'android') {
+    return [`market://details?id=${opts.packageId}`, playStoreUrl(opts.packageId)];
+  }
+  const web = appStoreUrl(opts.appStoreId);
+  if (web) return [web.replace('https://', 'itms-apps://'), web];
+  // No id configured yet — last resort so the button still opens the store.
+  return ['itms-apps://apps.apple.com', 'https://apps.apple.com'];
+}

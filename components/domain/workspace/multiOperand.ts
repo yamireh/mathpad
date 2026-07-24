@@ -83,11 +83,11 @@ export function multiplicationCarries(
 ): boolean[] {
   const carries = multiOperandCarries(partialValues, productWidth);
   const maxSpan = Math.max(1, ...partialValues.map(intDigits));
-  // Never a carry box over the leftmost (last) answer digit: it's the final
-  // digit, written straight into the answer — there's no column further left to
-  // carry into. So skip at least the leading column (plus any columns the
-  // partials don't reach). Internal carry boxes are untouched.
-  const skip = Math.max(1, productWidth - maxSpan);
+  // Skip only leading answer columns that no partial product reaches — those
+  // hold a pure carry-out, written straight into the answer. When a partial DOES
+  // reach the leftmost column it can still receive a carry from its right (e.g.
+  // 12×34: tens 4+6=10 carries into the hundreds), so that carry box must stay.
+  const skip = Math.max(0, productWidth - maxSpan);
   for (let i = 0; i < skip; i += 1) carries[i] = false;
   return carries;
 }

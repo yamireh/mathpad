@@ -11,6 +11,13 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AnswerPad } from '../AnswerPad';
+
+/**
+ * Guaranteed minimum height for the writing pad / bottom region, so a tall
+ * problem (e.g. multi-digit multiplication) can never squeeze it down to an
+ * unusable sliver — the problem area above scrolls instead.
+ */
+export const PAD_MIN_HEIGHT = 220;
 import type { InkStroke } from '../ink';
 import { spacing } from '../../../constants/design';
 
@@ -69,6 +76,7 @@ export function PadRegion({
 const styles = StyleSheet.create({
   full: {
     flex: 1,
+    minHeight: PAD_MIN_HEIGHT,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },

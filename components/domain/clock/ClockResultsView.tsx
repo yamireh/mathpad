@@ -1,10 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, Header, ScreenContainer } from '../../ui';
 import { clockColors, colors, radius, spacing, typography } from '../../../constants/design';
-import { formatDigital, type ClockResult } from '../../../lib/clock';
+import {
+  clockPhrase,
+  formatDigital,
+  phraseTokens,
+  type ClockResult,
+} from '../../../lib/clock';
 import { encouragementKey } from '../../../lib/scoring';
 
 export interface ClockResultsViewProps {
@@ -30,27 +35,32 @@ export function ClockResultsView({
   );
 
   return (
-    <ScreenContainer scroll>
-      <Header title={t('score.title')} />
-
-      <Text style={styles.encouragement}>{encouragement}</Text>
-      <Text style={[styles.hero, { color: clockColors.hourHand }]}>
-        {t('score.value', { score: solved, total })}
-      </Text>
-      <Text style={styles.tagline}>{t('review.hint')}</Text>
-
-      <View style={styles.list}>
-        {results.map((r, i) => (
-          <ResultRow
-            key={`${r.question.id}-${i}`}
-            number={i + 1}
-            result={r}
-            onPress={() => onFix(i)}
-          />
-        ))}
+    <ScreenContainer padded={false}>
+      {/* Pinned summary — stays put while the question list scrolls. */}
+      <View style={styles.topFixed}>
+        <Header title={t('score.title')} />
+        <Text style={styles.encouragement}>{encouragement}</Text>
+        <Text style={[styles.hero, { color: clockColors.hourHand }]}>
+          {t('score.value', { score: solved, total })}
+        </Text>
+        <Text style={styles.tagline}>{t('review.hint')}</Text>
       </View>
 
-      <View style={styles.actions}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.list}>
+          {results.map((r, i) => (
+            <ResultRow
+              key={`${r.question.id}-${i}`}
+              number={i + 1}
+              result={r}
+              onPress={() => onFix(i)}
+            />
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Pinned action strip so Home / Try again are always reachable. */}
+      <View style={styles.footer}>
         <Button label={t('score.again')} tone={clockColors.hourHand} onPress={onAgain} />
         <Button label={t('score.home')} variant="secondary" onPress={onHome} />
       </View>
@@ -69,13 +79,24 @@ function ResultRow({
 }) {
   const { t } = useTranslation();
   const ok = result.correct || result.fixed;
+  const q = result.question;
+  // Show the correct answer the same way it was asked: in words for the
+  // words/tiles mode, digital otherwise.
+  const answerText =
+    q.answerWith === 'pattern'
+      ? phraseTokens(clockPhrase(q.time))
+          .map((tok) =>
+            tok.kind === 'word' ? t(`clock.words.${tok.word}`) : String(tok.value),
+          )
+          .join(' ')
+      : formatDigital(q.time);
   return (
     <Card onPress={onPress} style={styles.row}>
       <View style={styles.rowLeft}>
         <Text style={styles.rowNum}>
           {t('score.questionLabel', { number })}
         </Text>
-        <Text style={styles.rowTime}>{formatDigital(result.question.time)}</Text>
+        <Text style={styles.rowTime}>{answerText}</Text>
         {!ok ? (
           <Text style={styles.given}>
             {t('score.yourAnswer')}: {result.given}
@@ -100,9 +121,34 @@ function ResultRow({
 }
 
 const styles = StyleSheet.create({
+  // Fixed top: title + score summary. Stays put while the list below scrolls.
+  topFixed: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    flexGrow: 1,
+  },
+  // Pinned action strip with a top border so it doesn't float.
+  footer: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
   encouragement: {
     textAlign: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     fontSize: typography.size.title,
     fontWeight: typography.weight.medium,
     color: colors.text,
@@ -121,7 +167,7 @@ const styles = StyleSheet.create({
     fontSize: typography.size.body,
     color: colors.textMuted,
   },
-  list: { gap: spacing.sm, marginTop: spacing.xl },
+  list: { gap: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowLeft: { gap: 2 },
   rowNum: { fontSize: typography.size.caption, color: colors.textMuted },
@@ -144,5 +190,4 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     color: colors.textMuted,
   },
-  actions: { gap: spacing.sm, marginTop: spacing.xxl },
 });

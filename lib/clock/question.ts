@@ -49,20 +49,60 @@ export function tokensEqual(a: ClockToken[], b: ClockToken[]): boolean {
   });
 }
 
-/** Tiles offered for a pattern question: the correct tokens + plausible decoys. */
-export function patternBank(phrase: ClockPhrase): ClockToken[] {
-  const tiles: ClockToken[] = (
-    ['oclock', 'quarter', 'half', 'past', 'to'] as ClockWord[]
-  ).map(word);
+/**
+ * Tiles grouped by their role in a spoken time, so the bank teaches the
+ * sentence frame ("[minutes] · past/to · [hour]"). The answer line stays
+ * free-order, so "six o'clock" still reads correctly. `past`/`to` are the two
+ * pivots that sit between minutes and hour; `o'clock` is a suffix said right
+ * after the hour, so it lives WITH the hours. A number that's both a valid
+ * minute AND a valid hour (e.g. "ten past ten") appears in both `minutes` and
+ * `hours`.
+ */
+export interface PatternSections {
+  /** Minute words + minute-amount numbers. */
+  minutes: ClockToken[];
+  /** The two pivot words: past · to. */
+  linkers: ClockToken[];
+  /** Hour numbers + the o'clock suffix. */
+  hours: ClockToken[];
+}
 
-  const numbers = new Set<number>([phrase.hour]);
-  for (const d of [1, 4, 7, 10]) numbers.add(((phrase.hour - 1 + d) % 12) + 1);
+const asc = (a: number, b: number) => a - b;
+
+/** Role-grouped tiles for a pattern question: correct tokens + plausible decoys. */
+export function patternSections(phrase: ClockPhrase): PatternSections {
+  // Hour candidates: the answer hour + spread-out decoys (all 1–12).
+  const hours = new Set<number>([phrase.hour]);
+  for (const d of [1, 4, 7, 10]) hours.add(((phrase.hour - 1 + d) % 12) + 1);
+
+  // Minute-amount candidates: only when the answer spells minutes as a number
+  // (past/to). The quarter/half/o'clock forms say a word or nothing.
+  const minutes = new Set<number>();
   if (phrase.kind === 'past' || phrase.kind === 'to') {
-    numbers.add(phrase.minutes);
-    for (const m of [5, 10, 20, 25]) numbers.add(m);
+    minutes.add(phrase.minutes);
+    for (const m of [5, 10, 20, 25]) minutes.add(m);
   }
-  for (const value of numbers) tiles.push(num(value));
-  return tiles;
+
+  return {
+    minutes: [word('half'), word('quarter'), ...[...minutes].sort(asc).map(num)],
+    linkers: [word('past'), word('to')],
+    hours: [...[...hours].sort(asc).map(num), word('oclock')],
+  };
+}
+
+/**
+ * Flat tile list (correct tokens + decoys), de-duplicated by kind+value.
+ * Kept for the dev preview and callers that don't need the role grouping.
+ */
+export function patternBank(phrase: ClockPhrase): ClockToken[] {
+  const { minutes, linkers, hours } = patternSections(phrase);
+  const seen = new Set<string>();
+  return [...minutes, ...linkers, ...hours].filter((t) => {
+    const key = t.kind === 'word' ? `w:${t.word}` : `n:${t.value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** Check a handwritten/typed digital answer ("6:30") against the time. */

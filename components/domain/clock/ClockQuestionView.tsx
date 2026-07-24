@@ -17,7 +17,7 @@ import {
   checkSet,
   clockPhrase,
   formatDigital,
-  patternBank,
+  patternSections,
   type ClockQuestion,
   type ClockTime,
   type ClockToken,
@@ -38,6 +38,12 @@ export interface ClockJudgement {
 
 export interface ClockQuestionHandle {
   judge: () => Promise<ClockJudgement>;
+  /**
+   * Whether the kid has entered anything for this question — used to confirm
+   * before moving on with a blank answer. "Set the hands" is always considered
+   * answered (the hands always sit at some time).
+   */
+  hasAnswer: () => boolean;
 }
 
 export interface ClockQuestionViewProps {
@@ -76,7 +82,10 @@ export const ClockQuestionView = forwardRef<
   }, []);
 
   const showRing = question.step === 'quarter';
-  const bank = useMemo(() => patternBank(clockPhrase(question.time)), [question]);
+  const sections = useMemo(
+    () => patternSections(clockPhrase(question.time)),
+    [question],
+  );
 
   const tokenLabel = (token: ClockToken) =>
     token.kind === 'word' ? t(`clock.words.${token.word}`) : String(token.value);
@@ -111,6 +120,13 @@ export const ClockQuestionView = forwardRef<
         return { correct: false, given: '—' };
       }
     },
+    hasAnswer: (): boolean => {
+      if (question.answerWith === 'pattern') return built.length > 0;
+      if (question.answerWith === 'set') return true;
+      const filled = (v: ClockFieldValue) =>
+        v.digits !== null || v.strokes.length > 0;
+      return filled(hourRef.current) || filled(minuteRef.current);
+    },
   }));
 
   if (question.answerWith === 'set') {
@@ -144,7 +160,7 @@ export const ClockQuestionView = forwardRef<
       <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
       {question.answerWith === 'pattern' ? (
         <PatternBuilder
-          bank={bank}
+          sections={sections}
           built={built}
           onAdd={(token) => setBuilt((b) => [...b, token])}
           onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}

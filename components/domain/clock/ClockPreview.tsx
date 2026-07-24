@@ -10,7 +10,7 @@ import {
   clockPhrase,
   formatDigital,
   generateClockTime,
-  patternBank,
+  patternSections,
   type ClockStep,
   type ClockToken,
 } from '../../../lib/clock';
@@ -39,7 +39,7 @@ export function ClockPreview() {
   const [built, setBuilt] = useState<ClockToken[]>([]);
   const [resetNonce, setResetNonce] = useState(0);
 
-  const bank = useMemo(() => patternBank(clockPhrase(time)), [time]);
+  const sections = useMemo(() => patternSections(clockPhrase(time)), [time]);
   const solved = answer === 'pattern' && built.length > 0 && checkPattern(time, built);
 
   const newTime = (s: ClockStep = step) => {
@@ -124,7 +124,7 @@ export function ClockPreview() {
       <Card style={styles.builder}>
         {answer === 'pattern' ? (
           <PatternBuilder
-            bank={bank}
+            sections={sections}
             built={built}
             onAdd={(token) => setBuilt((b) => [...b, token])}
             onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}

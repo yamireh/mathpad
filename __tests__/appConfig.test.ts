@@ -5,6 +5,8 @@ import {
   compareVersions,
   isUpdateRequired,
   parseAppConfig,
+  playStoreUrl,
+  storeUpdateUrls,
 } from '../lib/appConfig';
 
 describe('compareVersions', () => {
@@ -68,5 +70,38 @@ describe('appStoreUrl', () => {
     expect(appStoreUrl('12345')).toBe('https://apps.apple.com/app/id12345');
     expect(appStoreUrl('0000000000')).toBeNull();
     expect(appStoreUrl(null)).toBeNull();
+  });
+});
+
+describe('playStoreUrl', () => {
+  it('builds a Play Store page for the package id', () => {
+    expect(playStoreUrl('com.mc.mathpad')).toBe(
+      'https://play.google.com/store/apps/details?id=com.mc.mathpad',
+    );
+  });
+});
+
+describe('storeUpdateUrls', () => {
+  const packageId = 'com.mc.mathpad';
+
+  it('always targets THIS app on Android (deep link, then https), no id needed', () => {
+    expect(storeUpdateUrls('android', { appStoreId: null, packageId })).toEqual([
+      'market://details?id=com.mc.mathpad',
+      'https://play.google.com/store/apps/details?id=com.mc.mathpad',
+    ]);
+  });
+
+  it('deep-links to the exact app on iOS when the App Store id is known', () => {
+    expect(storeUpdateUrls('ios', { appStoreId: '12345', packageId })).toEqual([
+      'itms-apps://apps.apple.com/app/id12345',
+      'https://apps.apple.com/app/id12345',
+    ]);
+  });
+
+  it('falls back to the App Store front only when no id is configured', () => {
+    expect(storeUpdateUrls('ios', { appStoreId: null, packageId })).toEqual([
+      'itms-apps://apps.apple.com',
+      'https://apps.apple.com',
+    ]);
   });
 });

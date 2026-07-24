@@ -46,24 +46,27 @@ describe('additionCarries', () => {
 });
 
 describe('multiplicationCarries', () => {
-  it('never puts a carry box over the leftmost answer digit (89 × 13 = 1157)', () => {
-    // Carries into hundreds (internal, kept) and into thousands (leftmost).
+  it('suppresses the leftmost carry only when it is a pure carry-out (89 × 13 = 1157)', () => {
+    // Thousands is a leading carry-out column no partial reaches → suppressed.
+    // Hundreds is an internal carry → kept.
     const carries = multiplicationCarries(partialProductValues(89, 13), 4);
-    expect(carries[0]).toBe(false); // thousands (last box) — always suppressed
+    expect(carries[0]).toBe(false); // thousands — pure carry-out, suppressed
     expect(carries[1]).toBe(true); // hundreds — internal carry, kept
   });
 
-  it('drops the leftmost carry even when a partial reaches it (12 × 34 = 408)', () => {
-    // The only carry is tens→hundreds, i.e. into the last box — so no boxes.
+  it('keeps the leftmost carry when a partial reaches it (12 × 34 = 408)', () => {
+    // Hundreds holds the 3 of 360 AND receives the tens carry (4+6=10), so the
+    // kid must add them — its carry box stays.
     expect(multiplicationCarries(partialProductValues(12, 34), 3)).toEqual([
-      false,
+      true,
       false,
       false,
     ]);
   });
 
-  it('suppresses the leftmost carry for a single-digit multiplier (68 × 5 = 340)', () => {
+  it('has no sum carry for a single-digit multiplier (68 × 5 = 340)', () => {
+    // One partial → nothing to add → no sum carries at all.
     const carries = multiplicationCarries(partialProductValues(68, 5), 3);
-    expect(carries[0]).toBe(false); // hundreds (last box)
+    expect(carries[0]).toBe(false);
   });
 });

@@ -10,9 +10,39 @@ import {
 
 import { IconButton, TipBubble } from '../ui';
 import { colors, radius, spacing, typography } from '../../constants/design';
+import { canonicalDigit } from '../../lib/solver/digitInk';
 import { useCursorTarget } from './cursorTarget';
 import { NotebookGrid } from './NotebookGrid';
-import { type InkStroke, strokeToFreehandPath, useInkCapture } from './ink';
+import {
+  type InkStroke,
+  type PathTransform,
+  strokeToFreehandPath,
+  strokeToPath,
+  strokesBounds,
+  useInkCapture,
+} from './ink';
+
+/**
+ * Center a recognized glyph in the pad. A committed box's ink is the canonical
+ * `digitInk` glyph, which lives in a tiny 0–100 space — drawn raw it sits in the
+ * top-left corner, so on review/re-focus we scale it up and center it instead.
+ */
+function centeredGlyphTransform(
+  strokes: InkStroke[],
+  width: number,
+  height: number,
+): PathTransform | null {
+  const bounds = strokesBounds(strokes);
+  if (!bounds) return null;
+  const gw = Math.max(bounds.maxX - bounds.minX, 1);
+  const gh = Math.max(bounds.maxY - bounds.minY, 1);
+  const scale = Math.min((height * 0.55) / gh, (width * 0.7) / gw);
+  return {
+    scale,
+    dx: width / 2 - (bounds.minX + gw / 2) * scale,
+    dy: height / 2 - (bounds.minY + gh / 2) * scale,
+  };
+}
 
 export interface AnswerPadProps {
   /** The active answer box's current ink. */
@@ -53,6 +83,13 @@ export function AnswerPad({
   const { t } = useTranslation();
   const ink = useInkCapture(strokes, onStrokesChange);
   const [size, setSize] = useState({ w: 0, h: 0 });
+
+  // A committed box hands the pad its recognized glyph (0–100 space). Center +
+  // scale it so it reads clearly in the middle of the pad, not tucked top-left.
+  const glyphFit =
+    size.w > 0 && canonicalDigit(ink.strokes) !== null
+      ? centeredGlyphTransform(ink.strokes, size.w, size.h)
+      : null;
 
   // Demo solver: report the drawing surface so the hand can scribble over it.
   // Inert during normal practice (`enabled` is false).
@@ -122,14 +159,26 @@ export function AnswerPad({
         ) : null}
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
           {!collapsed ? <NotebookGrid width={size.w} height={size.h} /> : null}
-          {ink.strokes.map((stroke, i) => (
-            <Path
-              key={i}
-              path={strokeToFreehandPath(stroke, true)}
-              color={colors.text}
-              style="fill"
-            />
-          ))}
+          {glyphFit
+            ? ink.strokes.map((stroke, i) => (
+                <Path
+                  key={i}
+                  path={strokeToPath(stroke, glyphFit)}
+                  color={colors.text}
+                  style="stroke"
+                  strokeWidth={4}
+                  strokeCap="round"
+                  strokeJoin="round"
+                />
+              ))
+            : ink.strokes.map((stroke, i) => (
+                <Path
+                  key={i}
+                  path={strokeToFreehandPath(stroke, true)}
+                  color={colors.text}
+                  style="fill"
+                />
+              ))}
           {ink.currentStroke ? (
             <Path
               path={strokeToFreehandPath(ink.currentStroke, false)}
