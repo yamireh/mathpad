@@ -42,6 +42,10 @@ In `app.json`:
 - `version` — `1.0.0` → `1.0.1` (patch / bug fix) → `1.1.0` (minor) → `2.0.0`
   (Clock). Matches the `versions` skill docs.
 - Bump the **build number** on every submission (even resubmits).
+- **Every version bump gets a release-notes file:** create
+  `docs/releases/<version>.md` and record its fixes there (see
+  `docs/releases/README.md`). This is the per-version source of truth for
+  what changed — no digging through git history.
 
 ## Hotfix flow
 
