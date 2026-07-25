@@ -5,7 +5,8 @@
  * device is linked, and there's at least one pending exam.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -26,7 +27,18 @@ export function PendingExamsCard() {
   const router = useRouter();
   const { link } = useFamilyLink();
   const { startExam } = usePracticeSession();
-  const { exams } = usePendingExams(link?.familyId ?? null, link?.childId ?? null);
+  const { exams, reload } = usePendingExams(
+    link?.familyId ?? null,
+    link?.childId ?? null,
+  );
+
+  // Re-check whenever the home regains focus — so a newly-assigned practice
+  // shows up without a relaunch, and a just-finished one drops off the list.
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
 
   if (!PARENT_PRO_ENABLED || !link || exams.length === 0) return null;
 
