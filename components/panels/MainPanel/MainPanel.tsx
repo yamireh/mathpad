@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
+import { WelcomeTips, WELCOME_TIP_ID } from '../../domain';
 import { IconButton, ScreenContainer } from '../../ui';
 import {
   colors,
@@ -16,6 +18,7 @@ import {
   useFamilyLink,
   useParentalGate,
   usePurchases,
+  useTip,
 } from '../../../hooks';
 import { tapFeedback } from '../../../lib/feedback';
 import { TopicCard } from './TopicCard';
@@ -51,6 +54,15 @@ export function MainPanel() {
   const greeting = firstName
     ? t('home.greetingNamed', { name: firstName })
     : t('home.greeting');
+
+  // Welcome tips on the practice landing page. Shows on EVERY launch until the
+  // kid taps "Don't show again" (which persists via the tips store); "Got it!"
+  // / back just closes it for this session. Not gated on `isGrownUp` — auth
+  // resolves after first paint (see useAuthUser `initializing`) and gating on it
+  // caused a flash-then-close.
+  const welcome = useTip(WELCOME_TIP_ID);
+  const [welcomeClosed, setWelcomeClosed] = useState(false);
+  const showWelcome = welcome.shouldShow && !welcomeClosed;
 
   return (
     <ScreenContainer
@@ -123,6 +135,15 @@ export function MainPanel() {
       </View>
 
       {gate}
+
+      <WelcomeTips
+        visible={showWelcome}
+        onClose={() => setWelcomeClosed(true)}
+        onDontShowAgain={() => {
+          welcome.markSeen();
+          setWelcomeClosed(true);
+        }}
+      />
     </ScreenContainer>
   );
 }

@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { WelcomeTips, WELCOME_TIP_ID } from '../components/domain';
 import { Header, IconButton, ScreenContainer } from '../components/ui';
 import { colors, radius, shadows, spacing, typography } from '../constants/design';
-import { useDeviceRole, useFamilyLink } from '../hooks';
+import { useDeviceRole, useFamilyLink, useTip } from '../hooks';
 import { tapFeedback } from '../lib/feedback';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -48,6 +50,10 @@ export default function GrownUpsScreen() {
   const router = useRouter();
   const { setRole } = useDeviceRole();
   const { linked } = useFamilyLink();
+  // Reopen the welcome tips on demand. Closing just hides it; "Don't show again"
+  // also persists the opt-out so it stops appearing on launch.
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const welcome = useTip(WELCOME_TIP_ID);
   const becomeParent = () => {
     setRole('parent');
     router.dismissAll();
@@ -87,11 +93,25 @@ export default function GrownUpsScreen() {
           onPress={() => router.push('/connect')}
         />
         <MenuRow
+          icon="bulb-outline"
+          label={t('grownUps.tips')}
+          onPress={() => setTipsOpen(true)}
+        />
+        <MenuRow
           icon="help-buoy-outline"
           label={t('home.support')}
           onPress={() => router.push('/support')}
         />
       </View>
+
+      <WelcomeTips
+        visible={tipsOpen}
+        onClose={() => setTipsOpen(false)}
+        onDontShowAgain={() => {
+          welcome.markSeen();
+          setTipsOpen(false);
+        }}
+      />
     </ScreenContainer>
   );
 }

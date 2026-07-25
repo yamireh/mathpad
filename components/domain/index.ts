@@ -75,6 +75,7 @@ export {
 } from './ForceUpdateGate';
 export { RolePickerGate } from './RolePickerGate';
 export { AppPrewarm } from './AppPrewarm';
+export { WelcomeTips, WELCOME_TIP_ID } from './WelcomeTips';
 export {
   type AnswerInk,
   type InkPoint,

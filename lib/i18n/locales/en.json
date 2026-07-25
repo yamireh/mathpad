@@ -41,12 +41,26 @@
     "parents": "Parents",
     "grownUps": "Grown-ups"
   },
+  "welcome": {
+    "title": "How MathPen works",
+    "subtitle": "A few tips to make math easier.",
+    "howToTitle": "Not sure how a mode works?",
+    "howToBody": "Tap the lightbulb on any topic to watch how it works.",
+    "penTitle": "Use a pen or stylus",
+    "penBody": "Writing digits with a stylus is easier and neater than a finger.",
+    "boxesTitle": "One digit per box",
+    "boxesBody": "Write each digit in its own box — MathPen reads your handwriting.",
+    "cta": "Got it!",
+    "dontShowAgain": "Don't show this again",
+    "footnote": "Reopen anytime from Grown-ups → Tips & how-to."
+  },
   "grownUps": {
     "title": "Grown-ups",
     "parents": "I'm a parent",
     "connect": "Connect to a parent",
     "connected": "Family connection",
-    "devSwitchParent": "Switch to parent (dev)"
+    "devSwitchParent": "Switch to parent (dev)",
+    "tips": "Tips & how-to"
   },
   "dashboard": {
     "child": "Child {{n}}",
