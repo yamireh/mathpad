@@ -11,7 +11,8 @@ This skill tracks the scope of each MathPad release. Each version has its own do
 
 - **[V1.md](V1.md)** — First production deployment. Free download; Addition free + live $9.99 Operations IAP (the rest); other modules "Coming Soon."
 - **[V1.1.md](V1.1.md)** — Post-launch update. Committed: best-effort remote-config loader (tunables, force-update gate) with bundled-default fallback.
-- **[V2.0.md](V2.0.md)** — The **Clock** module (read an analog clock; answer Digital/Pattern/Mixed; complexity 15s/5s/Minutes). Full design in `docs/clock.md`.
+- **[V2.0.md](V2.0.md)** — The **Clock** module (read an analog clock; answer Digital/Pattern/Mixed; complexity 15s/5s/Minutes). Full design in `docs/clock.md`. ⚠️ Roadmap-numbered "V2.0" but actually shipped as **marketing version 1.2.0** — not the 2.0.0 app release.
+- **[V2.0.0.md](V2.0.0.md)** — **Parent Pro** (the real **marketing version 2.0.0**): targets & stars + parent-assigned exams, sold as a **subscription**. In development on branch `parent-pro`. Full design in `docs/parent-pro.md`.
 - *V3 onwards — not yet defined.*
 
 ## Rules

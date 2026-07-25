@@ -332,7 +332,7 @@ All data stays on the device. No cloud, no sync, no external calls.
 - User accounts, login, multi-kid profiles
 - Cloud sync, backups, multi-device
 - Teacher dashboards, classroom features, sharing
-- Leaderboards, achievements, stars, streaks, reward-driven characters/mascots (a brand mascot as decoration is allowed)
+- Leaderboards, achievements, streaks, reward-driven characters/mascots in the **kid practice** (a brand mascot as decoration is allowed). Note: **parent-directed stars/rewards are in scope in Parent Mode** (Parent Pro — parent sets goals, kid earns stars redeemable for real-world rewards). These stay **off** the kid's practice / score / review screens; see `docs/parent-pro.md`.
 - Word problems, fractions as input, negative answers in multiplication
 - Sound effects, music, haptics beyond default
 - Onboarding tutorial (defer to v1.1 based on user feedback)

@@ -7,6 +7,24 @@ description: MathPad monetization model — pricing tiers, free-tier strategy, c
 
 This is the **locked monetization strategy** for MathPad, agreed jointly between the user and Claude. Re-open this discussion only when the user explicitly invokes pricing topics. Do not unilaterally suggest pricing changes during unrelated dev work.
 
+## 0. Two models (added 2026-07-25)
+
+MathPad now has **two distinct monetization surfaces**, and they use **different models on purpose**:
+
+| Surface | Model | Rationale |
+|---|---|---|
+| **Kid learning modules** (Operations, Clock, …) | **One-time IAP** (§1) | Offline, owned forever. The no-backend/no-accounts/offline constraints (§5) apply here and rule out subscriptions. |
+| **Parent Pro** (targets/stars, assigned exams, richer dashboard) | **Subscription** | Parent Mode is already online + account-based (Firebase), so §5 does **not** apply to it. Inherently recurring/server-backed value → subscription is the right fit. |
+
+**Parent Pro subscription — decided 2026-07-25:**
+- Targets & stars (parent sets goals; kid earns stars, redeemable for real-world rewards) + parent-assigned exams (blind results — kid submits, parent sees the score) are **subscription-gated** under a `parentPro` entitlement.
+- **The basic dashboard stays free** (already shipped). Pro is purely additive: free = *see* progress, Pro = *direct* it.
+- Framing: we do **not** put kid learning behind a subscription (modules stay buy-once, offline). The subscription is for the **ongoing parent service** (assignments, tracking, cloud). All Pro/subscription surfaces are **parent-authenticated only**, never kid-facing (COPPA + Apple kids rules).
+- **Still open:** price + period (floated ~$3–5/mo or ~$20–30/yr, annual-forward; buyer compares to Kumon $100–150/mo). Enable Apple Family Sharing on the sub.
+- Full design: `docs/parent-pro.md`. Targets marketing version **2.0.0**.
+
+> Why this doesn't contradict §5: §5's "subscriptions conflict with offline + no-backend" is about the **kid app**. Parent Mode already has a backend and accounts — the subscription lives entirely on that already-online surface.
+
 ## 1. The model
 
 > **Ship status (2026-06-03):** The **Operations tier** (free Addition + $9.99 for the rest) is now a **V1 launch deliverable — live at launch** (see [[V1]]). Clock / Shapes / Axis tiers and the **Complete bundle** remain deferred until those modules are built. The model below is unchanged; only the rollout timing of the Operations tier moved forward.
