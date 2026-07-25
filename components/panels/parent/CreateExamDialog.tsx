@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Chip } from '../../ui';
 import {
@@ -19,6 +19,7 @@ import { generateSession } from '../../../lib/questionGenerator';
 import { defaultSettings } from '../../../lib/storage';
 import { nextExamTitle, parseCustomProblems, type Exam } from '../../../lib/exams';
 import type { Operation, QuestionCount, Settings } from '../../../types';
+import { CustomKeypad } from './CustomKeypad';
 
 type Mode = 'random' | 'custom';
 
@@ -56,20 +57,10 @@ export function CreateExamDialog({
   const [operation, setOperation] = useState<Operation>('addition');
   const [count, setCount] = useState<QuestionCount>(10);
   const [customText, setCustomText] = useState('');
-  // Cursor position, so the operator toolbar inserts where the parent is typing.
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [assignedTo, setAssignedTo] = useState<string[]>(
     children.length === 1 ? [children[0].childId] : [],
   );
   const [saving, setSaving] = useState(false);
-
-  /** Insert an operator at the cursor (replacing any selection). */
-  const insertOp = (op: string) => {
-    const { start, end } = selection;
-    setCustomText((prev) => prev.slice(0, start) + op + prev.slice(end));
-    const pos = start + op.length;
-    setSelection({ start: pos, end: pos });
-  };
 
   // Custom problems parsed live so the parent sees the count + any bad lines.
   const custom = useMemo(() => parseCustomProblems(customText), [customText]);
@@ -164,37 +155,10 @@ export function CreateExamDialog({
           ) : (
             <>
               <Text style={styles.label}>{t('exams.customLabel')}</Text>
-              {/* Operator toolbar — inserts at the cursor, so the numeric
-                  keyboard is enough on any platform (Android has no
-                  numbers-and-punctuation keyboard). */}
-              <View style={styles.opBar}>
-                {['+', '-', '×', '÷', '\n'].map((op) => (
-                  <Pressable
-                    key={op}
-                    onPress={() => insertOp(op)}
-                    accessibilityRole="button"
-                    accessibilityLabel={op === '\n' ? t('exams.opNewLine') : op}
-                    style={styles.opKey}
-                  >
-                    <Text style={styles.opKeyText}>
-                      {op === '\n' ? '↵' : op}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <TextInput
-                style={styles.customInput}
-                placeholder={t('exams.customPlaceholder')}
-                placeholderTextColor={colors.textMuted}
+              <CustomKeypad
                 value={customText}
-                onChangeText={setCustomText}
-                selection={selection}
-                onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
-                multiline
-                // Numeric keyboard on iOS; the toolbar covers operators anywhere.
-                keyboardType="numbers-and-punctuation"
-                autoCapitalize="none"
-                autoCorrect={false}
+                onChange={setCustomText}
+                placeholder={t('exams.customPlaceholder')}
               />
               {custom.errors.length > 0 ? (
                 <Text style={styles.errorHint}>
@@ -293,34 +257,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
-  },
-  opBar: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs },
-  opKey: {
-    minWidth: 40,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    alignItems: 'center',
-  },
-  opKeyText: {
-    fontSize: typography.size.title,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
-  customInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 120,
-    textAlignVertical: 'top',
-    fontSize: typography.size.bodyLarge,
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
   },
   hint: { fontSize: typography.size.caption, color: colors.textMuted },
   errorHint: { fontSize: typography.size.caption, color: colors.wrong },

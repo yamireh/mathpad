@@ -122,7 +122,8 @@
     "customHint": "{{count}} questions",
     "customErrors": "Can't read: {{lines}}",
     "customEmpty": "Add at least one problem.",
-    "opNewLine": "New line"
+    "opNewLine": "New line",
+    "opDelete": "Delete"
   },
   "rewards": {
     "title": "Goals & stars",
