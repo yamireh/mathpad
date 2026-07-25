@@ -17,7 +17,7 @@ import {
 } from '../../../constants/design';
 import { generateSession } from '../../../lib/questionGenerator';
 import { defaultSettings } from '../../../lib/storage';
-import type { Exam } from '../../../lib/exams';
+import { nextExamTitle, type Exam } from '../../../lib/exams';
 import type { Operation, QuestionCount, Settings } from '../../../types';
 
 const OPERATIONS: Operation[] = [
@@ -28,20 +28,6 @@ const OPERATIONS: Operation[] = [
   'mix',
 ];
 const COUNTS: QuestionCount[] = [5, 10, 15, 20];
-
-/**
- * Auto-generate a practice-set name: `YYYY-MM-DD #n`, where n restarts at 1 each
- * day (so a parent never has to think one up). Counts existing sets whose name
- * starts with today's date.
- */
-function nextExamTitle(existingTitles: string[], now: Date): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  const date = `${y}-${m}-${d}`;
-  const seq = existingTitles.filter((tt) => tt.startsWith(date)).length + 1;
-  return `${date} #${seq}`;
-}
 
 export interface CreateExamDialogProps {
   visible: boolean;

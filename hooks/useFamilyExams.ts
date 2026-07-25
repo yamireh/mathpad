@@ -12,7 +12,7 @@ import {
   listExams,
   loadExamWithResults,
 } from '../lib/firebase/exams';
-import type { Exam, ExamResult } from '../lib/exams';
+import { nextExamTitle, type Exam, type ExamResult } from '../lib/exams';
 
 /** An exam plus each assigned child's result (null = not submitted yet). */
 export interface ExamWithChildResults {
@@ -61,7 +61,15 @@ export function useFamilyExams(familyId: string): UseFamilyExamsResult {
 
   const create = useCallback(
     async (exam: Omit<Exam, 'id' | 'createdAt'>) => {
-      await createExam(familyId, exam);
+      // Name authoritatively from a FRESH read (the dialog's list can be stale/
+      // still-loading, which duplicated today's "#1"). Compute the daily
+      // sequence against what's actually stored right now.
+      const current = await listExams(familyId).catch(() => [] as Exam[]);
+      const title = nextExamTitle(
+        current.map((e) => e.title),
+        new Date(),
+      );
+      await createExam(familyId, { ...exam, title });
       reload();
     },
     [familyId, reload],

@@ -10,3 +10,4 @@ export type {
   ExamResult,
   ExamWithResult,
 } from './types';
+export { nextExamTitle } from './naming';
