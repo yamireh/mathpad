@@ -106,6 +106,15 @@ service cloud.firestore {
           && (uid() == parentUid || uid() == familyOwner(familyId));
       }
 
+      // Parent Pro — Assigned Exams (family-level). Parents (members) author
+      // them; a kid may read exams assigned to their device. Results live under
+      // the child doc (below). See docs/parent-pro-exams.md.
+      match /exams/{examId} {
+        allow read: if isMember(familyId)
+          || (signedIn() && (uid() in resource.data.assignedTo));
+        allow write: if signedIn() && isMember(familyId);
+      }
+
       // Each child = one kid device. Writers: the kid's own device (uid ==
       // childId) OR any family member (a parent — e.g. a shared phone, or the
       // kid practising while a parent is signed in on the same device). Kids are
@@ -145,6 +154,15 @@ service cloud.firestore {
         match /redemptions/{redemptionId} {
           allow read: if uid() == childId || isMember(familyId);
           allow write: if signedIn() && isMember(familyId);
+        }
+
+        // Assigned-exam submissions: the kid writes their own result; parents
+        // (members) read it and may delete (cleanup). See docs/parent-pro-exams.md.
+        match /examResults/{examId} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow create, update: if signedIn()
+            && (uid() == childId || isMember(familyId));
+          allow delete: if signedIn() && isMember(familyId);
         }
       }
     }

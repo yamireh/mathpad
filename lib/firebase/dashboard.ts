@@ -17,6 +17,7 @@ import {
 
 import { getRuntimeConfig } from '../appConfig';
 import { db } from './index';
+import { purgeChildExamResults } from './exams';
 import { purgeChildRewards } from './rewards';
 
 export interface TopicStat {
@@ -133,5 +134,6 @@ export async function removeChild(
   const sessions = await getDocs(collection(childRef, 'sessions'));
   await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
   await purgeChildRewards(childRef); // targets / stars / awards / redemptions
+  await purgeChildExamResults(childRef); // submitted exam results
   await deleteDoc(childRef);
 }

@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './index';
+import { purgeChildExamResults } from './exams';
 import { purgeChildRewards } from './rewards';
 
 export interface Family {
@@ -214,8 +215,12 @@ async function deleteFamily(fam: Family): Promise<void> {
     const sessions = await getDocs(collection(child.ref, 'sessions'));
     await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
     await purgeChildRewards(child.ref); // targets / stars / awards / redemptions
+    await purgeChildExamResults(child.ref); // submitted exam results
     await deleteDoc(child.ref);
   }
+  // Family-level exams (authored by the parent) go too.
+  const exams = await getDocs(collection(famRef, 'exams'));
+  await Promise.all(exams.docs.map((d) => deleteDoc(d.ref)));
   const parents = await getDocs(collection(famRef, 'parents'));
   await Promise.all(parents.docs.map((d) => deleteDoc(d.ref)));
   // Codes must go before the family doc (their delete rule reads the family).
