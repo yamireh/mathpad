@@ -90,7 +90,6 @@ export function SetGoalDialog({
 }: SetGoalDialogProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<RewardPeriod>(initial?.period ?? 'weekly');
-  const [total, setTotal] = useState(initial?.goal.total ?? 50);
   const [byTopic, setByTopic] = useState<Record<string, number>>(
     initial?.goal.byTopic ?? {},
   );
@@ -98,16 +97,19 @@ export function SetGoalDialog({
   const setTopic = (topic: string, v: number) =>
     setByTopic((prev) => ({ ...prev, [topic]: v }));
 
+  // The overall goal is the SUM of the per-topic targets — never set directly.
+  const total = TOPICS.reduce((sum, topic) => sum + (byTopic[topic] ?? 0), 0);
+  const canSave = total > 0;
+
   const save = () => {
     const cleanedTopics = Object.fromEntries(
-      Object.entries(byTopic).filter(([, v]) => v > 0),
+      TOPICS.map((topic) => [topic, byTopic[topic] ?? 0]).filter(
+        ([, v]) => (v as number) > 0,
+      ),
     );
     onSave({
       period,
-      goal: {
-        total: Math.max(1, total),
-        ...(Object.keys(cleanedTopics).length ? { byTopic: cleanedTopics } : {}),
-      },
+      goal: { total, byTopic: cleanedTopics },
       weekStart: DEFAULT_WEEK_START,
       active: true,
     });
@@ -133,11 +135,6 @@ export function SetGoalDialog({
             ))}
           </View>
 
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>{t('rewards.goalTotal')}</Text>
-            <Stepper value={total} onChange={setTotal} step={10} min={1} />
-          </View>
-
           <Text style={styles.sectionLabel}>{t('rewards.perTopic')}</Text>
           {TOPICS.map((topic) => (
             <View key={topic} style={styles.field}>
@@ -151,8 +148,19 @@ export function SetGoalDialog({
             </View>
           ))}
 
+          {/* Total is the sum of the per-topic targets — shown, not set. */}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>{t('rewards.goalTotal')}</Text>
+            <Text style={styles.totalValue}>{total}</Text>
+          </View>
+
           <View style={styles.actions}>
-            <Button label={t('rewards.save')} variant="primary" onPress={save} />
+            <Button
+              label={t('rewards.save')}
+              variant="primary"
+              disabled={!canSave}
+              onPress={save}
+            />
             <Button label={t('rewards.cancel')} variant="secondary" onPress={onCancel} />
           </View>
         </View>
@@ -226,6 +234,26 @@ const styles = StyleSheet.create({
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
     color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  totalLabel: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  totalValue: {
+    fontSize: typography.size.title,
+    fontWeight: typography.weight.medium,
+    color: colors.answerInk,
     fontVariant: ['tabular-nums'],
   },
   actions: { gap: spacing.sm, marginTop: spacing.md },

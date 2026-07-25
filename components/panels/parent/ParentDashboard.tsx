@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -331,7 +331,6 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<DashTab>('progress');
-  const seeded = useRef(false);
 
   const isRemove = pending?.action === 'remove';
   const confirmAction = async () => {
@@ -349,15 +348,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
     }
   };
 
-  // Open the first child by default; the rest collapse so every name is visible
-  // at once without scrolling to reach the last child.
-  useEffect(() => {
-    if (!seeded.current && children.length > 0) {
-      seeded.current = true;
-      setExpanded({ [children[0].childId]: true });
-    }
-  }, [children]);
-
+  // Every child starts collapsed — the parent taps a name to open it.
   const toggle = (id: string) => setExpanded((m) => ({ ...m, [id]: !m[id] }));
 
   if (loading && children.length === 0) {
