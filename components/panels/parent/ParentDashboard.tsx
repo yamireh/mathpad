@@ -27,6 +27,7 @@ import {
   removeChild,
   resetChild,
 } from '../../../lib/firebase/dashboard';
+import { RewardsSection } from './RewardsSection';
 
 const pct = (correct: number, total: number) =>
   total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -207,15 +208,22 @@ function ChildHeader({
 
 function ChildBody({
   child,
+  familyId,
   onReset,
   onRemove,
 }: {
   child: ChildProgress;
+  familyId: string;
   onReset: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
+  const rewardSessions = child.recent.map((r) => ({
+    topic: r.topic,
+    completedAt: r.completedAt,
+    totalQuestions: r.totalQuestions,
+  }));
   return (
     <View style={styles.card}>
       <View style={styles.stats}>
@@ -279,6 +287,13 @@ function ChildBody({
           </View>
         </View>
       ) : null}
+
+      <RewardsSection
+        familyId={familyId}
+        childId={child.childId}
+        sessions={rewardSessions}
+        topicLabel={label}
+      />
 
       <View style={styles.childActions}>
         <Pressable
@@ -439,6 +454,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
           return (
             <ChildBody
               child={item}
+              familyId={familyId}
               onReset={() =>
                 setPending({ action: 'reset', childId: item.childId, name })
               }

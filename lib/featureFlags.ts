@@ -17,3 +17,12 @@ export const CLOCK_ENABLED = true;
  * `true` once Shapes/Money/Axis ship; the buttons appear on every unlock page.
  */
 export const COMPLETE_BUNDLE_ENABLED = false;
+
+/**
+ * Parent Pro — targets & stars (and, later, assigned exams). Built dark on the
+ * `parent-pro` branch: visible while developing (`__DEV__`) but hidden in a
+ * production build until the subscription wiring + design are ready. See
+ * `docs/parent-pro.md`. Becomes the real `parentPro` subscription entitlement
+ * once StoreKit / Play Billing is wired.
+ */
+export const PARENT_PRO_ENABLED = __DEV__;

@@ -13,6 +13,10 @@ export { useAuthUser, type AuthUserState } from './useAuthUser';
 export { useFamily, type FamilyState } from './useFamily';
 export { useDashboard, type DashboardState } from './useDashboard';
 export {
+  useChildRewards,
+  type UseChildRewardsResult,
+} from './useChildRewards';
+export {
   FamilyLinkProvider,
   useFamilyLink,
   type FamilyLinkContextValue,
