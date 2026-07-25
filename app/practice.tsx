@@ -17,12 +17,14 @@ import {
 import { colors, operationColors, radius, spacing, typography } from '../constants/design';
 import {
   useDevPreferences,
+  useFamilyLink,
   usePracticeSession,
   useRecognition,
   useTimer,
 } from '../hooks';
 import { errorFeedback, successFeedback } from '../lib/feedback';
-import { isAnswerCorrect } from '../lib/scoring';
+import { submitExamResult } from '../lib/firebase/exams';
+import { countFinal, isAnswerCorrect } from '../lib/scoring';
 
 /** Practice — solve the session's questions one at a time. */
 export default function PracticeScreen() {
@@ -46,6 +48,7 @@ export default function PracticeScreen() {
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
+  const { link } = useFamilyLink();
 
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -60,14 +63,31 @@ export default function PracticeScreen() {
     submittedRef.current = true;
     setSubmitting(true);
     try {
-      await finish(recognizeAnswer);
+      const examId = session?.examId;
+      const results = await finish(recognizeAnswer);
+      // A parent-assigned exam: submit the result blind (the kid never sees a
+      // score) and show the "submitted" screen, instead of the score screen.
+      if (examId && link) {
+        await submitExamResult(link.familyId, link.childId, {
+          examId,
+          submittedAt: new Date().toISOString(),
+          totalQuestions: results.length,
+          finalScore: countFinal(results),
+          answers: results.map((r) => ({
+            questionId: r.question.id,
+            correct: r.status !== 'wrong',
+          })),
+        }).catch(() => {});
+        router.replace('/exam-done');
+        return;
+      }
       router.replace('/score');
     } catch {
       submittedRef.current = false;
       setSubmitting(false);
       Alert.alert(t('app.name'), t('practice.helpMessage'));
     }
-  }, [finish, recognizeAnswer, router, t]);
+  }, [finish, recognizeAnswer, router, t, link, session]);
 
   // Recognise the current question's ink and play success/error sound.
   // Awaited before advancing so the sound feels tied to the click.

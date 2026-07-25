@@ -22,6 +22,10 @@ export {
   type ExamWithChildResults,
 } from './useFamilyExams';
 export {
+  usePendingExams,
+  type UsePendingExamsResult,
+} from './usePendingExams';
+export {
   FamilyLinkProvider,
   useFamilyLink,
   type FamilyLinkContextValue,

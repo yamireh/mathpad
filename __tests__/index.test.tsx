@@ -5,11 +5,14 @@ import { type ReactNode } from 'react';
 import '../lib/i18n';
 import HomeScreen from '../app/index';
 import OperationsRoute from '../app/operations';
-import { PurchasesProvider } from '../hooks';
+import { PracticeSessionProvider, PurchasesProvider } from '../hooks';
 
-/** Operations route reads purchase state, so it needs the provider. */
+/** The home lists parent-assigned exams (which start a practice session) and
+ *  reads purchase state, so both providers are needed. */
 const withPurchases = (ui: ReactNode) => (
-  <PurchasesProvider>{ui}</PurchasesProvider>
+  <PurchasesProvider>
+    <PracticeSessionProvider>{ui}</PracticeSessionProvider>
+  </PurchasesProvider>
 );
 
 describe('Home screen (MainPanel)', () => {

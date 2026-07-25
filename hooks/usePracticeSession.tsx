@@ -108,6 +108,12 @@ export interface SessionData {
   results: QuestionResult[] | null;
   startedAt: number;
   finishedAt: number | null;
+  /**
+   * Set when this session is a parent-assigned exam (Parent Pro). Its results
+   * are submitted blind to the exam (the kid never sees a score), and it is NOT
+   * recorded to local history or synced as a normal practice session.
+   */
+  examId?: string;
 }
 
 /** Snapshot of every input area for one question, used for undo. */
@@ -209,6 +215,11 @@ export interface PracticeSessionContextValue {
   session: SessionData | null;
   /** Generate a new session from settings. */
   start: (settings: Settings) => void;
+  /**
+   * Start a session from a preset question list (a parent-assigned exam),
+   * tagged with `examId` so Finish submits blind and skips history/sync.
+   */
+  startExam: (questions: Question[], settings: Settings, examId: string) => void;
   /** Replace the answer ink for one question. */
   updateAnswerInk: (questionId: string, ink: AnswerInk) => void;
   /** Replace the scratch ink for one question. */
@@ -314,9 +325,8 @@ export function PracticeSessionProvider({
     setSession(next);
   }, []);
 
-  const start = useCallback(
-    (settings: Settings) => {
-      const questions = generateSession(settings);
+  const begin = useCallback(
+    (settings: Settings, questions: Question[], examId?: string) => {
       const answerInk: Record<string, AnswerInk> = {};
       for (const question of questions) {
         answerInk[question.id] = emptyAnswerInk(answerShape(question));
@@ -340,9 +350,21 @@ export function PracticeSessionProvider({
         results: null,
         startedAt: Date.now(),
         finishedAt: null,
+        ...(examId ? { examId } : {}),
       });
     },
     [commit],
+  );
+
+  const start = useCallback(
+    (settings: Settings) => begin(settings, generateSession(settings)),
+    [begin],
+  );
+
+  const startExam = useCallback(
+    (questions: Question[], settings: Settings, examId: string) =>
+      begin(settings, questions, examId),
+    [begin],
   );
 
   // Capture the current state of every input area for one question.
@@ -689,13 +711,17 @@ export function PracticeSessionProvider({
       };
       commit(finished);
       const result = toSessionResult(finished);
-      // A signed-in parent is previewing ("Open practice mode") — don't record
-      // their run to the kid's local history or sync it.
-      if (!isSignedInParent()) void historyStore.upsert(result);
-      // Sync to the family cloud once, at finish (a no-op unless this device is
-      // linked, and skipped for a parent preview). Later review-fixes aren't
-      // re-synced, to keep the aggregate counted once per session.
-      void maybeSyncSession(result);
+      // A parent-assigned exam is submitted blind by the practice screen (to the
+      // exam, not the practice history), so skip local history + normal sync.
+      if (!finished.examId) {
+        // A signed-in parent is previewing ("Open practice mode") — don't record
+        // their run to the kid's local history or sync it.
+        if (!isSignedInParent()) void historyStore.upsert(result);
+        // Sync to the family cloud once, at finish (a no-op unless this device is
+        // linked, and skipped for a parent preview). Later review-fixes aren't
+        // re-synced, to keep the aggregate counted once per session.
+        void maybeSyncSession(result);
+      }
       return results;
     },
     [commit],
@@ -736,6 +762,7 @@ export function PracticeSessionProvider({
     () => ({
       session,
       start,
+      startExam,
       updateAnswerInk,
       updateScratchInk,
       toggleBorrowMark,
@@ -756,6 +783,7 @@ export function PracticeSessionProvider({
     [
       session,
       start,
+      startExam,
       updateAnswerInk,
       updateScratchInk,
       toggleBorrowMark,

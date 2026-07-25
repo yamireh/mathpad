@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { WelcomeTips, WELCOME_TIP_ID } from '../../domain';
+import { PendingExamsCard, WelcomeTips, WELCOME_TIP_ID } from '../../domain';
 import { IconButton, ScreenContainer } from '../../ui';
 import {
   colors,
@@ -109,6 +109,8 @@ export function MainPanel() {
         </View>
         <Image source={APP_ART} style={styles.heroArt} resizeMode="cover" />
       </View>
+
+      <PendingExamsCard />
 
       <View style={styles.grid}>
         {TOPICS.map((topic) => {

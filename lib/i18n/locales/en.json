@@ -110,7 +110,11 @@
     "submitted": "{{score}}/{{total}}",
     "delete": "Delete",
     "pickChild": "Choose at least one child.",
-    "noChildren": "Connect a child device first to assign practice."
+    "noChildren": "Connect a child device first to assign practice.",
+    "doneTitle": "All done!",
+    "doneBody": "Your practice is submitted. Nice work! 💪",
+    "kidHeading": "From your grown-up",
+    "kidStart": "Start"
   },
   "rewards": {
     "title": "Goals & stars",
