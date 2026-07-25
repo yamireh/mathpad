@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, Chip } from '../../ui';
 import {
@@ -17,8 +17,10 @@ import {
 } from '../../../constants/design';
 import { generateSession } from '../../../lib/questionGenerator';
 import { defaultSettings } from '../../../lib/storage';
-import { nextExamTitle, type Exam } from '../../../lib/exams';
+import { nextExamTitle, parseCustomProblems, type Exam } from '../../../lib/exams';
 import type { Operation, QuestionCount, Settings } from '../../../types';
+
+type Mode = 'random' | 'custom';
 
 const OPERATIONS: Operation[] = [
   'addition',
@@ -50,12 +52,17 @@ export function CreateExamDialog({
   onCancel,
 }: CreateExamDialogProps) {
   const { t } = useTranslation();
+  const [mode, setMode] = useState<Mode>('random');
   const [operation, setOperation] = useState<Operation>('addition');
   const [count, setCount] = useState<QuestionCount>(10);
+  const [customText, setCustomText] = useState('');
   const [assignedTo, setAssignedTo] = useState<string[]>(
     children.length === 1 ? [children[0].childId] : [],
   );
   const [saving, setSaving] = useState(false);
+
+  // Custom problems parsed live so the parent sees the count + any bad lines.
+  const custom = useMemo(() => parseCustomProblems(customText), [customText]);
 
   // Auto-generated name — computed when the dialog opens. No text entry needed.
   const title = useMemo(
@@ -68,17 +75,24 @@ export function CreateExamDialog({
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
     );
 
-  const canSave = assignedTo.length > 0 && !saving;
+  const customReady = custom.questions.length > 0 && custom.errors.length === 0;
+  const canSave =
+    assignedTo.length > 0 &&
+    !saving &&
+    (mode === 'random' || customReady);
 
   const create = async () => {
-    const settings = {
-      ...defaultSettings(operation),
-      questionCount: count,
-    } as Settings;
-    const questions = generateSession(settings);
+    // Random → generate from the topic's default settings. Custom → the parent's
+    // parsed problems (operation is `mix` since they can span topics).
+    const random = mode === 'random';
+    const op: Operation = random ? operation : 'mix';
+    const settings = random
+      ? ({ ...defaultSettings(operation), questionCount: count } as Settings)
+      : (defaultSettings('mix') as Settings);
+    const questions = random ? generateSession(settings) : custom.questions;
     setSaving(true);
     try {
-      await onCreate({ title, createdBy, assignedTo, operation, settings, questions });
+      await onCreate({ title, createdBy, assignedTo, operation: op, settings, questions });
     } finally {
       setSaving(false);
     }
@@ -93,31 +107,74 @@ export function CreateExamDialog({
           <Text style={styles.label}>{t('exams.name')}</Text>
           <Text style={styles.autoName}>{title}</Text>
 
-          <Text style={styles.label}>{t('exams.topic')}</Text>
-          <View style={styles.chipRow}>
-            {OPERATIONS.map((op) => (
-              <Chip
-                key={op}
-                label={t(`operations.${op}`)}
-                selected={operation === op}
-                onPress={() => setOperation(op)}
-                tone={colors.answerInk}
-              />
-            ))}
+          {/* Random (generate from a topic) vs Custom (parent types problems). */}
+          <View style={styles.modeRow}>
+            <Chip
+              label={t('exams.modeRandom')}
+              selected={mode === 'random'}
+              onPress={() => setMode('random')}
+              tone={colors.answerInk}
+            />
+            <Chip
+              label={t('exams.modeCustom')}
+              selected={mode === 'custom'}
+              onPress={() => setMode('custom')}
+              tone={colors.answerInk}
+            />
           </View>
 
-          <Text style={styles.label}>{t('exams.count')}</Text>
-          <View style={styles.chipRow}>
-            {COUNTS.map((c) => (
-              <Chip
-                key={c}
-                label={String(c)}
-                selected={count === c}
-                onPress={() => setCount(c)}
-                tone={colors.answerInk}
+          {mode === 'random' ? (
+            <>
+              <Text style={styles.label}>{t('exams.topic')}</Text>
+              <View style={styles.chipRow}>
+                {OPERATIONS.map((op) => (
+                  <Chip
+                    key={op}
+                    label={t(`operations.${op}`)}
+                    selected={operation === op}
+                    onPress={() => setOperation(op)}
+                    tone={colors.answerInk}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.label}>{t('exams.count')}</Text>
+              <View style={styles.chipRow}>
+                {COUNTS.map((c) => (
+                  <Chip
+                    key={c}
+                    label={String(c)}
+                    selected={count === c}
+                    onPress={() => setCount(c)}
+                    tone={colors.answerInk}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>{t('exams.customLabel')}</Text>
+              <TextInput
+                style={styles.customInput}
+                placeholder={t('exams.customPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                value={customText}
+                onChangeText={setCustomText}
+                multiline
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-            ))}
-          </View>
+              {custom.errors.length > 0 ? (
+                <Text style={styles.errorHint}>
+                  {t('exams.customErrors', { lines: custom.errors.join(', ') })}
+                </Text>
+              ) : (
+                <Text style={styles.hint}>
+                  {t('exams.customHint', { count: custom.questions.length })}
+                </Text>
+              )}
+            </>
+          )}
 
           <Text style={styles.label}>{t('exams.assignTo')}</Text>
           {children.length === 0 ? (
@@ -199,6 +256,25 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  modeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  customInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    fontSize: typography.size.bodyLarge,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
   hint: { fontSize: typography.size.caption, color: colors.textMuted },
+  errorHint: { fontSize: typography.size.caption, color: colors.wrong },
   actions: { gap: spacing.sm, marginTop: spacing.lg },
 });

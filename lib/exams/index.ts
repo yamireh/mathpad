@@ -11,3 +11,9 @@ export type {
   ExamWithResult,
 } from './types';
 export { nextExamTitle } from './naming';
+export {
+  parseProblem,
+  parseCustomProblems,
+  type ParsedProblem,
+  type ParseCustomResult,
+} from './parse';

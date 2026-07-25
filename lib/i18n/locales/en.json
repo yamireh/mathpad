@@ -114,7 +114,14 @@
     "doneTitle": "All done!",
     "doneBody": "Your practice is submitted. Nice work! 💪",
     "kidHeading": "From your grown-up",
-    "kidStart": "Start"
+    "kidStart": "Start",
+    "modeRandom": "Random",
+    "modeCustom": "Custom",
+    "customLabel": "One problem per line",
+    "customPlaceholder": "24 x 6\n13 + 7\n100 - 45\n48 / 6",
+    "customHint": "{{count}} questions",
+    "customErrors": "Can't read: {{lines}}",
+    "customEmpty": "Add at least one problem."
   },
   "rewards": {
     "title": "Goals & stars",
