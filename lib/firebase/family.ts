@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 
 import { auth, db } from './index';
+import { purgeChildRewards } from './rewards';
 
 export interface Family {
   id: string;
@@ -212,6 +213,7 @@ async function deleteFamily(fam: Family): Promise<void> {
   for (const child of children.docs) {
     const sessions = await getDocs(collection(child.ref, 'sessions'));
     await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
+    await purgeChildRewards(child.ref); // targets / stars / awards / redemptions
     await deleteDoc(child.ref);
   }
   const parents = await getDocs(collection(famRef, 'parents'));

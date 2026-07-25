@@ -125,6 +125,27 @@ service cloud.firestore {
           allow delete: if signedIn()
             && (uid() == childId || isMember(familyId));
         }
+
+        // Parent Pro — Targets & Stars. The kid device may READ its own stars
+        // (a read-only "My stars" view) but never writes them: goals, awards
+        // and redemptions are parent-authoritative (family members only). See
+        // docs/parent-pro-targets-stars.md.
+        match /targets/{targetId} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow write: if signedIn() && isMember(familyId);
+        }
+        match /rewards/{docId} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow write: if signedIn() && isMember(familyId);
+        }
+        match /awards/{windowKey} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow write: if signedIn() && isMember(familyId);
+        }
+        match /redemptions/{redemptionId} {
+          allow read: if uid() == childId || isMember(familyId);
+          allow write: if signedIn() && isMember(familyId);
+        }
       }
     }
   }
