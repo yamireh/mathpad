@@ -28,9 +28,13 @@ export function PendingExamsCard() {
   const router = useRouter();
   const { link } = useFamilyLink();
   const { startExam } = usePracticeSession();
+  // Only this device's OWN child identity may read its exams. If the current
+  // auth uid isn't the linked childId (a parent-preview device, or an anonymous
+  // uid that drifted after a reinstall), don't query — it would only 403.
+  const isThisChild = !!link && link.childId === auth.currentUser?.uid;
   const { exams, loading, error, reload } = usePendingExams(
-    link?.familyId ?? null,
-    link?.childId ?? null,
+    isThisChild ? link.familyId : null,
+    isThisChild ? link.childId : null,
   );
 
   // Re-check whenever the home regains focus — so a newly-assigned practice
