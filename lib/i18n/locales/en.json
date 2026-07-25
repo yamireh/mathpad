@@ -93,6 +93,25 @@
     "tabPractice": "Practice",
     "practiceComingSoon": "Create practice sets and assign them to your children — coming soon."
   },
+  "exams": {
+    "heading": "Practice sets",
+    "create": "Create practice",
+    "createTitle": "New practice set",
+    "name": "Name",
+    "namePlaceholder": "e.g. Weekend maths",
+    "topic": "Topic",
+    "count": "Questions",
+    "assignTo": "Assign to",
+    "save": "Create & assign",
+    "cancel": "Cancel",
+    "none": "No practice sets yet. Tap \"Create practice\" to make one.",
+    "assignedTo": "For {{names}}",
+    "pending": "Pending",
+    "submitted": "{{score}}/{{total}}",
+    "delete": "Delete",
+    "pickChild": "Choose at least one child.",
+    "noChildren": "Connect a child device first to assign practice."
+  },
   "rewards": {
     "title": "Goals & stars",
     "starsEarned": "Stars earned",

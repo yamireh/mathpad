@@ -17,6 +17,11 @@ export {
   type UseChildRewardsResult,
 } from './useChildRewards';
 export {
+  useFamilyExams,
+  type UseFamilyExamsResult,
+  type ExamWithChildResults,
+} from './useFamilyExams';
+export {
   FamilyLinkProvider,
   useFamilyLink,
   type FamilyLinkContextValue,

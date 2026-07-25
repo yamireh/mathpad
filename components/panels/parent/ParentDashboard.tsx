@@ -22,13 +22,14 @@ import {
   typography,
 } from '../../../constants/design';
 import { Button, ConfirmDialog } from '../../ui';
-import { useDashboard } from '../../../hooks';
+import { useAuthUser, useDashboard } from '../../../hooks';
 import { PARENT_PRO_ENABLED } from '../../../lib/featureFlags';
 import {
   type ChildProgress,
   removeChild,
   resetChild,
 } from '../../../lib/firebase/dashboard';
+import { PracticeTab } from './PracticeTab';
 import { RewardsSection } from './RewardsSection';
 
 /** Parent dashboard tabs (only shown when Parent Pro is enabled). */
@@ -320,6 +321,7 @@ function ChildBody({
 export function ParentDashboard({ familyId }: { familyId: string }) {
   const { t } = useTranslation();
   const router = useRouter();
+  const { user } = useAuthUser();
   const { children, loading, error, reload } = useDashboard(familyId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [pending, setPending] = useState<{
@@ -466,11 +468,15 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
     </ScrollView>
   );
 
-  const practicePlaceholder = (
-    <View style={styles.comingSoon}>
-      <Ionicons name="create-outline" size={44} color={colors.textMuted} />
-      <Text style={styles.emptyText}>{t('dashboard.practiceComingSoon')}</Text>
-    </View>
+  const practiceTab = (
+    <PracticeTab
+      familyId={familyId}
+      createdBy={user?.uid ?? ''}
+      children={children.map((c, i) => ({
+        childId: c.childId,
+        name: c.name?.trim() || t('dashboard.child', { n: i + 1 }),
+      }))}
+    />
   );
 
   return (
@@ -523,7 +529,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         ? progressList
         : tab === 'goals'
           ? goalsList
-          : practicePlaceholder}
+          : practiceTab}
 
       <ConfirmDialog
         visible={pending !== null}
@@ -585,13 +591,6 @@ const styles = StyleSheet.create({
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
     color: colors.text,
-  },
-  comingSoon: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    padding: spacing.xl,
   },
   dashListContent: { paddingBottom: spacing.xl },
   // A styled card, opaque so the sticky header cleanly covers content beneath it.
