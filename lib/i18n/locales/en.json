@@ -87,7 +87,11 @@
     "hint_other": "{{count}} hints",
     "clean": "All correct, no help 🎉",
     "empty": "No children connected yet. Open Settings → \"Add a child's device\" and enter the code on your child's device — their progress shows up here.",
-    "error": "Couldn't load progress. Tap to try again."
+    "error": "Couldn't load progress. Tap to try again.",
+    "tabProgress": "Progress",
+    "tabGoals": "Goals",
+    "tabPractice": "Practice",
+    "practiceComingSoon": "Create practice sets and assign them to your children — coming soon."
   },
   "rewards": {
     "title": "Goals & stars",

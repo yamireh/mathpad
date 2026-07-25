@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -22,12 +23,16 @@ import {
 } from '../../../constants/design';
 import { Button, ConfirmDialog } from '../../ui';
 import { useDashboard } from '../../../hooks';
+import { PARENT_PRO_ENABLED } from '../../../lib/featureFlags';
 import {
   type ChildProgress,
   removeChild,
   resetChild,
 } from '../../../lib/firebase/dashboard';
 import { RewardsSection } from './RewardsSection';
+
+/** Parent dashboard tabs (only shown when Parent Pro is enabled). */
+type DashTab = 'progress' | 'goals' | 'practice';
 
 const pct = (correct: number, total: number) =>
   total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -208,22 +213,15 @@ function ChildHeader({
 
 function ChildBody({
   child,
-  familyId,
   onReset,
   onRemove,
 }: {
   child: ChildProgress;
-  familyId: string;
   onReset: () => void;
   onRemove: () => void;
 }) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
-  const rewardSessions = child.recent.map((r) => ({
-    topic: r.topic,
-    completedAt: r.completedAt,
-    totalQuestions: r.totalQuestions,
-  }));
   return (
     <View style={styles.card}>
       <View style={styles.stats}>
@@ -288,13 +286,6 @@ function ChildBody({
         </View>
       ) : null}
 
-      <RewardsSection
-        familyId={familyId}
-        childId={child.childId}
-        sessions={rewardSessions}
-        topicLabel={label}
-      />
-
       <View style={styles.childActions}>
         <Pressable
           onPress={onReset}
@@ -337,6 +328,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
     name: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<DashTab>('progress');
   const seeded = useRef(false);
 
   const isRemove = pending?.action === 'remove';
@@ -415,11 +407,101 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
     data: (expanded[child.childId] ?? false) ? [child] : [],
   }));
 
+  const progressList = (
+    <SectionList
+      sections={sections}
+      keyExtractor={(item) => item.childId}
+      stickySectionHeadersEnabled
+      renderSectionHeader={({ section }) => (
+        <ChildHeader
+          child={section.child}
+          index={section.index}
+          expanded={expanded[section.child.childId] ?? false}
+          onToggle={() => toggle(section.child.childId)}
+        />
+      )}
+      renderItem={({ item, section }) => {
+        const name =
+          item.name?.trim() || t('dashboard.child', { n: section.index + 1 });
+        return (
+          <ChildBody
+            child={item}
+            onReset={() =>
+              setPending({ action: 'reset', childId: item.childId, name })
+            }
+            onRemove={() =>
+              setPending({ action: 'remove', childId: item.childId, name })
+            }
+          />
+        );
+      }}
+      renderSectionFooter={() => <View style={styles.sectionGap} />}
+      contentContainerStyle={styles.dashListContent}
+      showsVerticalScrollIndicator={false}
+    />
+  );
+
+  const goalsList = (
+    <ScrollView
+      contentContainerStyle={styles.dashListContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {children.map((child, index) => (
+        <View key={child.childId} style={styles.goalsCard}>
+          <Text style={styles.goalsChildName}>
+            {child.name?.trim() || t('dashboard.child', { n: index + 1 })}
+          </Text>
+          <RewardsSection
+            familyId={familyId}
+            childId={child.childId}
+            sessions={child.recent.map((r) => ({
+              topic: r.topic,
+              completedAt: r.completedAt,
+              totalQuestions: r.totalQuestions,
+            }))}
+            topicLabel={label}
+          />
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  const practicePlaceholder = (
+    <View style={styles.comingSoon}>
+      <Ionicons name="create-outline" size={44} color={colors.textMuted} />
+      <Text style={styles.emptyText}>{t('dashboard.practiceComingSoon')}</Text>
+    </View>
+  );
+
   return (
     <View style={styles.dash}>
-      {/* Pinned bar — refresh stays reachable while the list below scrolls. */}
+      {/* Pinned bar — title/tabs + refresh, stays put while the list scrolls. */}
       <View style={styles.dashBar}>
-        <Text style={styles.dashBarTitle}>{t('dashboard.title')}</Text>
+        {PARENT_PRO_ENABLED ? (
+          <View style={styles.tabs}>
+            {(['progress', 'goals', 'practice'] as DashTab[]).map((k) => (
+              <Pressable
+                key={k}
+                onPress={() => setTab(k)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: tab === k }}
+                style={[styles.tab, tab === k && styles.tabActive]}
+              >
+                <Text style={[styles.tabText, tab === k && styles.tabTextActive]}>
+                  {t(
+                    k === 'progress'
+                      ? 'dashboard.tabProgress'
+                      : k === 'goals'
+                        ? 'dashboard.tabGoals'
+                        : 'dashboard.tabPractice',
+                  )}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.dashBarTitle}>{t('dashboard.title')}</Text>
+        )}
         <Pressable
           onPress={reload}
           disabled={loading}
@@ -436,38 +518,12 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
           </Text>
         </Pressable>
       </View>
-      <SectionList
-        sections={sections}
-        keyExtractor={(item) => item.childId}
-        stickySectionHeadersEnabled
-        renderSectionHeader={({ section }) => (
-          <ChildHeader
-            child={section.child}
-            index={section.index}
-            expanded={expanded[section.child.childId] ?? false}
-            onToggle={() => toggle(section.child.childId)}
-          />
-        )}
-        renderItem={({ item, section }) => {
-          const name =
-            item.name?.trim() || t('dashboard.child', { n: section.index + 1 });
-          return (
-            <ChildBody
-              child={item}
-              familyId={familyId}
-              onReset={() =>
-                setPending({ action: 'reset', childId: item.childId, name })
-              }
-              onRemove={() =>
-                setPending({ action: 'remove', childId: item.childId, name })
-              }
-            />
-          );
-        }}
-        renderSectionFooter={() => <View style={styles.sectionGap} />}
-        contentContainerStyle={styles.dashListContent}
-        showsVerticalScrollIndicator={false}
-      />
+
+      {!PARENT_PRO_ENABLED || tab === 'progress'
+        ? progressList
+        : tab === 'goals'
+          ? goalsList
+          : practicePlaceholder}
 
       <ConfirmDialog
         visible={pending !== null}
@@ -504,6 +560,38 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
     color: colors.textMuted,
+  },
+  tabs: { flexDirection: 'row', gap: spacing.xs, flex: 1 },
+  tab: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+  },
+  tabActive: { backgroundColor: operationColors.addition.tint },
+  tabText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
+  },
+  tabTextActive: { color: operationColors.addition.accent },
+  goalsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  goalsChildName: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  comingSoon: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    padding: spacing.xl,
   },
   dashListContent: { paddingBottom: spacing.xl },
   // A styled card, opaque so the sticky header cleanly covers content beneath it.
