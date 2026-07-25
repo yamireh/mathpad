@@ -29,6 +29,28 @@ function famRef(familyId: string) {
   return doc(db, 'families', familyId);
 }
 
+/** A Firestore Timestamp / ISO string / missing → ISO string (or ''). */
+function toIso(v: unknown): string {
+  if (typeof v === 'string') return v;
+  const ts = v as { toDate?: () => Date } | null;
+  return ts?.toDate?.().toISOString() ?? '';
+}
+
+/** Normalize a raw exam doc: its `createdAt` may be a server Timestamp. */
+function toExam(id: string, data: Record<string, unknown>): Exam {
+  return {
+    id,
+    title: (data.title as string) ?? '',
+    createdBy: (data.createdBy as string) ?? '',
+    assignedTo: (data.assignedTo as string[]) ?? [],
+    operation: data.operation as Exam['operation'],
+    settings: data.settings as Exam['settings'],
+    questions: (data.questions as Exam['questions']) ?? [],
+    createdAt: toIso(data.createdAt),
+    ...(data.dueAt ? { dueAt: toIso(data.dueAt) } : {}),
+  };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Authoring (parent)                                                          */
 /* -------------------------------------------------------------------------- */
@@ -61,7 +83,7 @@ export async function deleteExam(
 /** All exams in the family (parent view), newest activity first is up to callers. */
 export async function listExams(familyId: string): Promise<Exam[]> {
   const snap = await getDocs(collection(famRef(familyId), 'exams'));
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Exam, 'id'>) }));
+  return snap.docs.map((d) => toExam(d.id, d.data()));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -88,7 +110,7 @@ export async function listPendingExamsForChild(
   const done = new Set(resultsSnap.docs.map((d) => d.id));
   return examsSnap.docs
     .filter((d) => !done.has(d.id))
-    .map((d) => ({ id: d.id, ...(d.data() as Omit<Exam, 'id'>) }));
+    .map((d) => toExam(d.id, d.data()));
 }
 
 /** Submit a child's result for an exam (doc id = examId, so it's one per exam). */
