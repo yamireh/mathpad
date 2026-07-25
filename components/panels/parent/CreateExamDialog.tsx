@@ -161,6 +161,8 @@ export function CreateExamDialog({
                 value={customText}
                 onChangeText={setCustomText}
                 multiline
+                // Numeric keyboard with the operators (+ − * /) — no ABC keys.
+                keyboardType="numbers-and-punctuation"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
