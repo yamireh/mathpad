@@ -50,7 +50,8 @@ export interface CreateExamDialogProps {
   children: { childId: string; name: string }[];
   /** Existing set names — used to auto-number today's new name. */
   existingTitles: string[];
-  onCreate: (exam: Omit<Exam, 'id' | 'createdAt'>) => void;
+  /** Resolves once the set is created; the dialog shows a spinner until then. */
+  onCreate: (exam: Omit<Exam, 'id' | 'createdAt'>) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -68,6 +69,7 @@ export function CreateExamDialog({
   const [assignedTo, setAssignedTo] = useState<string[]>(
     children.length === 1 ? [children[0].childId] : [],
   );
+  const [saving, setSaving] = useState(false);
 
   // Auto-generated name — computed when the dialog opens. No text entry needed.
   const title = useMemo(
@@ -80,15 +82,20 @@ export function CreateExamDialog({
       prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
     );
 
-  const canSave = assignedTo.length > 0;
+  const canSave = assignedTo.length > 0 && !saving;
 
-  const create = () => {
+  const create = async () => {
     const settings = {
       ...defaultSettings(operation),
       questionCount: count,
     } as Settings;
     const questions = generateSession(settings);
-    onCreate({ title, createdBy, assignedTo, operation, settings, questions });
+    setSaving(true);
+    try {
+      await onCreate({ title, createdBy, assignedTo, operation, settings, questions });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -151,9 +158,15 @@ export function CreateExamDialog({
               label={t('exams.save')}
               variant="primary"
               disabled={!canSave}
-              onPress={create}
+              loading={saving}
+              onPress={() => void create()}
             />
-            <Button label={t('exams.cancel')} variant="secondary" onPress={onCancel} />
+            <Button
+              label={t('exams.cancel')}
+              variant="secondary"
+              disabled={saving}
+              onPress={onCancel}
+            />
           </View>
         </View>
       </View>

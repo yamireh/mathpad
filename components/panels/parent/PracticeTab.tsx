@@ -115,8 +115,8 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
         children={children}
         existingTitles={exams.map((e) => e.exam.title)}
         onCancel={() => setCreating(false)}
-        onCreate={(exam) => {
-          void create(exam);
+        onCreate={async (exam) => {
+          await create(exam);
           setCreating(false);
         }}
       />
