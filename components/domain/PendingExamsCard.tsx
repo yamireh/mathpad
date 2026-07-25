@@ -19,6 +19,7 @@ import {
   typography,
 } from '../../constants/design';
 import { PARENT_PRO_ENABLED } from '../../lib/featureFlags';
+import { auth } from '../../lib/firebase';
 import { useFamilyLink, usePendingExams, usePracticeSession } from '../../hooks';
 import { tapFeedback } from '../../lib/feedback';
 
@@ -51,7 +52,16 @@ export function PendingExamsCard() {
         <Text style={styles.debugTitle}>pending exams (dev)</Text>
         <Text style={styles.debugLine}>linked: {link ? 'yes' : 'NO — not a child device'}</Text>
         <Text style={styles.debugLine}>family: {link?.familyId ?? '—'}</Text>
-        <Text style={styles.debugLine}>child: {link?.childId ?? '—'}</Text>
+        <Text style={styles.debugLine}>link child: {link?.childId ?? '—'}</Text>
+        <Text style={styles.debugLine}>auth uid: {auth.currentUser?.uid ?? '—'}</Text>
+        <Text
+          style={[
+            styles.debugLine,
+            link?.childId !== auth.currentUser?.uid && styles.debugErr,
+          ]}
+        >
+          uid matches childId: {link?.childId === auth.currentUser?.uid ? 'yes' : 'NO'}
+        </Text>
         <Text style={styles.debugLine}>
           {loading ? 'loading…' : `pending: ${exams.length}`}
         </Text>
