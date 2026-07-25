@@ -121,7 +121,8 @@
     "customPlaceholder": "24 x 6\n13 + 7\n100 - 45\n48 / 6",
     "customHint": "{{count}} questions",
     "customErrors": "Can't read: {{lines}}",
-    "customEmpty": "Add at least one problem."
+    "customEmpty": "Add at least one problem.",
+    "opNewLine": "New line"
   },
   "rewards": {
     "title": "Goals & stars",
