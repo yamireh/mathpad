@@ -52,6 +52,9 @@ review screens.
 
 ## Feature 1 — Targets & Stars (build first)
 
+> **Detailed feature spec:** `docs/parent-pro-targets-stars.md` (data model,
+> window math, award logic, rules, UI, build slices, open decisions).
+
 Rides on the session aggregates already stored, so it's the smaller slice.
 
 **Product loop:** parent sets a goal → kid practices → meets goal → earns a star
