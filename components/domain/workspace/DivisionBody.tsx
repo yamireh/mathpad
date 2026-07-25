@@ -6,13 +6,17 @@
  * to render. The writing pad routes to the active answer cell OR
  * to a long-division draft cell.
  */
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { spacing } from '../../../constants/design';
+import { Ionicons } from '@expo/vector-icons';
+
+import { colors, radius, shadows, spacing, typography } from '../../../constants/design';
 import { AnswerArea } from '../AnswerArea';
 import { DivisionDraftGrid } from '../DivisionDraftGrid';
 import { ProblemDisplay } from '../problem';
+import { ScratchSheet } from './ScratchSheet';
 import {
   getBoxStrokes,
   isBoxWritable,
@@ -43,14 +47,17 @@ export interface DivisionBodyProps {
 }
 
 export function DivisionBody({ core }: DivisionBodyProps) {
-  useTranslation(); // keep i18n bootstrap consistent across bodies
+  const { t } = useTranslation();
   const { width: windowWidth } = useWindowDimensions();
+  const [scratchOpen, setScratchOpen] = useState(false);
   const {
     question,
     layout,
     tone,
     answerInk,
     onAnswerInkChange,
+    scratchInk,
+    onScratchInkChange,
     onUndo,
     canUndo,
     divisionDraftInk,
@@ -303,6 +310,33 @@ export function DivisionBody({ core }: DivisionBodyProps) {
           canUndo={canUndo}
         />
       ) : null}
+
+      {/* Free scratch space for estimating a quotient digit (e.g. "how many 82s
+          in 735?" → try 82×8, 82×9). The structured staircase holds the result,
+          not the guessing — so this opens a full canvas over the problem. */}
+      <Pressable
+        onPress={() => setScratchOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel={t('practice.openScratch')}
+        style={({ pressed }) => [
+          styles.scratchButton,
+          { borderColor: tone },
+          pressed && styles.scratchButtonPressed,
+        ]}
+      >
+        <Ionicons name="pencil" size={18} color={tone} />
+        <Text style={[styles.scratchButtonLabel, { color: tone }]}>
+          {t('practice.scratchButton')}
+        </Text>
+      </Pressable>
+
+      <ScratchSheet
+        visible={scratchOpen}
+        onClose={() => setScratchOpen(false)}
+        strokes={scratchInk}
+        onStrokesChange={onScratchInkChange}
+        tone={tone}
+      />
     </View>
   );
 }
@@ -315,4 +349,24 @@ const styles = StyleSheet.create({
   // touch (vs the inline layout) — bump it to shrink the pad further.
   longArea: { flex: 1.42, overflow: 'hidden' },
   divisionInline: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  // Floating "scratch" pill, bottom-right, above the pad/empty region.
+  scratchButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    backgroundColor: colors.surface,
+    ...shadows.sm,
+  },
+  scratchButtonPressed: { opacity: 0.7 },
+  scratchButtonLabel: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+  },
 });

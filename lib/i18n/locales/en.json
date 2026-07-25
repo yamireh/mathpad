@@ -229,6 +229,10 @@
     "workspace": "Worksheet",
     "clearBox": "Clear box",
     "scratchHint": "Scratch area — your working out",
+    "scratchButton": "Scratch",
+    "scratchTitle": "Scratch — your working out",
+    "openScratch": "Open scratch area",
+    "closeScratch": "Close scratch area",
     "tips": {
       "tapAnswerBox": "Tap a box to choose where your answer goes",
       "writeInPad": "Write your answer here with your finger",
