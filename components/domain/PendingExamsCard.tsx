@@ -27,7 +27,7 @@ export function PendingExamsCard() {
   const router = useRouter();
   const { link } = useFamilyLink();
   const { startExam } = usePracticeSession();
-  const { exams, reload } = usePendingExams(
+  const { exams, loading, error, reload } = usePendingExams(
     link?.familyId ?? null,
     link?.childId ?? null,
   );
@@ -40,7 +40,25 @@ export function PendingExamsCard() {
     }, [reload]),
   );
 
-  if (!PARENT_PRO_ENABLED || !link || exams.length === 0) return null;
+  if (!PARENT_PRO_ENABLED) return null;
+
+  // Dev-only diagnostic: the card is otherwise invisible when empty, which makes
+  // "why do I see nothing?" impossible to debug. Shows link/query state.
+  if (exams.length === 0) {
+    if (!__DEV__) return null;
+    return (
+      <View style={styles.debug}>
+        <Text style={styles.debugTitle}>pending exams (dev)</Text>
+        <Text style={styles.debugLine}>linked: {link ? 'yes' : 'NO — not a child device'}</Text>
+        <Text style={styles.debugLine}>family: {link?.familyId ?? '—'}</Text>
+        <Text style={styles.debugLine}>child: {link?.childId ?? '—'}</Text>
+        <Text style={styles.debugLine}>
+          {loading ? 'loading…' : `pending: ${exams.length}`}
+        </Text>
+        {error ? <Text style={styles.debugErr}>error: {error}</Text> : null}
+      </View>
+    );
+  }
 
   const open = (examId: string) => {
     const exam = exams.find((e) => e.id === examId);
@@ -88,6 +106,24 @@ export function PendingExamsCard() {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm, marginBottom: spacing.lg },
+  debug: {
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    gap: 2,
+  },
+  debugTitle: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  debugLine: { fontSize: typography.size.caption, color: colors.textMuted },
+  debugErr: { fontSize: typography.size.caption, color: colors.wrong },
   heading: {
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,

@@ -41,6 +41,14 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid()))
       );
     }
+    // A child device joined to this family (its uid IS its childId). Used to let
+    // a kid LIST exams assigned to them: a per-document `resource.data` rule
+    // can't authorize a list query, so we gate on family-child membership (a
+    // path check) and let the client filter by `assignedTo`.
+    function isChildOf(familyId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/families/$(familyId)/children/$(uid()));
+    }
     // Proof a co-parent holds a real, active invite for THIS family.
     function validParentInvite(familyId, code) {
       return code is string
@@ -110,8 +118,10 @@ service cloud.firestore {
       // them; a kid may read exams assigned to their device. Results live under
       // the child doc (below). See docs/parent-pro-exams.md.
       match /exams/{examId} {
-        allow read: if isMember(familyId)
-          || (signedIn() && (uid() in resource.data.assignedTo));
+        // A kid can read their family's exams (the client filters by
+        // assignedTo); a per-doc `uid() in resource.data.assignedTo` rule can't
+        // authorize the kid's LIST query, so gate on family-child membership.
+        allow read: if isMember(familyId) || isChildOf(familyId);
         allow write: if signedIn() && isMember(familyId);
       }
 
