@@ -18,6 +18,7 @@ import {
   typography,
 } from '../../../constants/design';
 import { useFamilyExams, type ExamWithChildResults } from '../../../hooks';
+import { formatAnswer, formatProblem } from '../../domain/format';
 import { CreateExamDialog } from './CreateExamDialog';
 
 /** One assigned child's status chip: pending, or their score. */
@@ -56,9 +57,12 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
   const { t } = useTranslation();
   const { exams, create, remove } = useFamilyExams(familyId);
   const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const nameOf = (childId: string) =>
     children.find((c) => c.childId === childId)?.name ?? childId;
+  const toggle = (id: string) =>
+    setExpanded((m) => ({ ...m, [id]: !m[id] }));
 
   return (
     <View style={styles.container}>
@@ -72,32 +76,59 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
             <Text style={styles.emptyText}>{t('exams.none')}</Text>
           </View>
         ) : (
-          exams.map(({ exam, results }) => (
-            <View key={exam.id} style={styles.card}>
-              <View style={styles.cardHead}>
-                <View style={styles.cardHeadText}>
-                  <Text style={styles.cardTitle}>{exam.title}</Text>
-                  <Text style={styles.cardMeta}>
-                    {t(`operations.${exam.operation}`)} ·{' '}
-                    {exam.questions.length} {t('exams.count').toLowerCase()}
-                  </Text>
+          exams.map(({ exam, results }) => {
+            const open = expanded[exam.id] ?? false;
+            return (
+              <View key={exam.id} style={styles.card}>
+                <View style={styles.cardHead}>
+                  {/* Tap the title area to expand the question list. */}
+                  <Pressable
+                    style={styles.cardHeadText}
+                    onPress={() => toggle(exam.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: open }}
+                  >
+                    <Text style={styles.cardTitle}>{exam.title}</Text>
+                    <View style={styles.metaRow}>
+                      <Ionicons
+                        name={open ? 'chevron-down' : 'chevron-forward'}
+                        size={14}
+                        color={colors.textMuted}
+                      />
+                      <Text style={styles.cardMeta}>
+                        {t(`operations.${exam.operation}`)} ·{' '}
+                        {exam.questions.length} {t('exams.count').toLowerCase()}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => void remove(exam.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('exams.delete')}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.wrong} />
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => void remove(exam.id)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('exams.delete')}
-                  hitSlop={8}
-                >
-                  <Ionicons name="trash-outline" size={18} color={colors.wrong} />
-                </Pressable>
+
+                {open ? (
+                  <View style={styles.questions}>
+                    {exam.questions.map((q, i) => (
+                      <Text key={q.id} style={styles.question}>
+                        {i + 1}. {formatProblem(q)} = {formatAnswer(q.answer)}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+
+                <View style={styles.results}>
+                  {results.map(({ childId, result }) => (
+                    <ResultChip key={childId} name={nameOf(childId)} result={result} />
+                  ))}
+                </View>
               </View>
-              <View style={styles.results}>
-                {results.map(({ childId, result }) => (
-                  <ResultChip key={childId} name={nameOf(childId)} result={result} />
-                ))}
-              </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -109,17 +140,20 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
         />
       </View>
 
-      <CreateExamDialog
-        visible={creating}
-        createdBy={createdBy}
-        children={children}
-        existingTitles={exams.map((e) => e.exam.title)}
-        onCancel={() => setCreating(false)}
-        onCreate={async (exam) => {
-          await create(exam);
-          setCreating(false);
-        }}
-      />
+      {/* Mount only while open so each session starts fresh (no cached input). */}
+      {creating ? (
+        <CreateExamDialog
+          visible
+          createdBy={createdBy}
+          children={children}
+          existingTitles={exams.map((e) => e.exam.title)}
+          onCancel={() => setCreating(false)}
+          onCreate={async (exam) => {
+            await create(exam);
+            setCreating(false);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -158,7 +192,20 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     color: colors.text,
   },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardMeta: { fontSize: typography.size.caption, color: colors.textMuted },
+  questions: {
+    gap: 2,
+    paddingVertical: spacing.sm,
+    paddingLeft: spacing.md,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+  },
+  question: {
+    fontSize: typography.size.body,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
   results: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   resultChip: {
     flexDirection: 'row',
