@@ -4,8 +4,16 @@
  * shows what's typed (one problem per line); the grid appends digits/operators,
  * backspaces, and adds new lines.
  */
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import {
   colors,
@@ -13,6 +21,22 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
+
+/** A blinking text caret so the parent sees where the next key lands. */
+function Caret() {
+  const blink = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(blink, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [blink]);
+  return <Animated.Text style={[styles.caret, { opacity: blink }]}>|</Animated.Text>;
+}
 
 /** Key grid — 4 columns. `⌫` backspaces, `↵` adds a line, rest append. */
 const ROWS: string[][] = [
@@ -44,9 +68,15 @@ export function CustomKeypad({ value, onChange, placeholder }: CustomKeypadProps
     <View style={styles.wrap}>
       <ScrollView style={styles.display} contentContainerStyle={styles.displayContent}>
         {value ? (
-          <Text style={styles.value}>{value}</Text>
+          <Text style={styles.value}>
+            {value}
+            <Caret />
+          </Text>
         ) : (
-          <Text style={styles.placeholder}>{placeholder}</Text>
+          <Text style={styles.value}>
+            <Caret />
+            <Text style={styles.placeholder}>{placeholder}</Text>
+          </Text>
         )}
       </ScrollView>
 
@@ -91,6 +121,11 @@ const styles = StyleSheet.create({
     fontSize: typography.size.bodyLarge,
     color: colors.textMuted,
     lineHeight: typography.lineHeight.bodyLarge,
+  },
+  caret: {
+    fontSize: typography.size.bodyLarge,
+    color: colors.answerInk,
+    fontWeight: typography.weight.medium,
   },
   grid: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
