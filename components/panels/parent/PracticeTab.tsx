@@ -113,6 +113,7 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
         visible={creating}
         createdBy={createdBy}
         children={children}
+        existingTitles={exams.map((e) => e.exam.title)}
         onCancel={() => setCreating(false)}
         onCreate={(exam) => {
           void create(exam);

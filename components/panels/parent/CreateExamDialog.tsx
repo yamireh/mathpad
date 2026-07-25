@@ -3,9 +3,9 @@
  * count, and which children get it. Questions are generated from the topic's
  * default settings via the shared `generateSession`.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
 
 import { Button, Chip } from '../../ui';
 import {
@@ -29,11 +29,27 @@ const OPERATIONS: Operation[] = [
 ];
 const COUNTS: QuestionCount[] = [5, 10, 15, 20];
 
+/**
+ * Auto-generate a practice-set name: `YYYY-MM-DD #n`, where n restarts at 1 each
+ * day (so a parent never has to think one up). Counts existing sets whose name
+ * starts with today's date.
+ */
+function nextExamTitle(existingTitles: string[], now: Date): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const date = `${y}-${m}-${d}`;
+  const seq = existingTitles.filter((tt) => tt.startsWith(date)).length + 1;
+  return `${date} #${seq}`;
+}
+
 export interface CreateExamDialogProps {
   visible: boolean;
   createdBy: string;
   /** Assignable children (id + display name). */
   children: { childId: string; name: string }[];
+  /** Existing set names — used to auto-number today's new name. */
+  existingTitles: string[];
   onCreate: (exam: Omit<Exam, 'id' | 'createdAt'>) => void;
   onCancel: () => void;
 }
@@ -42,15 +58,21 @@ export function CreateExamDialog({
   visible,
   createdBy,
   children,
+  existingTitles,
   onCreate,
   onCancel,
 }: CreateExamDialogProps) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState('');
   const [operation, setOperation] = useState<Operation>('addition');
   const [count, setCount] = useState<QuestionCount>(10);
   const [assignedTo, setAssignedTo] = useState<string[]>(
     children.length === 1 ? [children[0].childId] : [],
+  );
+
+  // Auto-generated name — computed when the dialog opens. No text entry needed.
+  const title = useMemo(
+    () => (visible ? nextExamTitle(existingTitles, new Date()) : ''),
+    [visible, existingTitles],
   );
 
   const toggleChild = (id: string) =>
@@ -66,14 +88,7 @@ export function CreateExamDialog({
       questionCount: count,
     } as Settings;
     const questions = generateSession(settings);
-    onCreate({
-      title: title.trim() || t(`operations.${operation}`),
-      createdBy,
-      assignedTo,
-      operation,
-      settings,
-      questions,
-    });
+    onCreate({ title, createdBy, assignedTo, operation, settings, questions });
   };
 
   return (
@@ -83,13 +98,7 @@ export function CreateExamDialog({
           <Text style={styles.title}>{t('exams.createTitle')}</Text>
 
           <Text style={styles.label}>{t('exams.name')}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={t('exams.namePlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            value={title}
-            onChangeText={setTitle}
-          />
+          <Text style={styles.autoName}>{title}</Text>
 
           <Text style={styles.label}>{t('exams.topic')}</Text>
           <View style={styles.chipRow}>
@@ -184,14 +193,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.sm,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.size.body,
+  autoName: {
+    fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.medium,
     color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   hint: { fontSize: typography.size.caption, color: colors.textMuted },
