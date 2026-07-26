@@ -7,7 +7,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Button } from '../../ui';
 import {
@@ -28,6 +36,7 @@ import {
 } from '../../../lib/rewards';
 import type { StoredTarget } from '../../../lib/firebase/rewards';
 import { SetGoalDialog } from './SetGoalDialog';
+import { StatBadge } from './kit';
 
 function periodLabel(t: (k: string) => string, p: string): string {
   return t(
@@ -153,6 +162,8 @@ export interface RewardsSectionProps {
   sessions: SessionLike[];
   /** Topic display label. */
   topicLabel: (topic: string) => string;
+  /** The child's accent colour (from the Goals card). */
+  accent?: string;
 }
 
 export function RewardsSection({
@@ -160,32 +171,48 @@ export function RewardsSection({
   childId,
   sessions,
   topicLabel,
+  accent = colors.answerInk,
 }: RewardsSectionProps) {
   const { t } = useTranslation();
   const { user } = useAuthUser();
-  const { summary, targets, saveGoal, redeem } = useChildRewards(familyId, childId);
+  const { summary, targets, loading, saveGoal, redeem } = useChildRewards(
+    familyId,
+    childId,
+  );
   const [editing, setEditing] = useState<RewardTarget | null | undefined>(undefined);
   const [redeeming, setRedeeming] = useState(false);
 
   // Built dark until the subscription ships.
   if (!PARENT_PRO_ENABLED) return null;
 
+  // Show a spinner until the star summary + goals are fully loaded, so the
+  // parent never watches zeroed values pop into their real numbers.
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.answerInk} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('rewards.title')}</Text>
-        <View style={styles.stars}>
-          <View style={styles.starStat}>
-            <Ionicons name="star" size={16} color={operationColors.mix.tint} />
-            <Text style={styles.starValue}>{summary.starsLifetime}</Text>
-            <Text style={styles.starCaption}>{t('rewards.starsEarned')}</Text>
-          </View>
-          <View style={styles.starStat}>
-            <Ionicons name="star" size={16} color="#F5B301" />
-            <Text style={styles.starValue}>{summary.starsBalance}</Text>
-            <Text style={styles.starCaption}>{t('rewards.starsToSpend')}</Text>
-          </View>
-        </View>
+      {/* Two big star badges: all-time earned + redeemable balance. */}
+      <View style={styles.stars}>
+        <StatBadge
+          icon="star"
+          iconColor="#F5B301"
+          background="#FFF7E6"
+          value={summary.starsLifetime}
+          caption={t('rewards.starsEarned')}
+        />
+        <StatBadge
+          icon="gift"
+          iconColor={colors.correct}
+          background="#EAF7EE"
+          value={summary.starsBalance}
+          caption={t('rewards.starsToSpend')}
+        />
       </View>
 
       {targets.length === 0 ? (
@@ -202,25 +229,23 @@ export function RewardsSection({
       )}
 
       <View style={styles.actions}>
-        <Pressable
-          onPress={() => setEditing(null)}
-          accessibilityRole="button"
-          hitSlop={8}
-          style={styles.action}
-        >
-          <Ionicons name="flag-outline" size={14} color={colors.answerInk} />
-          <Text style={styles.actionText}>{t('rewards.setGoal')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setRedeeming(true)}
-          disabled={summary.starsBalance <= 0}
-          accessibilityRole="button"
-          hitSlop={8}
-          style={[styles.action, summary.starsBalance <= 0 && styles.actionDisabled]}
-        >
-          <Ionicons name="gift-outline" size={14} color={colors.answerInk} />
-          <Text style={styles.actionText}>{t('rewards.redeem')}</Text>
-        </Pressable>
+        <View style={styles.actionBtn}>
+          <Button
+            label={t(targets.length ? 'rewards.editGoalCta' : 'rewards.setGoal')}
+            icon="flag"
+            tone={accent}
+            onPress={() => setEditing(null)}
+          />
+        </View>
+        <View style={styles.actionBtn}>
+          <Button
+            label={t('rewards.redeem')}
+            icon="gift-outline"
+            variant="secondary"
+            disabled={summary.starsBalance <= 0}
+            onPress={() => setRedeeming(true)}
+          />
+        </View>
       </View>
 
       {editing !== undefined ? (
@@ -250,34 +275,9 @@ export function RewardsSection({
 }
 
 const styles = StyleSheet.create({
-  section: {
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-    marginTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    flexWrap: 'wrap',
-  },
-  title: {
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
-  stars: { flexDirection: 'row', gap: spacing.lg },
-  starStat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  starValue: {
-    fontSize: typography.size.bodyLarge,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  starCaption: { fontSize: typography.size.caption, color: colors.textMuted },
+  section: { gap: spacing.md, paddingTop: spacing.md },
+  loading: { paddingVertical: spacing.xl, alignItems: 'center' },
+  stars: { flexDirection: 'row', gap: spacing.sm },
   empty: { fontSize: typography.size.body, color: colors.textMuted },
   goal: { gap: spacing.xs, paddingVertical: spacing.xs },
   goalHead: {
@@ -300,14 +300,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { borderRadius: radius.pill },
-  actions: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionDisabled: { opacity: 0.4 },
-  actionText: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.medium,
-    color: colors.answerInk,
-  },
+  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  actionBtn: { flex: 1 },
   // Redeem dialog
   backdrop: {
     flex: 1,

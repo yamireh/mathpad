@@ -17,7 +17,7 @@ import {
 import { colors, operationColors, radius, spacing, typography } from '../constants/design';
 import {
   useDevPreferences,
-  useFamilyLink,
+  usePracticeIdentity,
   usePracticeSession,
   useRecognition,
   useTimer,
@@ -48,7 +48,7 @@ export default function PracticeScreen() {
     finish,
   } = usePracticeSession();
   const { recognizeAnswer } = useRecognition();
-  const { link } = useFamilyLink();
+  const identity = usePracticeIdentity();
 
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(false);
@@ -67,16 +67,13 @@ export default function PracticeScreen() {
       const results = await finish(recognizeAnswer);
       // A parent-assigned exam: submit the result blind (the kid never sees a
       // score) and show the "submitted" screen, instead of the score screen.
-      if (examId && link) {
-        await submitExamResult(link.familyId, link.childId, {
+      if (examId && identity) {
+        await submitExamResult(identity.familyId, identity.childId, {
           examId,
           submittedAt: new Date().toISOString(),
           totalQuestions: results.length,
           finalScore: countFinal(results),
-          answers: results.map((r) => ({
-            questionId: r.question.id,
-            correct: r.status !== 'wrong',
-          })),
+          questions: results,
         }).catch(() => {});
         router.replace('/exam-done');
         return;
@@ -87,7 +84,7 @@ export default function PracticeScreen() {
       setSubmitting(false);
       Alert.alert(t('app.name'), t('practice.helpMessage'));
     }
-  }, [finish, recognizeAnswer, router, t, link, session]);
+  }, [finish, recognizeAnswer, router, t, identity, session]);
 
   // Recognise the current question's ink and play success/error sound.
   // Awaited before advancing so the sound feels tied to the click.

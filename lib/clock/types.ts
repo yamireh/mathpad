@@ -6,14 +6,37 @@ export interface ClockTime {
   minute: number;
 }
 
-/** Minute granularity — the "Complexity" setting (15s / 5s / Minutes). */
+/** Minute granularity of the times shown — one concrete step. */
 export type ClockStep = 'quarter' | 'five' | 'minute';
 
 /**
- * How the child answers — the "Type" setting.
- *  - `digital`  : read the clock, write the time
- *  - `pattern`  : read the clock, build the spoken phrase from tiles
- *  - `set`      : given a digital time, move the hands to match
+ * The "Complexity" setting: a concrete step, or `any` to blend all three
+ * across a session (each question resolves to a concrete step).
+ */
+export type ClockComplexity = ClockStep | 'any';
+
+/**
+ * What the child practises — the "Skill" setting (the top axis).
+ *  - `read`    : read the shown clock and answer (write or say)
+ *  - `set`     : given a digital time, move the hands to match
+ *  - `elapsed` : given a start time + a duration, answer the resulting time
+ */
+export type ClockSkill = 'read' | 'set' | 'elapsed';
+
+/** Which way an elapsed-time question runs. */
+export type ClockDirection = 'after' | 'before';
+
+/**
+ * Elapsed "Jump size" — how big the time jump is, mirroring the school ramp:
+ * whole hours → half hours → 5-minute → any minute.
+ */
+export type ClockJump = 'hour' | 'half' | 'five' | 'any';
+
+/**
+ * How the child answers — the "Answer with" setting (for read & elapsed).
+ *  - `digital`  : write the time
+ *  - `pattern`  : build the spoken phrase from tiles
+ *  - `set`      : move the hands to match (elapsed only)
  *  - `mixed`    : a mix of the above
  */
 export type ClockAnswerType = 'digital' | 'pattern' | 'set' | 'mixed';

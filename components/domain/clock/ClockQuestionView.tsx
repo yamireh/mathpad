@@ -26,6 +26,7 @@ import { fieldDigits, type ClockFieldValue } from './answerDigits';
 import { ClockFace } from './ClockFace';
 import { ClockLegend } from './ClockLegend';
 import { DigitalClockAnswer } from './DigitalClockAnswer';
+import { ElapsedPrompt } from './ElapsedPrompt';
 import { PatternBuilder } from './PatternBuilder';
 import { SetClockPrompt } from './SetClockPrompt';
 import { SettableClock } from './SettableClock';
@@ -49,6 +50,8 @@ export interface ClockQuestionHandle {
 export interface ClockQuestionViewProps {
   question: ClockQuestion;
   clockSize: number;
+  /** Show the past/to teaching overlay (only meaningful in read modes). */
+  help?: boolean;
   /** Fired while drawing/dragging so a parent can lock page scrolling. */
   onDrawStart?: () => void;
   onDrawEnd?: () => void;
@@ -69,7 +72,10 @@ function digitsToNumber(digits: number[]): number {
 export const ClockQuestionView = forwardRef<
   ClockQuestionHandle,
   ClockQuestionViewProps
->(function ClockQuestionView({ question, clockSize, onDrawStart, onDrawEnd }, ref) {
+>(function ClockQuestionView(
+  { question, clockSize, help = false, onDrawStart, onDrawEnd },
+  ref,
+) {
   const { t } = useTranslation();
   const [built, setBuilt] = useState<ClockToken[]>([]);
   const [setValue, setSetValue] = useState<ClockTime>(SET_START);
@@ -82,9 +88,12 @@ export const ClockQuestionView = forwardRef<
   }, []);
 
   const showRing = question.step === 'quarter';
+  // The answer is always about `target` — which equals the shown time for
+  // read/set, but is the computed later/earlier time for elapsed questions.
+  const answer = question.target;
   const sections = useMemo(
-    () => patternSections(clockPhrase(question.time)),
-    [question],
+    () => patternSections(clockPhrase(answer)),
+    [answer],
   );
 
   const tokenLabel = (token: ClockToken) =>
@@ -94,13 +103,13 @@ export const ClockQuestionView = forwardRef<
     judge: async (): Promise<ClockJudgement> => {
       if (question.answerWith === 'pattern') {
         return {
-          correct: checkPattern(question.time, built),
+          correct: checkPattern(answer, built),
           given: built.length ? built.map(tokenLabel).join(' ') : '—',
         };
       }
       if (question.answerWith === 'set') {
         return {
-          correct: checkSet(question.time, setValue),
+          correct: checkSet(answer, setValue),
           given: formatDigital(setValue),
         };
       }
@@ -113,7 +122,7 @@ export const ClockQuestionView = forwardRef<
         const minute = digitsToNumber(mDigits);
         const blank = Number.isNaN(hour) || Number.isNaN(minute);
         return {
-          correct: hour === question.time.hour && minute === question.time.minute,
+          correct: hour === answer.hour && minute === answer.minute,
           given: blank ? '—' : `${hour}:${minute.toString().padStart(2, '0')}`,
         };
       } catch {
@@ -129,10 +138,10 @@ export const ClockQuestionView = forwardRef<
     },
   }));
 
-  if (question.answerWith === 'set') {
-    return (
+  // The answer surface: set the hands, build words, or write the digits.
+  const answerNode =
+    question.answerWith === 'set' ? (
       <>
-        <SetClockPrompt time={formatDigital(question.time)} />
         <SettableClock
           value={setValue}
           onChange={setSetValue}
@@ -151,32 +160,49 @@ export const ClockQuestionView = forwardRef<
           }}
         />
       </>
+    ) : question.answerWith === 'pattern' ? (
+      <PatternBuilder
+        sections={sections}
+        built={built}
+        onAdd={(token) => setBuilt((b) => [...b, token])}
+        onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}
+      />
+    ) : (
+      <DigitalClockAnswer
+        onHourChange={(v) => {
+          hourRef.current = v;
+        }}
+        onMinuteChange={(v) => {
+          minuteRef.current = v;
+        }}
+        onDrawStart={onDrawStart}
+        onDrawEnd={onDrawEnd}
+      />
     );
-  }
+
+  // The prompt above the answer, per skill.
+  const promptNode =
+    question.skill === 'set' ? (
+      <SetClockPrompt time={formatDigital(answer)} />
+    ) : question.skill === 'elapsed' && question.shift ? (
+      <ElapsedPrompt shift={question.shift} />
+    ) : (
+      <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
+    );
 
   return (
     <>
-      <ClockFace time={question.time} size={clockSize} showRing={showRing} />
-      <Text style={styles.prompt}>{t('clock.readPrompt')}</Text>
-      {question.answerWith === 'pattern' ? (
-        <PatternBuilder
-          sections={sections}
-          built={built}
-          onAdd={(token) => setBuilt((b) => [...b, token])}
-          onRemove={(i) => setBuilt((b) => b.filter((_, idx) => idx !== i))}
+      {/* Read & elapsed show the clock to read; pure "set the hands" doesn't. */}
+      {question.skill !== 'set' ? (
+        <ClockFace
+          time={question.time}
+          size={clockSize}
+          showRing={showRing}
+          help={help && question.skill === 'read'}
         />
-      ) : (
-        <DigitalClockAnswer
-          onHourChange={(v) => {
-            hourRef.current = v;
-          }}
-          onMinuteChange={(v) => {
-            minuteRef.current = v;
-          }}
-          onDrawStart={onDrawStart}
-          onDrawEnd={onDrawEnd}
-        />
-      )}
+      ) : null}
+      {promptNode}
+      {answerNode}
     </>
   );
 });

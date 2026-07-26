@@ -5,7 +5,12 @@
  * the existing `Question` shape (serializable) and `Settings` (how the questions
  * were generated). See `docs/parent-pro-exams.md`.
  */
-import type { Operation, Question, Settings } from '../../types';
+import type {
+  Operation,
+  Question,
+  QuestionResult,
+  Settings,
+} from '../../types';
 
 /** An exam as authored by a parent and stored at the family level. */
 export interface Exam {
@@ -28,12 +33,6 @@ export interface Exam {
   dueAt?: string;
 }
 
-/** Per-question outcome in a submitted exam (light — enough for the parent view). */
-export interface ExamAnswer {
-  questionId: string;
-  correct: boolean;
-}
-
 /** A child's submitted result for one exam (stored under the child doc). */
 export interface ExamResult {
   examId: string;
@@ -41,7 +40,9 @@ export interface ExamResult {
   submittedAt: string;
   totalQuestions: number;
   finalScore: number;
-  answers: ExamAnswer[];
+  /** Full per-question breakdown, so the parent sees the same result page the
+   *  kid would — status, the kid's answer, hints — read-only. */
+  questions: QuestionResult[];
 }
 
 /** An exam plus (optionally) this child's result — for list views. */

@@ -61,6 +61,7 @@ export function CreateExamDialog({
     children.length === 1 ? [children[0].childId] : [],
   );
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Custom problems parsed live so the parent sees the count + any bad lines.
   const custom = useMemo(() => parseCustomProblems(customText), [customText]);
@@ -92,8 +93,13 @@ export function CreateExamDialog({
       : (defaultSettings('mix') as Settings);
     const questions = random ? generateSession(settings) : custom.questions;
     setSaving(true);
+    setSaveError(null);
     try {
       await onCreate({ title, createdBy, assignedTo, operation: op, settings, questions });
+    } catch (e) {
+      // Surface the real failure (e.g. Firestore permission-denied) instead of
+      // silently closing — otherwise a rejected write looks like it "worked".
+      setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
@@ -190,6 +196,10 @@ export function CreateExamDialog({
           )}
           {!canSave && children.length > 0 ? (
             <Text style={styles.hint}>{t('exams.pickChild')}</Text>
+          ) : null}
+
+          {saveError ? (
+            <Text style={styles.errorHint}>{saveError}</Text>
           ) : null}
 
           <View style={styles.actions}>

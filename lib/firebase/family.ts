@@ -164,6 +164,23 @@ export async function createFamily(ownerUid: string): Promise<Family> {
   return { id: ref.id, ownerUid, pairingCode, parentCode };
 }
 
+/**
+ * Create a child profile in the family (Parent Pro Phase 1). A child is a family
+ * entity with a stable generated id — NOT tied to any login — so a parent can
+ * practice as them on a shared device, and dedicated kid tablets claim one later.
+ * Authorized because the creator is a family member. Returns the new child id.
+ */
+export async function createChildProfile(
+  familyId: string,
+  name: string,
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'families', familyId, 'children'), {
+    name: name.trim(),
+    joinedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
 /** Update a linked child's display name (the device edits its own child doc). */
 export async function updateChildName(
   familyId: string,

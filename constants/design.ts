@@ -84,6 +84,10 @@ export const clockColors = {
   minuteHand: '#F2683C',
   /** Count-by-5 training ring labels. */
   ring: '#6E7079',
+  /** Teaching "help" overlay — minutes PAST the hour (right half). */
+  helpPast: '#16A34A',
+  /** Teaching "help" overlay — minutes TO the next hour (left half). */
+  helpTo: '#7C3AED',
 } as const;
 
 /* -------------------------------------------------------------------------- */

@@ -1,9 +1,18 @@
 /** Clock question model + answer checking (pure). */
 import { clockPhrase, formatDigital } from './format';
-import { generateClockTime } from './generate';
+import {
+  generateClockTime,
+  resolveJump,
+  resolveStep,
+  shiftTime,
+} from './generate';
 import type {
   ClockAnswerType,
+  ClockComplexity,
+  ClockDirection,
+  ClockJump,
   ClockPhrase,
+  ClockSkill,
   ClockStep,
   ClockTime,
 } from './types';
@@ -136,20 +145,37 @@ export type ClockAnswerSurface = 'digital' | 'pattern' | 'set';
 
 export interface ClockQuestion {
   id: string;
+  /** The clock shown to the child (the START time for an elapsed question). */
   time: ClockTime;
+  /** The time the child must answer — equals `time` except for elapsed. */
+  target: ClockTime;
   step: ClockStep;
+  /** What's being practised. */
+  skill: ClockSkill;
   /** Resolved answer surface for this question (mixed picks per question). */
   answerWith: ClockAnswerSurface;
+  /** For elapsed questions: the jump applied to `time` to reach `target`. */
+  shift?: { minutes: number; dir: ClockDirection };
 }
 
-const SURFACES: readonly ClockAnswerSurface[] = ['digital', 'pattern', 'set'];
+/** The answer surfaces a skill can use (mixed draws from this set). */
+export function surfacesForSkill(skill: ClockSkill): ClockAnswerSurface[] {
+  if (skill === 'set') return ['set'];
+  if (skill === 'read') return ['digital', 'pattern'];
+  return ['digital', 'pattern', 'set']; // elapsed
+}
 
-/** Resolve the answer surface, picking randomly for "mixed". */
+/** Resolve the answer surface, picking randomly for "mixed" within the skill. */
 export function resolveAnswerWith(
   type: ClockAnswerType,
+  skill: ClockSkill,
   rng: () => number = Math.random,
 ): ClockAnswerSurface {
-  if (type === 'mixed') return SURFACES[Math.floor(rng() * SURFACES.length)];
+  if (skill === 'set') return 'set';
+  if (type === 'mixed') {
+    const surfaces = surfacesForSkill(skill);
+    return surfaces[Math.floor(rng() * surfaces.length)];
+  }
   return type;
 }
 
@@ -166,8 +192,10 @@ const TIME_DEDUP_ATTEMPTS = 50;
 
 export function generateClockQuestions(opts: {
   count: number;
-  step: ClockStep;
+  step: ClockComplexity;
   type: ClockAnswerType;
+  skill: ClockSkill;
+  jump: ClockJump;
   rng?: () => number;
 }): ClockQuestion[] {
   const rng = opts.rng ?? Math.random;
@@ -175,16 +203,31 @@ export function generateClockQuestions(opts: {
   // rather than repeating the same clock.
   const seen = new Set<string>();
   return Array.from({ length: opts.count }, (_, i) => {
-    let time = generateClockTime(opts.step, rng);
+    const step = resolveStep(opts.step, rng);
+    let time = generateClockTime(step, rng);
     for (let a = 0; a < TIME_DEDUP_ATTEMPTS && seen.has(timeKey(time)); a++) {
-      time = generateClockTime(opts.step, rng);
+      time = generateClockTime(step, rng);
     }
     seen.add(timeKey(time));
+
+    // Elapsed questions ask for a time a duration away from the one shown.
+    let target = time;
+    let shift: { minutes: number; dir: ClockDirection } | undefined;
+    if (opts.skill === 'elapsed') {
+      const minutes = resolveJump(opts.jump, rng);
+      const dir: ClockDirection = rng() < 0.5 ? 'after' : 'before';
+      target = shiftTime(time, dir === 'after' ? minutes : -minutes);
+      shift = { minutes, dir };
+    }
+
     return {
       id: `clock-${i}`,
       time,
-      step: opts.step,
-      answerWith: resolveAnswerWith(opts.type, rng),
+      target,
+      step,
+      skill: opts.skill,
+      answerWith: resolveAnswerWith(opts.type, opts.skill, rng),
+      shift,
     };
   });
 }

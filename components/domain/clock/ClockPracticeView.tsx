@@ -48,6 +48,8 @@ export function ClockPracticeView({
         count: settings.questionCount,
         step: settings.step,
         type: settings.type,
+        skill: settings.skill,
+        jump: settings.jump,
       }),
     [settings],
   );
@@ -57,6 +59,7 @@ export function ClockPracticeView({
   const [submitting, setSubmitting] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [confirmSkip, setConfirmSkip] = useState(false);
+  const [helpOn, setHelpOn] = useState(false);
   const qRef = useRef<ClockQuestionHandle>(null);
 
   const q = questions[index];
@@ -102,7 +105,18 @@ export function ClockPracticeView({
           <Text style={styles.progressText}>
             {t('practice.progress', { current: index + 1, total })}
           </Text>
-          <View style={styles.spacer} />
+          {/* Reading modes get a hint bulb (matches Operations): it toggles the
+              past/to teaching overlay on the clock. */}
+          {q.skill === 'read' ? (
+            <IconButton
+              name={helpOn ? 'bulb' : 'bulb-outline'}
+              color={colors.amber}
+              accessibilityLabel={t('hints.button')}
+              onPress={() => setHelpOn((h) => !h)}
+            />
+          ) : (
+            <View style={styles.spacer} />
+          )}
         </View>
         {/* The progress bar doubles as the header divider: a thin full-width
             fill that grows across the bottom edge as the kid advances. */}
@@ -129,6 +143,7 @@ export function ClockPracticeView({
           ref={qRef}
           question={q}
           clockSize={clockSize}
+          help={helpOn}
           onDrawStart={() => setDrawing(true)}
           onDrawEnd={() => setDrawing(false)}
         />

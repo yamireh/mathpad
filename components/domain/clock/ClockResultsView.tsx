@@ -81,15 +81,16 @@ function ResultRow({
   const ok = result.correct || result.fixed;
   const q = result.question;
   // Show the correct answer the same way it was asked: in words for the
-  // words/tiles mode, digital otherwise.
+  // words/tiles mode, digital otherwise. `target` is the shown time for
+  // read/set, or the computed later/earlier time for elapsed.
   const answerText =
     q.answerWith === 'pattern'
-      ? phraseTokens(clockPhrase(q.time))
+      ? phraseTokens(clockPhrase(q.target))
           .map((tok) =>
             tok.kind === 'word' ? t(`clock.words.${tok.word}`) : String(tok.value),
           )
           .join(' ')
-      : formatDigital(q.time);
+      : formatDigital(q.target);
   return (
     <Card onPress={onPress} style={styles.row}>
       <View style={styles.rowLeft}>

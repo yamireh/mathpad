@@ -32,6 +32,7 @@ import {
   formatDigital,
   handAngles,
   pointOnClock,
+  shiftTime,
   type ClockTime,
   type ClockToken,
 } from '../../../lib/clock';
@@ -43,6 +44,7 @@ import { ClockFace } from './ClockFace';
 import { ClockLegend } from './ClockLegend';
 import { ClockTile } from './ClockTile';
 import { DemoHand } from './DemoHand';
+import { ElapsedPrompt } from './ElapsedPrompt';
 import { SetClockPrompt } from './SetClockPrompt';
 
 /** The worked example: 6:30 — the canonical "half past". */
@@ -50,13 +52,16 @@ const DEMO_HOUR = 6;
 const DEMO_MINUTE = 30;
 /** The clock starts here (the app's default set time); the hour hand drags 9 → 6. */
 const START_HOUR = 9;
+/** Elapsed demo: start at 3:00, count on one hour to 4:00. */
+const ELAPSED_START: ClockTime = { hour: 3, minute: 0 };
+const ELAPSED_DUR_MIN = 60;
 const SWEEP_MS = 2400; // slow, so each hand is easy to follow
 const GLIDE_MS = 900; // hand travelling between targets
 const WRITE_MS = 900; // drawing one digit glyph
 /** Reserved area below the clock for the selector / tiles / write boxes. */
 const WORK_H = 200;
 
-type Mode = 'set' | 'words' | 'write';
+type Mode = 'set' | 'words' | 'write' | 'elapsed';
 
 /** Demo pattern tiles: the correct phrase (half · past · 6) plus a few decoys. */
 const DEMO_BANK: ClockToken[] = [
@@ -112,11 +117,15 @@ const pointAt = (stroke: InkStroke, tt: number) => {
 
 export interface ClockHowToHandle {
   play(): void;
+  /** Halt the demo immediately (animations, timers, sounds) — e.g. on exit. */
+  stop(): void;
 }
 
 export interface ClockHowToViewProps {
   /** Square edge length of the clock face in px. */
   size: number;
+  /** Fired once the full walkthrough finishes playing. */
+  onDone?: () => void;
 }
 
 /**
@@ -127,8 +136,10 @@ export interface ClockHowToViewProps {
  * card between modes. `play()` runs it.
  */
 export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
-  function ClockHowToView({ size }, ref) {
+  function ClockHowToView({ size, onDone }, ref) {
     const { t } = useTranslation();
+    const onDoneRef = useRef(onDone);
+    onDoneRef.current = onDone;
     const centre = size / 2;
     const dialR = size * 0.465;
     const boxW = Math.min(Math.round(size * 0.42), 140);
@@ -157,7 +168,7 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
     const blink = useRef(new Animated.Value(1)).current;
     const transFade = useRef(new Animated.Value(0)).current;
     const blinkLoop = useRef<Animated.CompositeAnimation | null>(null);
-    const sweepMode = useRef<'hour' | 'minute' | null>(null);
+    const sweepMode = useRef<'hour' | 'minute' | 'elapsed' | null>(null);
     const drawStroke = useRef<InkStroke | null>(null);
     const legendBox = useRef<LayoutRectangle | null>(null);
     const bankOffset = useRef({ x: 0, y: 0 });
@@ -179,10 +190,18 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
 
     useEffect(() => {
       const h = hourSweep.addListener(({ value }) => {
-        if (sweepMode.current !== 'hour') return;
-        const tm = { hour: START_HOUR + 9 * value, minute: 0 }; // 9 → 6 clockwise
-        setTime(tm);
-        cursorXY.setValue(tipOf('hour', tm));
+        if (sweepMode.current === 'hour') {
+          const tm = { hour: START_HOUR + 9 * value, minute: 0 }; // 9 → 6 clockwise
+          setTime(tm);
+          cursorXY.setValue(tipOf('hour', tm));
+          return;
+        }
+        if (sweepMode.current === 'elapsed') {
+          // Count on the duration: minute hand loops, hour hand advances 3 → 4.
+          const tm = shiftTime(ELAPSED_START, ELAPSED_DUR_MIN * value);
+          setTime(tm);
+          cursorXY.setValue(tipOf('hour', tm));
+        }
       });
       const m = minuteSweep.addListener(({ value }) => {
         if (sweepMode.current !== 'minute') return;
@@ -208,7 +227,21 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
       timers.current = [];
     }, []);
 
-    useEffect(() => () => clearTimers(), [clearTimers]);
+    // Halt everything now: invalidate the running sequence, drop pending
+    // timers, and stop every animation (so no further sounds/steps fire).
+    const stop = useCallback(() => {
+      runId.current += 1;
+      clearTimers();
+      blinkLoop.current?.stop();
+      hourSweep.stopAnimation();
+      minuteSweep.stopAnimation();
+      cursorXY.stopAnimation();
+      writeVal.stopAnimation();
+      transFade.stopAnimation();
+      setCursorVisible(false);
+    }, [clearTimers, hourSweep, minuteSweep, cursorXY, writeVal, transFade]);
+
+    useEffect(() => () => stop(), [stop]);
 
     const play = useCallback(() => {
       runId.current += 1;
@@ -421,6 +454,38 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
         await wait(300);
         setCursorVisible(false);
         confirm();
+        await wait(1500);
+        if (!alive()) return;
+
+        /* ---- Transition → elapsed ---- */
+        setSolved(false);
+        await showTransition(t('clock.howTo.titleElapsed'));
+        if (!alive()) return;
+
+        /* ---- Part 4: Time after / before ---- */
+        setMode('elapsed');
+        setTitleIcon('hourglass-outline');
+        setTitle(t('clock.howTo.titleElapsed'));
+        sweepMode.current = null;
+        hourSweep.setValue(0);
+        setTime(ELAPSED_START);
+        setSub(t('clock.howTo.elapsedStep1')); // "Start at 3 o'clock"
+        showCursorAt(tipOf('hour', ELAPSED_START));
+        await wait(1600);
+        if (!alive()) return;
+
+        // Count on the hour: minute hand loops once, hour hand advances 3 → 4.
+        setSub(t('clock.howTo.elapsedStep2')); // "Count on 1 hour → 4 o'clock"
+        await wait(400);
+        sweepMode.current = 'elapsed';
+        await animate(hourSweep, 1, SWEEP_MS);
+        sweepMode.current = null;
+        if (!alive()) return;
+        await wait(400);
+        setCursorVisible(false);
+        confirm();
+        if (!alive()) return;
+        onDoneRef.current?.();
       };
 
       void run();
@@ -438,7 +503,7 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
       size,
     ]);
 
-    useImperativeHandle(ref, () => ({ play }), [play]);
+    useImperativeHandle(ref, () => ({ play, stop }), [play, stop]);
 
     const label = (tk: ClockToken) =>
       tk.kind === 'word' ? t(`clock.words.${tk.word}`) : String(tk.value);
@@ -516,7 +581,7 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
                   })}
                 </View>
               </>
-            ) : (
+            ) : mode === 'write' ? (
               <View
                 style={styles.writeRow}
                 onLayout={(e) => {
@@ -548,6 +613,11 @@ export const ClockHowToView = forwardRef<ClockHowToHandle, ClockHowToViewProps>(
                   </Canvas>
                 </View>
               </View>
+            ) : (
+              <>
+                <ElapsedPrompt shift={{ minutes: ELAPSED_DUR_MIN, dir: 'after' }} />
+                {sub ? <Text style={styles.sub}>{sub}</Text> : null}
+              </>
             )}
           </View>
 

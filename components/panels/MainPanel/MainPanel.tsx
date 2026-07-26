@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { PendingExamsCard, WelcomeTips, WELCOME_TIP_ID } from '../../domain';
 import { IconButton, ScreenContainer } from '../../ui';
@@ -14,6 +15,7 @@ import {
   typography,
 } from '../../../constants/design';
 import {
+  useActiveChild,
   useAuthUser,
   useFamilyLink,
   useParentalGate,
@@ -46,8 +48,10 @@ export function MainPanel() {
   // greeted by their own name (not the child's); an actual kid (anonymous
   // device) is greeted by their linked family name.
   const { link } = useFamilyLink();
+  // A parent "practicing as" a child sees that child's name and an exit banner.
+  const { activeChild, setActiveChild } = useActiveChild();
   const firstName = (
-    isGrownUp ? user?.displayName : link?.name
+    activeChild ? activeChild.name : isGrownUp ? user?.displayName : link?.name
   )
     ?.trim()
     .split(' ')[0];
@@ -74,7 +78,22 @@ export function MainPanel() {
       header={
         // Grown-ups entry: a discreet gear pinned top-right (stays put while the
         // page scrolls). Behind the parental gate so kids can't wander in.
+        // When a parent is practicing as a child, a "Back to parent" exit
+        // replaces the gate on the left.
         <View style={styles.topBar}>
+          {activeChild ? (
+            <Pressable
+              onPress={() => setActiveChild(null)}
+              accessibilityRole="button"
+              hitSlop={8}
+              style={styles.exitBar}
+            >
+              <Ionicons name="chevron-back" size={16} color={colors.answerInk} />
+              <Text style={styles.exitText}>{t('dashboard.exitPractice')}</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
           <IconButton
             name="settings-outline"
             accessibilityLabel={t('home.grownUps')}
@@ -183,8 +202,15 @@ const styles = StyleSheet.create({
   grid: { gap: spacing.md },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
+  },
+  exitBar: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  exitText: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: colors.answerInk,
   },
 });

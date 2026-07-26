@@ -91,6 +91,12 @@
     "tabProgress": "Progress",
     "tabGoals": "Goals",
     "tabPractice": "Practice",
+    "practiceAs": "Practice as",
+    "exitPractice": "Back to parent",
+    "addChild": "Add child",
+    "addChildTitle": "Add a child",
+    "childNamePlaceholder": "Child's name",
+    "add": "Add",
     "practiceComingSoon": "Create practice sets and assign them to your children — coming soon."
   },
   "exams": {
@@ -123,7 +129,13 @@
     "customErrors": "Can't read: {{lines}}",
     "customEmpty": "Add at least one problem.",
     "opNewLine": "New line",
-    "opDelete": "Delete"
+    "opDelete": "Delete",
+    "resultTitle": "{{name}}'s result",
+    "resultScore": "{{score}} / {{total}}",
+    "viewResult": "View {{name}}'s result",
+    "previewQuestions": "Preview questions for {{name}}",
+    "previewFor": "Waiting on {{name}}",
+    "close": "Back"
   },
   "rewards": {
     "title": "Goals & stars",
@@ -132,6 +144,7 @@
     "noGoals": "No goal set yet.",
     "setGoal": "Set a goal",
     "editGoal": "Edit",
+    "editGoalCta": "Edit goal",
     "redeem": "Redeem",
     "met": "Goal met! ⭐",
     "progress": "{{current}} / {{total}} questions",
@@ -359,8 +372,10 @@
     "button": "How to solve",
     "title": "How to solve {{operation}}",
     "watch": "Watch how",
+    "watchNow": "Watch now",
     "replay": "Watch again",
-    "gotIt": "Got it"
+    "gotIt": "Got it",
+    "dontShowAgain": "Don't show again"
   },
   "purchase": {
     "errorTitle": "Purchase couldn't start",
@@ -405,6 +420,11 @@
       "clearMessage": "This permanently deletes every saved clock session on this device."
     },
     "readPrompt": "What time is it?",
+    "elapsedAfter": "What time will it be in {{dur}}?",
+    "elapsedBefore": "What time was it {{dur}} ago?",
+    "hour": "hour",
+    "hoursUnit": "hours",
+    "min": "min",
     "hours": "Hours",
     "minutes": "Minutes",
     "setTitle": "Set the time",
@@ -421,9 +441,12 @@
       "titleSet": "Set the time",
       "titleWords": "Say it in words",
       "titleWrite": "Write the time",
+      "titleElapsed": "Time after / before",
       "setPrompt": "Set the time to 6:30",
       "step1": "Pick the hour hand, move it to 6",
       "step2": "Pick the minute hand, move it to 30",
+      "elapsedStep1": "Start at 3 o'clock",
+      "elapsedStep2": "Count on 1 hour → 4 o'clock",
       "next": "Next: {{mode}}"
     },
     "words": {
@@ -435,14 +458,23 @@
     },
     "settings": {
       "count": "Number of questions",
+      "skill": "What to practise",
+      "answer": "Answer with",
       "type": "Answer type",
       "complexity": "Complexity",
+      "jump": "Jump size",
+      "skillRead": "Read the time",
+      "skillReadDesc": "Read the clock and tell the time",
+      "skillSet": "Set the hands",
+      "skillSetDesc": "Move the hands to match a time",
+      "skillElapsed": "Time after / before",
+      "skillElapsedDesc": "Work out the time a while later or earlier",
       "typeDigital": "Write the time",
-      "typeDigitalDesc": "Read the clock and write it, like 6:30",
+      "typeDigitalDesc": "Write it, like 6:30",
       "typePattern": "Say it in words",
-      "typePatternDesc": "Read the clock and build the words",
+      "typePatternDesc": "Build the time from words",
       "typeSet": "Set the hands",
-      "typeSetDesc": "Move the hands to match a time",
+      "typeSetDesc": "Move the hands to the time",
       "typeMixed": "Mixed",
       "typeMixedDesc": "A bit of each",
       "stepQuarter": "Quarters",
@@ -450,7 +482,17 @@
       "stepFive": "Five minutes",
       "stepFiveDesc": "Times in 5-minute steps",
       "stepMinute": "Minutes",
-      "stepMinuteDesc": "Any minute"
+      "stepMinuteDesc": "Any minute",
+      "stepAny": "Any",
+      "stepAnyDesc": "A mix of all three",
+      "jumpHour": "Whole hours",
+      "jumpHourDesc": "1 or 2 hours later / earlier",
+      "jumpHalf": "Half hours",
+      "jumpHalfDesc": "30-minute jumps",
+      "jumpFive": "Five minutes",
+      "jumpFiveDesc": "5-minute jumps",
+      "jumpAny": "Any",
+      "jumpAnyDesc": "Any number of minutes"
     }
   },
   "parentalGate": {

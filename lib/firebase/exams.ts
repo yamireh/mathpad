@@ -15,6 +15,7 @@ import {
   doc,
   type DocumentReference,
   getDoc,
+  getDocFromServer,
   getDocs,
   query,
   serverTimestamp,
@@ -70,6 +71,15 @@ export async function createExam(
     ...(exam.dueAt ? { dueAt: exam.dueAt } : {}),
     createdAt: serverTimestamp(),
   });
+  // Offline persistence resolves the write from the LOCAL cache even when the
+  // server later rejects it (e.g. rules) — so confirm it actually persisted by
+  // reading it back FROM THE SERVER. Throws a clear error if it didn't.
+  const onServer = await getDocFromServer(ref);
+  if (!onServer.exists()) {
+    throw new Error(
+      'Exam did not persist to the server — the write was rejected (check the deployed Firestore rules for /exams).',
+    );
+  }
   return ref.id;
 }
 
@@ -125,7 +135,9 @@ export async function submitExamResult(
       examId: result.examId,
       totalQuestions: result.totalQuestions,
       finalScore: result.finalScore,
-      answers: result.answers,
+      // JSON round-trip strips any `undefined` (Firestore rejects it) from the
+      // per-question results (optional hinted/solved, null submitted answers).
+      questions: JSON.parse(JSON.stringify(result.questions)),
       submittedAt: serverTimestamp(),
     },
   );
@@ -151,7 +163,7 @@ export async function loadExamResult(
     submittedAt: (x.submittedAt as { toDate?: () => Date })?.toDate?.().toISOString?.() ?? '',
     totalQuestions: (x.totalQuestions as number) ?? 0,
     finalScore: (x.finalScore as number) ?? 0,
-    answers: (x.answers as ExamResult['answers']) ?? [],
+    questions: (x.questions as ExamResult['questions']) ?? [],
   };
 }
 

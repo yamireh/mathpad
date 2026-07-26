@@ -1,15 +1,32 @@
 /** Clock session settings + result shapes. */
-import type { ClockAnswerType, ClockStep } from './types';
+import type {
+  ClockAnswerType,
+  ClockComplexity,
+  ClockJump,
+  ClockSkill,
+} from './types';
 import type { ClockQuestion } from './question';
 
 export interface ClockSettings {
   questionCount: number;
-  step: ClockStep;
+  /** What to practise: read / set the hands / time after–before. */
+  skill: ClockSkill;
+  /** How to answer (read & elapsed): write / say / set / mixed. */
   type: ClockAnswerType;
+  /** Minute granularity of the times shown ('any' blends all three). */
+  step: ClockComplexity;
+  /** Elapsed jump size (only used when skill is 'elapsed'). */
+  jump: ClockJump;
 }
 
 export function defaultClockSettings(): ClockSettings {
-  return { questionCount: 10, step: 'quarter', type: 'digital' };
+  return {
+    questionCount: 10,
+    skill: 'read',
+    type: 'digital',
+    step: 'quarter',
+    jump: 'hour',
+  };
 }
 
 /** Outcome of one answered clock question. */
@@ -26,8 +43,9 @@ export interface ClockResult {
 export interface ClockSession {
   id: string;
   completedAt: string;
+  skill: ClockSkill;
   type: ClockAnswerType;
-  step: ClockStep;
+  step: ClockComplexity;
   total: number;
   /** Correct after any fixes. */
   correct: number;
@@ -45,6 +63,7 @@ export function summariseClockSession(
   return {
     id,
     completedAt,
+    skill: settings.skill,
     type: settings.type,
     step: settings.step,
     total: results.length,

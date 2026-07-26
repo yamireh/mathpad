@@ -49,6 +49,10 @@ export {
 } from './cursorTarget';
 export { HandCursor, type HandCursorProps } from './HandCursor';
 export { HintBanner, type HintBannerProps } from './HintBanner';
+export {
+  HowToIntroScrim,
+  type HowToIntroScrimProps,
+} from './HowToIntroScrim';
 export { DirectAnswerRow, type DirectAnswerRowProps } from './DirectAnswerRow';
 export { DirectInkBox, type DirectInkBoxProps } from './DirectInkBox';
 export {

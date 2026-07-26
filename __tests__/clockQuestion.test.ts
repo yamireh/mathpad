@@ -1,4 +1,4 @@
-import { clockPhrase } from '../lib/clock';
+import { clockPhrase, shiftTime } from '../lib/clock';
 import {
   checkDigital,
   checkPattern,
@@ -119,25 +119,84 @@ describe('clock — patternSections', () => {
 
 describe('clock — generateClockQuestions', () => {
   it('produces the requested count with valid, step-aligned times', () => {
-    const qs = generateClockQuestions({ count: 8, step: 'quarter', type: 'mixed' });
+    const qs = generateClockQuestions({
+      count: 8,
+      step: 'quarter',
+      type: 'mixed',
+      skill: 'read',
+      jump: 'hour',
+    });
     expect(qs).toHaveLength(8);
     for (const q of qs) {
       expect([0, 15, 30, 45]).toContain(q.time.minute);
-      expect(['digital', 'pattern', 'set']).toContain(q.answerWith);
+      // read only ever writes or says (never "set")
+      expect(['digital', 'pattern']).toContain(q.answerWith);
+      // read/set answer the shown time
+      expect(q.target).toEqual(q.time);
+      expect(q.skill).toBe('read');
     }
   });
 
-  it('resolveAnswerWith respects a non-mixed type', () => {
-    expect(resolveAnswerWith('digital')).toBe('digital');
-    expect(resolveAnswerWith('pattern')).toBe('pattern');
-    expect(resolveAnswerWith('set')).toBe('set');
+  it("resolveAnswerWith respects a non-mixed type and the skill's surfaces", () => {
+    expect(resolveAnswerWith('digital', 'read')).toBe('digital');
+    expect(resolveAnswerWith('pattern', 'read')).toBe('pattern');
+    // a set skill always answers by setting the hands, whatever the type
+    expect(resolveAnswerWith('digital', 'set')).toBe('set');
+    // elapsed can answer by writing, saying OR setting
+    expect(resolveAnswerWith('set', 'elapsed')).toBe('set');
+  });
+
+  it('read mixed never picks a surface outside the skill (no "set")', () => {
+    const read = generateClockQuestions({
+      count: 30,
+      step: 'minute',
+      type: 'mixed',
+      skill: 'read',
+      jump: 'hour',
+    });
+    expect(read.every((q) => q.answerWith !== 'set')).toBe(true);
+  });
+
+  it('elapsed questions target a time a whole-hour jump away', () => {
+    const qs = generateClockQuestions({
+      count: 20,
+      step: 'quarter',
+      type: 'digital',
+      skill: 'elapsed',
+      jump: 'hour',
+    });
+    for (const q of qs) {
+      expect(q.shift).toBeDefined();
+      expect([60, 120]).toContain(q.shift!.minutes);
+      // whole-hour jumps keep the minute, only the hour changes
+      expect(q.target.minute).toBe(q.time.minute);
+    }
   });
 
   it('gives every question a distinct time (no repeats in a session)', () => {
     for (const step of ['quarter', 'five', 'minute'] as const) {
-      const qs = generateClockQuestions({ count: 12, step, type: 'digital' });
+      const qs = generateClockQuestions({
+        count: 12,
+        step,
+        type: 'digital',
+        skill: 'read',
+        jump: 'hour',
+      });
       const keys = qs.map((q) => `${q.time.hour}:${q.time.minute}`);
       expect(new Set(keys).size).toBe(qs.length);
     }
+  });
+});
+
+describe('clock — shiftTime (12-hour wrap)', () => {
+  it('adds and subtracts minutes, wrapping around 12', () => {
+    expect(shiftTime({ hour: 3, minute: 0 }, 60)).toEqual({ hour: 4, minute: 0 });
+    expect(shiftTime({ hour: 3, minute: 45 }, 30)).toEqual({ hour: 4, minute: 15 });
+    // forward across the top of the dial
+    expect(shiftTime({ hour: 11, minute: 30 }, 60)).toEqual({ hour: 12, minute: 30 });
+    expect(shiftTime({ hour: 12, minute: 0 }, 60)).toEqual({ hour: 1, minute: 0 });
+    // backward across the top of the dial
+    expect(shiftTime({ hour: 12, minute: 0 }, -60)).toEqual({ hour: 11, minute: 0 });
+    expect(shiftTime({ hour: 1, minute: 15 }, -30)).toEqual({ hour: 12, minute: 45 });
   });
 });

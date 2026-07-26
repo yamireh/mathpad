@@ -6,7 +6,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { Button } from '../../ui';
 import {
@@ -18,31 +25,54 @@ import {
   typography,
 } from '../../../constants/design';
 import { useFamilyExams, type ExamWithChildResults } from '../../../hooks';
-import { formatAnswer, formatProblem } from '../../domain/format';
 import { CreateExamDialog } from './CreateExamDialog';
+import { ExamPreview } from './ExamPreview';
+import { ExamResultView } from './ExamResultView';
+import { Avatar, InfoRow, TopicPill } from './kit';
 
-/** One assigned child's status chip: pending, or their score. */
-function ResultChip({
+/** One assigned child's result row (shared InfoRow): avatar + name, then a big
+ *  color-coded score when submitted, or a muted "pending" badge. Tappable either
+ *  way — a score opens the breakdown, a pending row previews the questions. */
+function ResultRow({
   name,
+  index,
   result,
+  onPress,
 }: {
   name: string;
+  index: number;
   result: ExamWithChildResults['results'][number]['result'];
+  onPress: () => void;
 }) {
   const { t } = useTranslation();
   const done = result !== null;
+  const pct = done
+    ? Math.round((result.finalScore / Math.max(1, result.totalQuestions)) * 100)
+    : 0;
+  const scoreColor = pct >= 70 ? colors.correct : pct >= 40 ? colors.amber : colors.wrong;
   return (
-    <View style={[styles.resultChip, done && styles.resultChipDone]}>
+    <InfoRow
+      onPress={onPress}
+      accessibilityLabel={
+        done
+          ? t('exams.viewResult', { name })
+          : t('exams.previewQuestions', { name })
+      }
+      valueColor={scoreColor}
+      value={
+        done ? (
+          `${result.finalScore}/${result.totalQuestions}`
+        ) : (
+          <View style={styles.pendingBadge}>
+            <Ionicons name="time-outline" size={13} color={colors.textMuted} />
+            <Text style={styles.pendingText}>{t('exams.pending')}</Text>
+          </View>
+        )
+      }
+    >
+      <Avatar name={name} index={index} size={30} />
       <Text style={styles.resultName}>{name}</Text>
-      <Text style={[styles.resultValue, done && styles.resultValueDone]}>
-        {done
-          ? t('exams.submitted', {
-              score: result.finalScore,
-              total: result.totalQuestions,
-            })
-          : t('exams.pending')}
-      </Text>
-    </View>
+    </InfoRow>
   );
 }
 
@@ -55,14 +85,21 @@ export interface PracticeTabProps {
 
 export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps) {
   const { t } = useTranslation();
-  const { exams, create, remove } = useFamilyExams(familyId);
+  const { exams, loading, create, remove } = useFamilyExams(familyId);
   const [creating, setCreating] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // The submitted result the parent is viewing (read-only), if any.
+  const [viewing, setViewing] = useState<{
+    childName: string;
+    result: NonNullable<ExamWithChildResults['results'][number]['result']>;
+  } | null>(null);
+  // A not-yet-submitted exam whose questions the parent is previewing, if any.
+  const [previewing, setPreviewing] = useState<{
+    childName: string;
+    exam: ExamWithChildResults['exam'];
+  } | null>(null);
 
   const nameOf = (childId: string) =>
     children.find((c) => c.childId === childId)?.name ?? childId;
-  const toggle = (id: string) =>
-    setExpanded((m) => ({ ...m, [id]: !m[id] }));
 
   return (
     <View style={styles.container}>
@@ -70,65 +107,63 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {exams.length === 0 ? (
+        {loading ? (
+          <View style={styles.empty}>
+            <ActivityIndicator color={colors.answerInk} />
+          </View>
+        ) : exams.length === 0 ? (
           <View style={styles.empty}>
             <Ionicons name="create-outline" size={44} color={colors.textMuted} />
             <Text style={styles.emptyText}>{t('exams.none')}</Text>
           </View>
         ) : (
-          exams.map(({ exam, results }) => {
-            const open = expanded[exam.id] ?? false;
-            return (
-              <View key={exam.id} style={styles.card}>
-                <View style={styles.cardHead}>
-                  {/* Tap the title area to expand the question list. */}
-                  <Pressable
-                    style={styles.cardHeadText}
-                    onPress={() => toggle(exam.id)}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: open }}
-                  >
-                    <Text style={styles.cardTitle}>{exam.title}</Text>
-                    <View style={styles.metaRow}>
-                      <Ionicons
-                        name={open ? 'chevron-down' : 'chevron-forward'}
-                        size={14}
-                        color={colors.textMuted}
-                      />
-                      <Text style={styles.cardMeta}>
-                        {t(`operations.${exam.operation}`)} ·{' '}
-                        {exam.questions.length} {t('exams.count').toLowerCase()}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => void remove(exam.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('exams.delete')}
-                    hitSlop={8}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.wrong} />
-                  </Pressable>
-                </View>
-
-                {open ? (
-                  <View style={styles.questions}>
-                    {exam.questions.map((q, i) => (
-                      <Text key={q.id} style={styles.question}>
-                        {i + 1}. {formatProblem(q)} = {formatAnswer(q.answer)}
-                      </Text>
-                    ))}
+          exams.map(({ exam, results }) => (
+            <View key={exam.id} style={styles.card}>
+              <View style={styles.cardHead}>
+                <View style={styles.cardHeadText}>
+                  <Text style={styles.cardTitle}>{exam.title}</Text>
+                  <View style={styles.metaRow}>
+                    <TopicPill
+                      label={t(`operations.${exam.operation}`)}
+                      tint={operationColors[exam.operation].tint}
+                      color={operationColors[exam.operation].accent}
+                    />
+                    <Text style={styles.cardMeta}>
+                      {exam.questions.length} {t('exams.count').toLowerCase()}
+                    </Text>
                   </View>
-                ) : null}
-
-                <View style={styles.results}>
-                  {results.map(({ childId, result }) => (
-                    <ResultChip key={childId} name={nameOf(childId)} result={result} />
-                  ))}
                 </View>
+                <Pressable
+                  onPress={() => void remove(exam.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('exams.delete')}
+                  hitSlop={8}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.wrong} />
+                </Pressable>
               </View>
-            );
-          })
+
+              {/* Tap a submitted result to open the full per-question breakdown. */}
+              <View style={styles.results}>
+                {results.map(({ childId, result }, i) => (
+                  <View key={childId}>
+                    {i > 0 ? <View style={styles.resultDivider} /> : null}
+                    <ResultRow
+                      name={nameOf(childId)}
+                      index={children.findIndex((c) => c.childId === childId)}
+                      result={result}
+                      onPress={
+                        result
+                          ? () => setViewing({ childName: nameOf(childId), result })
+                          : () =>
+                              setPreviewing({ childName: nameOf(childId), exam })
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+          ))
         )}
       </ScrollView>
 
@@ -152,6 +187,24 @@ export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps)
             await create(exam);
             setCreating(false);
           }}
+        />
+      ) : null}
+
+      {viewing ? (
+        <ExamResultView
+          visible
+          childName={viewing.childName}
+          result={viewing.result}
+          onClose={() => setViewing(null)}
+        />
+      ) : null}
+
+      {previewing ? (
+        <ExamPreview
+          visible
+          childName={previewing.childName}
+          exam={previewing.exam}
+          onClose={() => setPreviewing(null)}
         />
       ) : null}
     </View>
@@ -186,46 +239,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  cardHeadText: { flex: 1, gap: 2 },
+  cardHeadText: { flex: 1, gap: spacing.xs },
   cardTitle: {
+    fontSize: typography.size.title,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+  },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  cardMeta: { fontSize: typography.size.caption, color: colors.textMuted },
+  results: {
+    marginTop: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  resultDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginLeft: spacing.sm,
+  },
+  resultName: {
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.medium,
     color: colors.text,
   },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cardMeta: { fontSize: typography.size.caption, color: colors.textMuted },
-  questions: {
-    gap: 2,
-    paddingVertical: spacing.sm,
-    paddingLeft: spacing.md,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.border,
-  },
-  question: {
-    fontSize: typography.size.body,
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  results: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  resultChip: {
+  pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 4,
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.pill,
-    paddingVertical: 4,
     paddingHorizontal: spacing.md,
+    paddingVertical: 4,
   },
-  resultChipDone: { backgroundColor: operationColors.addition.tint },
-  resultName: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
-  resultValue: { fontSize: typography.size.caption, color: colors.textMuted },
-  resultValueDone: {
-    color: operationColors.addition.accent,
-    fontVariant: ['tabular-nums'],
-  },
+  pendingText: { fontSize: typography.size.caption, color: colors.textMuted },
   footer: { paddingTop: spacing.md },
 });

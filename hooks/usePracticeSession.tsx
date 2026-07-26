@@ -11,6 +11,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -31,7 +32,8 @@ import {
   statusAfterEdit,
 } from '../lib/scoring';
 import { isSignedInParent } from '../lib/firebase/auth';
-import { maybeSyncSession } from '../lib/firebase/sync';
+import { maybeSyncSession, syncSessionForChild } from '../lib/firebase/sync';
+import { usePracticeIdentity } from './usePracticeIdentity';
 import { historyStore } from '../lib/storage';
 import type {
   Question,
@@ -324,6 +326,14 @@ export function PracticeSessionProvider({
     sessionRef.current = next;
     setSession(next);
   }, []);
+
+  // Who this practice is attributed to (kid device, or a parent practicing as a
+  // child). Mirrored in a ref so the async finish reads the current value.
+  const identity = usePracticeIdentity();
+  const identityRef = useRef(identity);
+  useEffect(() => {
+    identityRef.current = identity;
+  }, [identity]);
 
   const begin = useCallback(
     (settings: Settings, questions: Question[], examId?: string) => {
@@ -714,13 +724,18 @@ export function PracticeSessionProvider({
       // A parent-assigned exam is submitted blind by the practice screen (to the
       // exam, not the practice history), so skip local history + normal sync.
       if (!finished.examId) {
-        // A signed-in parent is previewing ("Open practice mode") — don't record
-        // their run to the kid's local history or sync it.
+        const id = identityRef.current;
+        // Local history is the DEVICE's own (a kid device) — never a parent's
+        // dabbling or a parent-as-child run (that lives in the cloud child).
         if (!isSignedInParent()) void historyStore.upsert(result);
-        // Sync to the family cloud once, at finish (a no-op unless this device is
-        // linked, and skipped for a parent preview). Later review-fixes aren't
-        // re-synced, to keep the aggregate counted once per session.
-        void maybeSyncSession(result);
+        // Sync to the family cloud once, at finish. A parent practicing as a
+        // child writes directly to that child (member-authorized); a dedicated
+        // kid device uses the offline-queue path keyed to its own link.
+        if (id?.viaMembership) {
+          void syncSessionForChild(id.familyId, id.childId, result);
+        } else {
+          void maybeSyncSession(result);
+        }
       }
       return results;
     },

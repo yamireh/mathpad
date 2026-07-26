@@ -9,6 +9,7 @@ import {
   Chip,
   Header,
   IconButton,
+  Pill,
   ScreenContainer,
 } from '../../components/ui';
 import {
@@ -19,9 +20,16 @@ import {
   spacing,
   typography,
 } from '../../constants/design';
-import { usePracticeSession, usePurchases, useSettings } from '../../hooks';
+import {
+  useHowToIntro,
+  usePracticeSession,
+  usePurchases,
+  useSettings,
+} from '../../hooks';
 import { isOperationUnlocked } from '../../lib/entitlement';
 import { primaryFeedback } from '../../lib/feedback';
+import { howToQuestion } from '../../lib/howTo';
+import { resetHowToIntros } from '../../lib/howToIntro';
 import type {
   DigitCount,
   DivisionAnswerType,
@@ -48,6 +56,15 @@ export default function SettingsScreen() {
   const { settings, update } = useSettings(operation);
   const { start } = usePracticeSession();
   const { owned, loading: purchasesLoading } = usePurchases();
+  // First time this operation is opened (unlocked + has a demo), auto-open its
+  // how-to. Not gated on purchase loading — a free op is unlocked regardless,
+  // and a locked paid op redirects to the store below before this matters.
+  useHowToIntro({
+    id: operation,
+    path: `/how-to/${operation}`,
+    enabled:
+      isOperationUnlocked(operation, owned) && !!howToQuestion(operation),
+  });
   // Guard against a fast double-tap pushing the how-to screen twice.
   const lastHowToTap = useRef(0);
   const openHowTo = () => {
@@ -204,6 +221,19 @@ export default function SettingsScreen() {
           tone={accent}
           onPress={startPracticing}
         />
+        {__DEV__ ? (
+          <View style={styles.devRow}>
+            <Pill
+              label="DEV: how-to intro"
+              icon="play-circle-outline"
+              onPress={() =>
+                void resetHowToIntros().then(() =>
+                  router.push(`/how-to/${operation}?intro=1`),
+                )
+              }
+            />
+          </View>
+        ) : null}
       </View>
     </ScreenContainer>
   );
@@ -544,7 +574,9 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
+    gap: spacing.sm,
   },
+  devRow: { alignItems: 'center' },
   // Soft section card.
   card: {
     backgroundColor: colors.surface,

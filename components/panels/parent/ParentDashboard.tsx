@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -22,13 +22,16 @@ import {
   typography,
 } from '../../../constants/design';
 import { Button, ConfirmDialog } from '../../ui';
-import { useAuthUser, useDashboard } from '../../../hooks';
+import { useActiveChild, useAuthUser, useDashboard } from '../../../hooks';
 import { PARENT_PRO_ENABLED } from '../../../lib/featureFlags';
 import {
   type ChildProgress,
   removeChild,
   resetChild,
 } from '../../../lib/firebase/dashboard';
+import { createChildProfile } from '../../../lib/firebase/family';
+import { AddChildDialog } from './AddChildDialog';
+import { Avatar, childColor, StatBadge, TopicPill } from './kit';
 import { PracticeTab } from './PracticeTab';
 import { RewardsSection } from './RewardsSection';
 
@@ -44,9 +47,9 @@ const methodColor = (topic: string) =>
   (operationColors as Record<string, { accent: string }>)[topic]?.accent ??
   (topic === 'clock' ? clockColors.hourHand : colors.text);
 
-// A distinct tint per child so several kids read apart at a glance.
-const CHILD_TINTS = ['#2563EB', '#DB2777', '#16A34A', '#D97706', '#7C3AED', '#0891B2'];
-const childTint = (index: number) => CHILD_TINTS[index % CHILD_TINTS.length];
+const methodTint = (topic: string) =>
+  (operationColors as Record<string, { tint: string }>)[topic]?.tint ??
+  (topic === 'clock' ? '#E6F0F7' : colors.surfaceAlt);
 
 /** Group recent sessions by method, keeping each group in recency order. */
 function groupByMethod<T extends { topic: string }>(sessions: T[]) {
@@ -80,15 +83,6 @@ const shortTime = (iso: string) => {
     return '';
   }
 };
-
-function Stat({ value, caption }: { value: string; caption: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statCaption}>{caption}</Text>
-    </View>
-  );
-}
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -162,25 +156,23 @@ function SessionBadges({
 }
 
 /**
- * A child's collapsible, sticky section header: name + a compact accuracy, with
- * a chevron showing it can open/close. Stays pinned while its body scrolls, so
- * the parent always knows whose progress they're looking at.
+ * A child's collapsible card header: avatar + name + an optional trailing stat,
+ * with a chevron showing it can open/close. Shared by the Progress and Goals
+ * tabs so a child looks the same wherever they appear.
  */
 function ChildHeader({
-  child,
+  name,
   index,
   expanded,
   onToggle,
+  stat,
 }: {
-  child: ChildProgress;
+  name: string;
   index: number;
   expanded: boolean;
   onToggle: () => void;
+  stat?: ReactNode;
 }) {
-  const { t } = useTranslation();
-  const name = child.name?.trim() || t('dashboard.child', { n: index + 1 });
-  const initial = (child.name?.trim()?.[0] ?? String(index + 1)).toUpperCase();
-  const tint = childTint(index);
   return (
     <Pressable
       onPress={onToggle}
@@ -189,19 +181,13 @@ function ChildHeader({
       accessibilityState={{ expanded }}
     >
       <View style={styles.childHeaderLeft}>
-        <View style={[styles.avatar, { backgroundColor: tint }]}>
-          <Text style={styles.avatarText}>{initial}</Text>
-        </View>
+        <Avatar name={name} index={index} size={36} />
         <Text style={styles.childName} numberOfLines={1}>
           {name}
         </Text>
       </View>
       <View style={styles.childHeaderRight}>
-        {child.totalQuestions > 0 ? (
-          <Text style={[styles.childHeaderStat, { color: tint }]}>
-            {pct(child.totalCorrect, child.totalQuestions)}%
-          </Text>
-        ) : null}
+        {stat}
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
           size={18}
@@ -214,10 +200,12 @@ function ChildHeader({
 
 function ChildBody({
   child,
+  onPractice,
   onReset,
   onRemove,
 }: {
   child: ChildProgress;
+  onPractice: () => void;
   onReset: () => void;
   onRemove: () => void;
 }) {
@@ -226,10 +214,28 @@ function ChildBody({
   return (
     <View style={styles.card}>
       <View style={styles.stats}>
-        <Stat value={String(child.totalSessions)} caption={t('dashboard.sessions')} />
-        <Stat value={String(child.totalQuestions)} caption={t('dashboard.questions')} />
-        <Stat
+        <StatBadge
+          icon="albums-outline"
+          iconColor={operationColors.addition.accent}
+          background={operationColors.addition.tint}
+          value={String(child.totalSessions)}
+          valueColor={operationColors.addition.accent}
+          caption={t('dashboard.sessions')}
+        />
+        <StatBadge
+          icon="help-circle-outline"
+          iconColor={operationColors.multiplication.accent}
+          background={operationColors.multiplication.tint}
+          value={String(child.totalQuestions)}
+          valueColor={operationColors.multiplication.accent}
+          caption={t('dashboard.questions')}
+        />
+        <StatBadge
+          icon="ribbon-outline"
+          iconColor={colors.correct}
+          background="#E6F7EC"
           value={`${pct(child.totalCorrect, child.totalQuestions)}%`}
+          valueColor={colors.correct}
           caption={t('dashboard.accuracy')}
         />
       </View>
@@ -237,8 +243,12 @@ function ChildBody({
       {topics.length > 0 ? (
         <View style={styles.section}>
           {topics.map(([topic, s]) => (
-            <View key={topic} style={styles.row}>
-              <Text style={styles.rowLabel}>{label(topic)}</Text>
+            <View key={topic} style={styles.topicRow}>
+              <TopicPill
+                label={label(topic)}
+                tint={methodTint(topic)}
+                color={methodColor(topic)}
+              />
               <Text style={styles.rowValue}>
                 {s.correct}/{s.questions} · {pct(s.correct, s.questions)}%
               </Text>
@@ -253,9 +263,13 @@ function ChildBody({
           <View style={styles.methodGroups}>
             {groupByMethod(child.recent).map((g) => (
               <View key={g.topic} style={styles.methodGroup}>
-                <Text style={[styles.methodTitle, { color: methodColor(g.topic) }]}>
-                  {label(g.topic)}
-                </Text>
+                <View style={styles.methodHead}>
+                  <TopicPill
+                    label={label(g.topic)}
+                    tint={methodTint(g.topic)}
+                    color={methodColor(g.topic)}
+                  />
+                </View>
                 {g.sessions.map((r, i) => (
                   <View key={r.id}>
                     {i > 0 ? <View style={styles.divider} /> : null}
@@ -288,6 +302,17 @@ function ChildBody({
       ) : null}
 
       <View style={styles.childActions}>
+        <Pressable
+          onPress={onPractice}
+          accessibilityRole="button"
+          hitSlop={8}
+          style={styles.childAction}
+        >
+          <Ionicons name="play-circle-outline" size={14} color={colors.answerInk} />
+          <Text style={[styles.childActionText, { color: colors.answerInk }]}>
+            {t('dashboard.practiceAs')}
+          </Text>
+        </Pressable>
         <Pressable
           onPress={onReset}
           accessibilityRole="button"
@@ -322,8 +347,10 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuthUser();
+  const { setActiveChild } = useActiveChild();
   const { children, loading, error, reload } = useDashboard(familyId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [goalsOpen, setGoalsOpen] = useState<Record<string, boolean>>({});
   const [pending, setPending] = useState<{
     action: 'reset' | 'remove';
     childId: string;
@@ -331,6 +358,13 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<DashTab>('progress');
+  const [addingChild, setAddingChild] = useState(false);
+
+  const addChild = async (name: string) => {
+    await createChildProfile(familyId, name).catch(() => {});
+    setAddingChild(false);
+    reload();
+  };
 
   const isRemove = pending?.action === 'remove';
   const confirmAction = async () => {
@@ -350,6 +384,8 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
 
   // Every child starts collapsed — the parent taps a name to open it.
   const toggle = (id: string) => setExpanded((m) => ({ ...m, [id]: !m[id] }));
+  const toggleGoals = (id: string) =>
+    setGoalsOpen((m) => ({ ...m, [id]: !m[id] }));
 
   if (loading && children.length === 0) {
     return <ActivityIndicator color={operationColors.addition.accent} />;
@@ -367,10 +403,20 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         <Ionicons name="people-outline" size={44} color={colors.textMuted} />
         <Text style={styles.emptyText}>{t('dashboard.empty')}</Text>
         <Button
+          label={t('dashboard.addChild')}
+          icon="add"
+          onPress={() => setAddingChild(true)}
+        />
+        <Button
           label={t('coParent.addChildDevice')}
           icon="phone-portrait-outline"
           variant="secondary"
           onPress={() => router.push('/family-settings')}
+        />
+        <AddChildDialog
+          visible={addingChild}
+          onAdd={addChild}
+          onCancel={() => setAddingChild(false)}
         />
         {/* The dashboard doesn't live-update, so a parent who just shared the
             code needs a way to pull the newly-connected child in. */}
@@ -405,20 +451,40 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
       sections={sections}
       keyExtractor={(item) => item.childId}
       stickySectionHeadersEnabled
-      renderSectionHeader={({ section }) => (
-        <ChildHeader
-          child={section.child}
-          index={section.index}
-          expanded={expanded[section.child.childId] ?? false}
-          onToggle={() => toggle(section.child.childId)}
-        />
-      )}
+      renderSectionHeader={({ section }) => {
+        const name =
+          section.child.name?.trim() ||
+          t('dashboard.child', { n: section.index + 1 });
+        return (
+          <ChildHeader
+            name={name}
+            index={section.index}
+            expanded={expanded[section.child.childId] ?? false}
+            onToggle={() => toggle(section.child.childId)}
+            stat={
+              section.child.totalQuestions > 0 ? (
+                <Text
+                  style={[
+                    styles.childHeaderStat,
+                    { color: childColor(section.index) },
+                  ]}
+                >
+                  {pct(section.child.totalCorrect, section.child.totalQuestions)}%
+                </Text>
+              ) : null
+            }
+          />
+        );
+      }}
       renderItem={({ item, section }) => {
         const name =
           item.name?.trim() || t('dashboard.child', { n: section.index + 1 });
         return (
           <ChildBody
             child={item}
+            onPractice={() =>
+              setActiveChild({ familyId, childId: item.childId, name })
+            }
             onReset={() =>
               setPending({ action: 'reset', childId: item.childId, name })
             }
@@ -429,6 +495,16 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         );
       }}
       renderSectionFooter={() => <View style={styles.sectionGap} />}
+      ListFooterComponent={
+        <Pressable
+          onPress={() => setAddingChild(true)}
+          accessibilityRole="button"
+          style={styles.addChildRow}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={colors.answerInk} />
+          <Text style={styles.addChildText}>{t('dashboard.addChild')}</Text>
+        </Pressable>
+      }
       contentContainerStyle={styles.dashListContent}
       showsVerticalScrollIndicator={false}
     />
@@ -439,23 +515,34 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
       contentContainerStyle={styles.dashListContent}
       showsVerticalScrollIndicator={false}
     >
-      {children.map((child, index) => (
-        <View key={child.childId} style={styles.goalsCard}>
-          <Text style={styles.goalsChildName}>
-            {child.name?.trim() || t('dashboard.child', { n: index + 1 })}
-          </Text>
-          <RewardsSection
-            familyId={familyId}
-            childId={child.childId}
-            sessions={child.recent.map((r) => ({
-              topic: r.topic,
-              completedAt: r.completedAt,
-              totalQuestions: r.totalQuestions,
-            }))}
-            topicLabel={label}
-          />
-        </View>
-      ))}
+      {children.map((child, index) => {
+        const name = child.name?.trim() || t('dashboard.child', { n: index + 1 });
+        const open = goalsOpen[child.childId] ?? false;
+        return (
+          <View key={child.childId} style={styles.goalGroup}>
+            <ChildHeader
+              name={name}
+              index={index}
+              expanded={open}
+              onToggle={() => toggleGoals(child.childId)}
+            />
+            {open ? (
+              <View style={styles.card}>
+                <RewardsSection
+                  familyId={familyId}
+                  childId={child.childId}
+                  sessions={child.recent.map((r) => ({
+                    topic: r.topic,
+                    completedAt: r.completedAt,
+                    totalQuestions: r.totalQuestions,
+                  }))}
+                  topicLabel={label}
+                />
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 
@@ -540,6 +627,12 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         onConfirm={confirmAction}
         onCancel={() => setPending(null)}
       />
+
+      <AddChildDialog
+        visible={addingChild}
+        onAdd={addChild}
+        onCancel={() => setAddingChild(false)}
+      />
     </View>
   );
 }
@@ -550,6 +643,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.md,
   },
   dashBarTitle: {
     fontSize: typography.size.caption,
@@ -558,32 +652,45 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     color: colors.textMuted,
   },
-  tabs: { flexDirection: 'row', gap: spacing.xs, flex: 1 },
-  tab: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
+  // Segmented control: a tinted track with a raised white pill for the active
+  // tab — clearer than tinted text.
+  tabs: {
+    flexDirection: 'row',
+    flex: 1,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: 3,
   },
-  tabActive: { backgroundColor: operationColors.addition.tint },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: colors.surface,
+    ...shadows.sm,
+  },
   tabText: {
-    fontSize: typography.size.caption,
+    fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
     color: colors.textMuted,
   },
   tabTextActive: { color: operationColors.addition.accent },
-  goalsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  goalsChildName: {
-    fontSize: typography.size.bodyLarge,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
+  goalGroup: { marginBottom: spacing.md },
   dashListContent: { paddingBottom: spacing.xl },
+  addChildRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+  addChildText: {
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.medium,
+    color: colors.answerInk,
+  },
   // A styled card, opaque so the sticky header cleanly covers content beneath it.
   childHeader: {
     flexDirection: 'row',
@@ -606,18 +713,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-  },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: typography.size.body,
-    fontWeight: '700',
   },
   childHeaderStat: {
     fontSize: typography.size.body,
@@ -658,17 +753,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     flexShrink: 1,
   },
-  stats: { flexDirection: 'row', justifyContent: 'space-around' },
-  stat: { alignItems: 'center', gap: 2 },
-  statValue: {
-    fontSize: typography.size.heading,
-    fontWeight: '700',
-    color: operationColors.addition.accent,
-  },
-  statCaption: {
-    fontSize: typography.size.caption,
-    color: colors.textMuted,
-  },
+  stats: { flexDirection: 'row', gap: spacing.sm },
   section: {
     gap: spacing.xs,
     borderTopWidth: 1,
@@ -684,6 +769,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between' },
+  topicRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
   rowLabel: { fontSize: typography.size.body, color: colors.text },
   rowTime: { fontSize: typography.size.caption, color: colors.textMuted },
   rowValue: { fontSize: typography.size.body, color: colors.textMuted },
@@ -694,10 +785,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  methodTitle: {
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
+  methodHead: { flexDirection: 'row' },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.border,

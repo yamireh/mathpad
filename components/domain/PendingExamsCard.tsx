@@ -19,22 +19,20 @@ import {
   typography,
 } from '../../constants/design';
 import { PARENT_PRO_ENABLED } from '../../lib/featureFlags';
-import { auth } from '../../lib/firebase';
-import { useFamilyLink, usePendingExams, usePracticeSession } from '../../hooks';
+import { usePendingExams, usePracticeIdentity, usePracticeSession } from '../../hooks';
 import { tapFeedback } from '../../lib/feedback';
 
 export function PendingExamsCard() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { link } = useFamilyLink();
   const { startExam } = usePracticeSession();
-  // Only this device's OWN child identity may read its exams. If the current
-  // auth uid isn't the linked childId (a parent-preview device, or an anonymous
-  // uid that drifted after a reinstall), don't query — it would only 403.
-  const isThisChild = !!link && link.childId === auth.currentUser?.uid;
-  const { exams, loading, error, reload } = usePendingExams(
-    isThisChild ? link.familyId : null,
-    isThisChild ? link.childId : null,
+  // Who this device is practicing as (a parent-as-child via membership, or a
+  // kid device with a matching uid). usePracticeIdentity already excludes a
+  // stale/mismatched kid link, so a query here is always authorized.
+  const identity = usePracticeIdentity();
+  const { exams, reload } = usePendingExams(
+    identity?.familyId ?? null,
+    identity?.childId ?? null,
   );
 
   // Re-check whenever the home regains focus — so a newly-assigned practice
@@ -45,34 +43,7 @@ export function PendingExamsCard() {
     }, [reload]),
   );
 
-  if (!PARENT_PRO_ENABLED) return null;
-
-  // Dev-only diagnostic: the card is otherwise invisible when empty, which makes
-  // "why do I see nothing?" impossible to debug. Shows link/query state.
-  if (exams.length === 0) {
-    if (!__DEV__) return null;
-    return (
-      <View style={styles.debug}>
-        <Text style={styles.debugTitle}>pending exams (dev)</Text>
-        <Text style={styles.debugLine}>linked: {link ? 'yes' : 'NO — not a child device'}</Text>
-        <Text style={styles.debugLine}>family: {link?.familyId ?? '—'}</Text>
-        <Text style={styles.debugLine}>link child: {link?.childId ?? '—'}</Text>
-        <Text style={styles.debugLine}>auth uid: {auth.currentUser?.uid ?? '—'}</Text>
-        <Text
-          style={[
-            styles.debugLine,
-            link?.childId !== auth.currentUser?.uid && styles.debugErr,
-          ]}
-        >
-          uid matches childId: {link?.childId === auth.currentUser?.uid ? 'yes' : 'NO'}
-        </Text>
-        <Text style={styles.debugLine}>
-          {loading ? 'loading…' : `pending: ${exams.length}`}
-        </Text>
-        {error ? <Text style={styles.debugErr}>error: {error}</Text> : null}
-      </View>
-    );
-  }
+  if (!PARENT_PRO_ENABLED || !identity || exams.length === 0) return null;
 
   const open = (examId: string) => {
     const exam = exams.find((e) => e.id === examId);
@@ -120,24 +91,6 @@ export function PendingExamsCard() {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm, marginBottom: spacing.lg },
-  debug: {
-    marginBottom: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    gap: 2,
-  },
-  debugTitle: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.medium,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  debugLine: { fontSize: typography.size.caption, color: colors.textMuted },
-  debugErr: { fontSize: typography.size.caption, color: colors.wrong },
   heading: {
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,

@@ -41,7 +41,14 @@ function Row({ session }: { session: ClockSession }) {
         <View style={styles.left}>
           <Text style={styles.when}>{when(session.completedAt)}</Text>
           <Text style={styles.type}>
-            {t(`clock.settings.type${cap(session.type)}`)}
+            {/* Older sessions predate the skill field — fall back to the
+                answer type so they still read sensibly. */}
+            {session.skill
+              ? t(`clock.settings.skill${cap(session.skill)}`) +
+                (session.skill !== 'set'
+                  ? ` · ${t(`clock.settings.type${cap(session.type)}`)}`
+                  : '')
+              : t(`clock.settings.type${cap(session.type)}`)}
           </Text>
           {session.corrected > 0 ? (
             <Text style={styles.corrected}>

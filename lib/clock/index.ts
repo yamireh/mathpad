@@ -2,10 +2,20 @@
 export type {
   ClockTime,
   ClockStep,
+  ClockComplexity,
+  ClockSkill,
+  ClockDirection,
+  ClockJump,
   ClockAnswerType,
   ClockPhrase,
 } from './types';
-export { STEP_MINUTES, generateClockTime } from './generate';
+export {
+  STEP_MINUTES,
+  generateClockTime,
+  resolveStep,
+  resolveJump,
+  shiftTime,
+} from './generate';
 export {
   formatDigital,
   clockPhrase,
@@ -19,6 +29,7 @@ export type {
   ClockQuestion,
   ClockAnswerSurface,
 } from './question';
+export { surfacesForSkill } from './question';
 export type { ClockSettings, ClockResult, ClockSession } from './settings';
 export { defaultClockSettings, summariseClockSession } from './settings';
 export {

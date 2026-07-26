@@ -15,6 +15,8 @@ export {
 export { SettableClock, type SettableClockProps } from './SettableClock';
 export { ClockLegend, type ClockLegendProps } from './ClockLegend';
 export { SetClockPrompt, type SetClockPromptProps } from './SetClockPrompt';
+export { ElapsedPrompt, type ElapsedPromptProps } from './ElapsedPrompt';
+export { ClockHelpLabels, type ClockHelpLabelsProps } from './ClockHelp';
 export {
   ClockSettingsView,
   type ClockSettingsViewProps,

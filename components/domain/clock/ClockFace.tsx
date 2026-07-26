@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { clockColors } from '../../../constants/design';
 import { handAngles, pointOnClock, type ClockTime } from '../../../lib/clock';
+import { ClockHelpLabels } from './ClockHelp';
 import { ClockNumbers } from './ClockNumbers';
 import { ClockRing } from './ClockRing';
 
@@ -14,8 +15,41 @@ export interface ClockFaceProps {
   size: number;
   /** Show the "count by 5" minute numbers (scaffold). */
   showRing?: boolean;
+  /** Show the teaching overlay: coloured past/to quadrants + labels. */
+  help?: boolean;
   /** Which hand is currently active — drawn bolder to show it's selected. */
   grabbed?: 'hour' | 'minute' | null;
+}
+
+// Translucent tints for the teaching overlay's four quarters — four clearly
+// distinct hues so the dial reads as four separate segments.
+const HELP_FILL = {
+  topRight: 'rgba(59,130,246,0.20)', // 12 → 3  blue
+  bottomRight: 'rgba(16,185,129,0.20)', // 3 → 6  green
+  bottomLeft: 'rgba(245,158,11,0.22)', // 6 → 9  amber
+  topLeft: 'rgba(236,72,153,0.18)', // 9 → 12  pink
+};
+
+/** Four quadrant wedges (clockwise from 12) for the help overlay. */
+function buildHelpWedges(centre: number, r: number) {
+  const wedge = (startDeg: number, endDeg: number) => {
+    const p = Skia.Path.Make();
+    p.moveTo(centre, centre);
+    const steps = 20;
+    for (let i = 0; i <= steps; i += 1) {
+      const ang = startDeg + ((endDeg - startDeg) * i) / steps;
+      const { x, y } = pointOnClock(centre, r, ang);
+      p.lineTo(x, y);
+    }
+    p.close();
+    return p;
+  };
+  return {
+    topRight: wedge(0, 90),
+    bottomRight: wedge(90, 180),
+    bottomLeft: wedge(180, 270),
+    topLeft: wedge(270, 360),
+  };
 }
 
 /**
@@ -84,6 +118,7 @@ export function ClockFace({
   time,
   size,
   showRing = false,
+  help = false,
   grabbed = null,
 }: ClockFaceProps) {
   const centre = size / 2;
@@ -96,6 +131,12 @@ export function ClockFace({
   const ticks = useMemo(
     () => buildTicks(centre, ticksOuter, dialR * 0.08, dialR * 0.05),
     [centre, ticksOuter, dialR],
+  );
+  // The teaching quadrants fill an inner ring (inside the numbers), not the
+  // whole dial — so the numbers stay on plain white.
+  const wedges = useMemo(
+    () => (help ? buildHelpWedges(centre, dialR * 0.62) : null),
+    [help, centre, dialR],
   );
 
   const a = handAngles(time);
@@ -121,6 +162,18 @@ export function ClockFace({
           style="stroke"
           strokeWidth={rimW}
         />
+
+        {/* Teaching overlay: coloured past (right) / to (left) quadrants,
+            under the ticks + hands so those stay crisp. */}
+        {wedges ? (
+          <>
+            <Path path={wedges.topRight} color={HELP_FILL.topRight} />
+            <Path path={wedges.bottomRight} color={HELP_FILL.bottomRight} />
+            <Path path={wedges.bottomLeft} color={HELP_FILL.bottomLeft} />
+            <Path path={wedges.topLeft} color={HELP_FILL.topLeft} />
+          </>
+        ) : null}
+
         <Path path={ticks.minor} color={clockColors.tick} style="stroke" strokeWidth={1.5} strokeCap="round" />
         <Path path={ticks.major} color={clockColors.face} style="stroke" strokeWidth={3.5} strokeCap="round" />
 
@@ -131,8 +184,9 @@ export function ClockFace({
         <Circle cx={centre} cy={centre} r={size * 0.014} color={clockColors.faceFill} />
       </Canvas>
 
-      {showRing ? <ClockRing size={size} radius={dialR * 0.92} /> : null}
+      {showRing ? <ClockRing size={size} radius={dialR * 0.93} /> : null}
       <ClockNumbers size={size} radius={dialR * 0.68} />
+      {help ? <ClockHelpLabels size={size} radius={dialR} /> : null}
     </View>
   );
 }

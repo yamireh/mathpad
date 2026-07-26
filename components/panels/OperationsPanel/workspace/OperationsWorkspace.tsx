@@ -126,6 +126,8 @@ export interface OperationsWorkspaceProps {
   onClearUndoHistory?: () => void;
   /** Flag the current question as Auto-Solved (shows Fixed badge on Results). */
   onSolved?: () => void;
+  /** Fired when an auto-solve animation finishes (used by the how-to demo). */
+  onSolveComplete?: () => void;
   /**
    * Review error-highlight marks keyed by box id. When set, boxes render
    * green/red borders and long-division draft rows stop locking into correct
@@ -199,6 +201,7 @@ export const OperationsWorkspace = forwardRef<
     canUndo = false,
     onClearUndoHistory,
     onSolved,
+    onSolveComplete,
     errorMarks,
     cascadeClear = false,
     tone,
@@ -841,6 +844,7 @@ export const OperationsWorkspace = forwardRef<
       setBorrowTarget(null);
       setActionNonce(0);
       stopScratch();
+      onSolveComplete?.();
     },
     // Let the hand finish writing before the digit reflects into the box, and
     // give each step room to play out at a calm pace.

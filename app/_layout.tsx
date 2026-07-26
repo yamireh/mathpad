@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppPrewarm, ForceUpdateGate, RolePickerGate } from '../components/domain';
 import {
+  ActiveChildProvider,
   DeviceRoleProvider,
   FamilyLinkProvider,
   PracticeSessionProvider,
@@ -86,6 +87,7 @@ export default function RootLayout() {
         <DeviceRoleProvider>
           <FamilyLinkProvider>
             <LinkVerifier />
+            <ActiveChildProvider>
             <PurchasesProvider>
               <TipsProvider>
                 <PracticeSessionProvider>
@@ -97,6 +99,7 @@ export default function RootLayout() {
                 </PracticeSessionProvider>
               </TipsProvider>
             </PurchasesProvider>
+            </ActiveChildProvider>
           </FamilyLinkProvider>
           {/* Sits above everything: when the installed version is below the
               remote minimum, nothing else is reachable until they update. */}

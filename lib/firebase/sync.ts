@@ -151,6 +151,25 @@ export async function maybeSyncSession(s: SessionResult): Promise<void> {
 }
 
 /**
+ * Sync a finished session DIRECTLY to a given child (Parent Pro Phase 1): a
+ * family-member (parent) device practicing "as" a child. Authorized by
+ * membership, so it bypasses the kid-device `familyLink` + parent-skip. Direct
+ * write (no offline queue — a practicing parent is typically online);
+ * best-effort.
+ */
+export async function syncSessionForChild(
+  familyId: string,
+  childId: string,
+  s: SessionResult,
+): Promise<void> {
+  try {
+    await writeSession(familyId, childId, operationsSummary(s));
+  } catch {
+    // best-effort — a transient failure just isn't recorded this time
+  }
+}
+
+/**
  * On first link, push existing local (Operations) history so the parent sees
  * past practice too. Runs once — skips if the child summary already exists (so
  * reconnecting doesn't double-count).

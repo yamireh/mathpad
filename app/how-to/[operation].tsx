@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import {
+  HowToIntroScrim,
   QuestionWorkspace,
   type QuestionWorkspaceHandle,
 } from '../../components/domain';
@@ -15,16 +16,22 @@ import {
 } from '../../components/ui';
 import { operationColors, spacing } from '../../constants/design';
 import { useHowToDemo } from '../../hooks';
+import { markHowToIntroSeen } from '../../lib/howToIntro';
 import { howToQuestion } from '../../lib/howTo';
 import type { Operation } from '../../types';
 
 /**
  * How to solve — a worked-example walkthrough. Shows a fixed question for the
- * operation and animates the solver through it (tap Watch). Reached from the
- * How-to icon on the operation's settings screen.
+ * operation and animates the solver through it. Reached from the how-to icon on
+ * the operation's settings screen, and auto-opened (in "intro" mode) the first
+ * time the operation is opened.
  */
 export default function HowToScreen() {
-  const { operation } = useLocalSearchParams<{ operation: Operation }>();
+  const { operation, intro } = useLocalSearchParams<{
+    operation: Operation;
+    intro?: string;
+  }>();
+  const isIntro = intro === '1';
   const router = useRouter();
   const { t } = useTranslation();
   const question = howToQuestion(operation);
@@ -34,6 +41,7 @@ export default function HowToScreen() {
   );
   const workspaceRef = useRef<QuestionWorkspaceHandle>(null);
   const [played, setPlayed] = useState(false);
+  const [finished, setFinished] = useState(false);
 
   if (!question) return <Redirect href="/" />;
 
@@ -41,9 +49,14 @@ export default function HowToScreen() {
 
   const watch = () => {
     reset();
+    setFinished(false);
     setPlayed(true);
     // Let the reset render before the solver starts writing.
     requestAnimationFrame(() => workspaceRef.current?.solve());
+  };
+  const dontShowAgain = () => {
+    void markHowToIntroSeen(operation);
+    router.back();
   };
 
   return (
@@ -67,6 +80,7 @@ export default function HowToScreen() {
         question={question}
         layout={question.layout}
         tone={accent}
+        onSolveComplete={() => setFinished(true)}
         {...workspaceProps}
       />
 
@@ -75,10 +89,30 @@ export default function HowToScreen() {
           label={played ? t('howTo.replay') : t('howTo.watch')}
           icon={played ? 'refresh' : 'play'}
           variant="secondary"
+          // "Watch again" stays disabled until the demo has finished.
+          disabled={played && !finished}
           onPress={watch}
         />
-        <Button label={t('howTo.gotIt')} tone={accent} onPress={() => router.back()} />
+        {!isIntro || played ? (
+          <Button
+            label={t('howTo.gotIt')}
+            tone={accent}
+            onPress={() => router.back()}
+          />
+        ) : null}
       </View>
+
+      {/* First-open veil: dim the page; only "Watch now" (+ "Don't show
+          again") are lit. */}
+      {isIntro && !played ? (
+        <HowToIntroScrim
+          watchLabel={t('howTo.watchNow')}
+          dontShowLabel={t('howTo.dontShowAgain')}
+          tone={accent}
+          onWatch={watch}
+          onDontShow={dontShowAgain}
+        />
+      ) : null}
     </ScreenContainer>
   );
 }

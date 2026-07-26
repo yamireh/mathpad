@@ -4,6 +4,7 @@ export {
   type UseForceUpdateResult,
 } from './useForceUpdate';
 export { useDevPreferences } from './useDevPreferences';
+export { useHowToIntro } from './useHowToIntro';
 export {
   DeviceRoleProvider,
   useDeviceRole,
@@ -12,6 +13,15 @@ export {
 export { useAuthUser, type AuthUserState } from './useAuthUser';
 export { useFamily, type FamilyState } from './useFamily';
 export { useDashboard, type DashboardState } from './useDashboard';
+export {
+  ActiveChildProvider,
+  useActiveChild,
+  type ActiveChild,
+} from './useActiveChild';
+export {
+  usePracticeIdentity,
+  type PracticeIdentity,
+} from './usePracticeIdentity';
 export {
   useChildRewards,
   type UseChildRewardsResult,

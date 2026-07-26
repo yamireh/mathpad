@@ -1,25 +1,26 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { clockColors, typography } from '../../../constants/design';
+import { clockColors } from '../../../constants/design';
 import { pointOnClock } from '../../../lib/clock';
 
 export interface ClockRingProps {
   /** Square edge length of the clock, in px. */
   size: number;
-  /** Radius (px from centre) at which to place the minute labels. */
+  /** Radius (px from centre) at which to place the minute numbers. */
   radius: number;
 }
 
 /**
- * The "count by 5" minute numbers — 00, 05, 10 … 55 around the rim. A scaffold
- * for younger kids / easier complexity, hidden as it gets harder.
+ * The primary minute scale: the multiples of 5 (0, 5, 10 … 55) in bold, in the
+ * minute-hand colour, around the rim. The fine in-between minutes are added
+ * only by the help overlay, so the base face stays uncluttered.
  */
 const MARKS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
 export function ClockRing({ size, radius }: ClockRingProps) {
   const centre = size / 2;
-  const slot = size * 0.072; // scales with the clock
-  const fontSize = size * 0.043;
+  const slot = size * 0.1;
+  const fontSize = size * 0.036;
   return (
     <>
       {MARKS.map((m) => {
@@ -27,12 +28,13 @@ export function ClockRing({ size, radius }: ClockRingProps) {
         return (
           <View
             key={m}
-            style={[styles.slot, { width: slot, height: slot, left: x - slot / 2, top: y - slot / 2 }]}
+            style={[
+              styles.slot,
+              { width: slot, height: slot, left: x - slot / 2, top: y - slot / 2 },
+            ]}
             pointerEvents="none"
           >
-            <Text style={[styles.text, { fontSize }]}>
-              {m.toString().padStart(2, '0')}
-            </Text>
+            <Text style={[styles.five, { fontSize }]}>{m}</Text>
           </View>
         );
       })}
@@ -42,9 +44,10 @@ export function ClockRing({ size, radius }: ClockRingProps) {
 
 const styles = StyleSheet.create({
   slot: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  text: {
-    fontWeight: typography.weight.regular,
-    color: clockColors.ring,
+  five: {
+    textAlign: 'center',
+    fontWeight: '700',
+    color: clockColors.minuteHand,
     fontVariant: ['tabular-nums'],
   },
 });

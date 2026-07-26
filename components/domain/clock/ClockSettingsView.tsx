@@ -15,28 +15,45 @@ import {
   ScreenContainer,
 } from '../../ui';
 import { clockColors, colors, spacing, typography } from '../../../constants/design';
-import { usePurchases } from '../../../hooks';
+import { useHowToIntro, usePurchases } from '../../../hooks';
 import { isSignedInParent } from '../../../lib/firebase/auth';
+import { resetHowToIntros } from '../../../lib/howToIntro';
 import type {
   ClockAnswerType,
+  ClockComplexity,
+  ClockJump,
   ClockSettings,
-  ClockStep,
+  ClockSkill,
 } from '../../../lib/clock';
 
-// Each mode gets an icon that encodes its meaning, so it's recognised at a
-// glance: write a digit, speak the words, move the hands, or a mix.
-const TYPES: { value: ClockAnswerType; key: string; icon: IoniconName }[] = [
+// The top axis: what the child practises.
+const SKILLS: { value: ClockSkill; key: string; icon: IoniconName }[] = [
+  { value: 'read', key: 'skillRead', icon: 'eye-outline' },
+  { value: 'set', key: 'skillSet', icon: 'time-outline' },
+  { value: 'elapsed', key: 'skillElapsed', icon: 'hourglass-outline' },
+];
+// How the child answers. "Set the hands" is offered only for elapsed (for
+// "read" it's just copying the clock; for the "set" skill it's implied).
+const ANSWERS: { value: ClockAnswerType; key: string; icon: IoniconName }[] = [
   { value: 'digital', key: 'typeDigital', icon: 'create-outline' },
   { value: 'pattern', key: 'typePattern', icon: 'chatbubbles-outline' },
   { value: 'set', key: 'typeSet', icon: 'time-outline' },
   { value: 'mixed', key: 'typeMixed', icon: 'shuffle' },
 ];
 // Complexity icons read as a granularity ramp: quarter slices → 5-min timer →
-// any-minute stopwatch.
-const STEPS: { value: ClockStep; key: string; icon: IoniconName }[] = [
+// any-minute stopwatch → a shuffled mix.
+const STEPS: { value: ClockComplexity; key: string; icon: IoniconName }[] = [
   { value: 'quarter', key: 'stepQuarter', icon: 'pie-chart-outline' },
   { value: 'five', key: 'stepFive', icon: 'timer-outline' },
   { value: 'minute', key: 'stepMinute', icon: 'stopwatch-outline' },
+  { value: 'any', key: 'stepAny', icon: 'shuffle' },
+];
+// Elapsed jump size: the school ramp from whole hours down to any minute.
+const JUMPS: { value: ClockJump; key: string; icon: IoniconName }[] = [
+  { value: 'hour', key: 'jumpHour', icon: 'time-outline' },
+  { value: 'half', key: 'jumpHalf', icon: 'timer-outline' },
+  { value: 'five', key: 'jumpFive', icon: 'stopwatch-outline' },
+  { value: 'any', key: 'jumpAny', icon: 'shuffle' },
 ];
 // 1 and 2 are dev-only quick options (for recording short demos); prod stays 5–20.
 const COUNTS = __DEV__ ? [1, 2, 5, 10, 15, 20] : [5, 10, 15, 20];
@@ -61,14 +78,29 @@ export interface ClockSettingsViewProps {
   onStart: (settings: ClockSettings) => void;
 }
 
-/** Clock session setup: number of questions, answer type, complexity. */
+/** Clock session setup: number of questions, skill, answer, complexity. */
 export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { devSetClockOwned } = usePurchases();
+  // First time the Clock module is opened, auto-open the how-to.
+  useHowToIntro({ id: 'clock', path: '/how-to/clock' });
   const [count, setCount] = useState(initial.questionCount);
+  const [skill, setSkill] = useState<ClockSkill>(initial.skill);
   const [type, setType] = useState<ClockAnswerType>(initial.type);
-  const [step, setStep] = useState<ClockStep>(initial.step);
+  const [step, setStep] = useState<ClockComplexity>(initial.step);
+  const [jump, setJump] = useState<ClockJump>(initial.jump);
+
+  // "Read" can't answer by setting hands (that's just copying the clock) — so
+  // if we switch to Read while "Set the hands" was chosen, fall back to Write.
+  const chooseSkill = (s: ClockSkill) => {
+    setSkill(s);
+    if (s === 'read' && type === 'set') setType('digital');
+  };
+  // Answer options depend on the skill: Read offers write/say/mixed; elapsed
+  // adds "set the hands". (For the Set skill this section is hidden entirely.)
+  const answerOptions =
+    skill === 'read' ? ANSWERS.filter((a) => a.value !== 'set') : ANSWERS;
 
   return (
     <ScreenContainer
@@ -120,19 +152,53 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
             </View>
           </Section>
 
-          <Section title={t('clock.settings.type')}>
-            {TYPES.map((o) => (
+          <Section title={t('clock.settings.skill')}>
+            {SKILLS.map((o) => (
               <RadioRow
                 key={o.value}
                 label={t(`clock.settings.${o.key}`)}
                 description={t(`clock.settings.${o.key}Desc`)}
                 icon={o.icon}
-                selected={type === o.value}
-                onPress={() => setType(o.value)}
+                selected={skill === o.value}
+                onPress={() => chooseSkill(o.value)}
                 tone={clockColors.hourHand}
               />
             ))}
           </Section>
+
+          {/* How to answer — not shown for "Set the hands" (it's implied). */}
+          {skill !== 'set' ? (
+            <Section title={t('clock.settings.answer')}>
+              {answerOptions.map((o) => (
+                <RadioRow
+                  key={o.value}
+                  label={t(`clock.settings.${o.key}`)}
+                  description={t(`clock.settings.${o.key}Desc`)}
+                  icon={o.icon}
+                  selected={type === o.value}
+                  onPress={() => setType(o.value)}
+                  tone={clockColors.hourHand}
+                />
+              ))}
+            </Section>
+          ) : null}
+
+          {/* Jump size — only relevant to elapsed-time questions. */}
+          {skill === 'elapsed' ? (
+            <Section title={t('clock.settings.jump')}>
+              {JUMPS.map((o) => (
+                <RadioRow
+                  key={o.value}
+                  label={t(`clock.settings.${o.key}`)}
+                  description={t(`clock.settings.${o.key}Desc`)}
+                  icon={o.icon}
+                  selected={jump === o.value}
+                  onPress={() => setJump(o.value)}
+                  tone={clockColors.hourHand}
+                />
+              ))}
+            </Section>
+          ) : null}
 
           <Section title={t('clock.settings.complexity')}>
             {STEPS.map((o) => (
@@ -153,7 +219,16 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
           <Button
             label={t('settings.start')}
             tone={clockColors.hourHand}
-            onPress={() => onStart({ questionCount: count, type, step })}
+            onPress={() =>
+              onStart({
+                questionCount: count,
+                skill,
+                // A "Set the hands" session always answers by setting.
+                type: skill === 'set' ? 'set' : type,
+                step,
+                jump,
+              })
+            }
           />
           <View style={styles.footerLinks}>
             {/* Hidden for a parent preview — they shouldn't see/log kid history. */}
@@ -169,6 +244,17 @@ export function ClockSettingsView({ initial, onStart }: ClockSettingsViewProps) 
                 label="DEV: clock owned ✓"
                 icon="bug-outline"
                 onPress={() => devSetClockOwned(false)}
+              />
+            ) : null}
+            {__DEV__ ? (
+              <Pill
+                label="DEV: how-to intro"
+                icon="play-circle-outline"
+                onPress={() =>
+                  void resetHowToIntros().then(() =>
+                    router.push('/how-to/clock?intro=1'),
+                  )
+                }
               />
             ) : null}
           </View>
