@@ -50,10 +50,25 @@ export function TopicCard({
       onPress={onPress}
       pressTint={accent}
       accessibilityLabel={accessibilityLabel ?? label}
-      style={styles.card}
+      style={StyleSheet.flatten([styles.card, !enabled && styles.cardDisabled])}
     >
-      <View style={[styles.tile, { backgroundColor: accent }]}>
-        <Ionicons name={icon} size={30} color="#FFFFFF" />
+      <View
+        style={[
+          styles.tile,
+          enabled ? { backgroundColor: accent } : styles.tileDisabled,
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={30}
+          color={enabled ? '#FFFFFF' : colors.textMuted}
+        />
+        {/* "Under construction" status badge on coming-soon modules. */}
+        {!enabled ? (
+          <View style={styles.constructBadge}>
+            <Ionicons name="construct" size={12} color="#FFFFFF" />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -100,6 +115,15 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     ...shadows.md,
   },
+  // Coming-soon modules read as inactive: flat (no lift), a hairline outline,
+  // and dimmed overall.
+  cardDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
+    opacity: 0.7,
+  },
   tile: {
     width: 56,
     height: 56,
@@ -107,6 +131,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.sm,
+  },
+  // Greyed icon tile for coming-soon modules (no accent colour, no lift).
+  tileDisabled: {
+    backgroundColor: colors.surfaceAlt,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  // Little amber hard-hat/wrench badge in the tile corner.
+  constructBadge: {
+    position: 'absolute',
+    bottom: -5,
+    right: -5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   body: { flex: 1, gap: 3 },
   titleRow: {
