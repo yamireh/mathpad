@@ -28,6 +28,18 @@ import { auth, db } from './index';
 import { purgeChildExamResults } from './exams';
 import { purgeChildRewards } from './rewards';
 
+/**
+ * The family's Parent Pro subscription state — the single source of truth every
+ * device reads (parent gate + kid module access). In production it's written
+ * ONLY by the receipt-validating Cloud Function (see the `pricing` skill §0.1);
+ * today the parent app mirrors its local Pro state here as a stand-in.
+ */
+export interface FamilySubscription {
+  active: boolean;
+  /** ISO expiry — access holds until then even after cancel. Null if unknown. */
+  expiresAt: string | null;
+}
+
 export interface Family {
   id: string;
   ownerUid: string;
@@ -35,6 +47,8 @@ export interface Family {
   pairingCode: string;
   /** Stable code a co-parent joins with. */
   parentCode: string;
+  /** Parent Pro subscription mirror (absent = never subscribed). */
+  subscription?: FamilySubscription;
 }
 
 // Unambiguous charset: no 0/O, 1/I/L — easy for a parent to read aloud.
@@ -67,6 +81,17 @@ interface RawFamily {
   ownerUid: string;
   pairingCode: string;
   parentCode?: string;
+  subscription?: FamilySubscription;
+}
+
+/** Defensively read the subscription block off a family doc. */
+function parseSubscription(raw: unknown): FamilySubscription | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const s = raw as Record<string, unknown>;
+  return {
+    active: s.active === true,
+    expiresAt: typeof s.expiresAt === 'string' ? s.expiresAt : null,
+  };
 }
 
 function toFamily(id: string, data: Record<string, unknown>): RawFamily {
@@ -75,6 +100,7 @@ function toFamily(id: string, data: Record<string, unknown>): RawFamily {
     ownerUid: data.ownerUid as string,
     pairingCode: data.pairingCode as string,
     parentCode: data.parentCode as string | undefined,
+    subscription: parseSubscription(data.subscription),
   };
 }
 
@@ -165,20 +191,59 @@ export async function createFamily(ownerUid: string): Promise<Family> {
 }
 
 /**
+ * Max children per family. A hard cap that keeps a subscription (which unlocks
+ * every module for the whole family) scoped to a real household, not a shared
+ * account handed round to friends. See the `pricing` skill.
+ */
+export const MAX_CHILDREN = 5;
+
+/** Thrown when a family already has {@link MAX_CHILDREN} children. */
+export class FamilyFullError extends Error {
+  constructor() {
+    super('family-full');
+    this.name = 'FamilyFullError';
+  }
+}
+
+/** Current number of children in the family. */
+export async function countChildren(familyId: string): Promise<number> {
+  const snap = await getDocs(collection(db, 'families', familyId, 'children'));
+  return snap.size;
+}
+
+/**
  * Create a child profile in the family (Parent Pro Phase 1). A child is a family
  * entity with a stable generated id — NOT tied to any login — so a parent can
  * practice as them on a shared device, and dedicated kid tablets claim one later.
  * Authorized because the creator is a family member. Returns the new child id.
+ * Throws {@link FamilyFullError} once the family is at the cap.
  */
 export async function createChildProfile(
   familyId: string,
   name: string,
 ): Promise<string> {
+  if ((await countChildren(familyId)) >= MAX_CHILDREN) throw new FamilyFullError();
   const ref = await addDoc(collection(db, 'families', familyId, 'children'), {
     name: name.trim(),
     joinedAt: serverTimestamp(),
   });
   return ref.id;
+}
+
+/**
+ * Write the family's Parent Pro subscription mirror. Production: the Cloud
+ * Function owns this (from Apple's validated receipt). Today: the parent app
+ * calls it to reflect its local Pro state so co-parents + kid devices inherit.
+ */
+export async function setFamilySubscription(
+  familyId: string,
+  subscription: FamilySubscription,
+): Promise<void> {
+  await setDoc(
+    doc(db, 'families', familyId),
+    { subscription },
+    { merge: true },
+  );
 }
 
 /** Update a linked child's display name (the device edits its own child doc). */
@@ -286,7 +351,12 @@ export async function joinFamily(
   name: string,
 ): Promise<string> {
   const familyId = await resolveCode('pairingCodes', code);
-  // One kid device = one child, keyed by the device's uid.
+  // One kid device = one child, keyed by the device's uid. A device that's
+  // already linked can always re-join (merge); a NEW device is blocked once the
+  // family is at the cap.
+  const existing = await getDocs(collection(db, 'families', familyId, 'children'));
+  const alreadyLinked = existing.docs.some((d) => d.id === deviceUid);
+  if (!alreadyLinked && existing.size >= MAX_CHILDREN) throw new FamilyFullError();
   await setDoc(
     doc(db, 'families', familyId, 'children', deviceUid),
     { joinedAt: serverTimestamp(), name: name.trim() },

@@ -46,7 +46,15 @@ import {
 } from 'expo-iap';
 
 import { CLOCK_PRODUCT_ID, OPERATIONS_PRODUCT_ID } from '../lib/entitlement';
-import { clockEntitlementStore, entitlementStore } from '../lib/storage';
+import { useFamilyProActive } from './useFamilyProActive';
+import { parentProTrialDays } from '../lib/appConfig';
+import { isParentProActive, trialDaysLeft } from '../lib/parentPro';
+import {
+  clockEntitlementStore,
+  entitlementStore,
+  parentProStore,
+  type ParentProData,
+} from '../lib/storage';
 
 // The billing service can't connect where it isn't available — an Android
 // emulator without Google Play, before a Play Console track exists, or offline.
@@ -60,15 +68,18 @@ if (__DEV__) {
 const FALLBACK_PRICE = '$9.99';
 const FALLBACK_COMPLETE_PRICE = '$24.99';
 const FALLBACK_CLOCK_PRICE = '$7.99';
+const FALLBACK_PARENT_PRO_PRICE = '$7.99';
 
 /** Whether this binary actually bundles the expo-iap native module. */
 const STOREKIT_AVAILABLE = requireOptionalNativeModule('ExpoIap') != null;
 
 export interface PurchasesContextValue {
-  /** Whether the paid operations are unlocked. */
+  /** Whether the paid operations are unlocked (one-time IAP OR family sub). */
   owned: boolean;
-  /** Whether the Clock module is unlocked. */
+  /** Whether the Clock module is unlocked (one-time IAP OR family sub). */
   clockOwned: boolean;
+  /** The family's Parent Pro subscription is active → all modules unlocked. */
+  familyProActive: boolean;
   /** Localized price string for the Operations bundle. */
   price: string;
   /** Localized price string for the "everything" Complete bundle. */
@@ -95,6 +106,21 @@ export interface PurchasesContextValue {
   devSetOwned: (value: boolean) => void;
   /** DEV-only: force the Clock owned state to test both sides of the gate. */
   devSetClockOwned: (value: boolean) => void;
+
+  /** Whether Parent Pro is active right now (paid sub or live free trial). */
+  parentProActive: boolean;
+  /** Localized price string for the Parent Pro subscription. */
+  parentProPrice: string;
+  /** Configured free-trial length in days (0 = no trial). */
+  parentProTrialDays: number;
+  /** Whole days left in the current free trial (0 if none/over). */
+  parentProTrialDaysLeft: number;
+  /** Whether the free trial has already been started once. */
+  parentProTrialUsed: boolean;
+  /** Start the Parent Pro subscription (Slice 1: begins the free trial). */
+  subscribeParentPro: () => Promise<boolean>;
+  /** DEV-only: force Parent Pro on (paid) / off. */
+  devSetParentPro: (value: boolean) => void;
 }
 
 const PurchasesContext = createContext<PurchasesContextValue | null>(null);
@@ -107,6 +133,10 @@ const PurchasesContext = createContext<PurchasesContextValue | null>(null);
 function useEntitlementCore() {
   const [owned, setOwned] = useState(false);
   const [clockOwned, setClockOwned] = useState(false);
+  const [parentPro, setParentPro] = useState<ParentProData>({
+    subscribed: false,
+    trialStartedAt: null,
+  });
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   // Set when a purchase can't even start (missing product / launch failure) —
@@ -125,18 +155,26 @@ function useEntitlementCore() {
     await clockEntitlementStore.set(value);
   }, []);
 
+  const applyParentPro = useCallback(async (data: ParentProData) => {
+    setParentPro(data);
+    await parentProStore.set(data);
+  }, []);
+
   // Offline-first: show the cached entitlement immediately. Providers reconcile
   // with StoreKit afterwards (when available).
   useEffect(() => {
     let cancelled = false;
-    Promise.all([entitlementStore.get(), clockEntitlementStore.get()]).then(
-      ([ops, clock]) => {
-        if (cancelled) return;
-        setOwned(ops);
-        setClockOwned(clock);
-        setLoading(false);
-      },
-    );
+    Promise.all([
+      entitlementStore.get(),
+      clockEntitlementStore.get(),
+      parentProStore.get(),
+    ]).then(([ops, clock, pro]) => {
+      if (cancelled) return;
+      setOwned(ops);
+      setClockOwned(clock);
+      setParentPro(pro);
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
@@ -170,9 +208,37 @@ function useEntitlementCore() {
     [applyClock],
   );
 
+  // Slice 1 stub for the subscription: the first tap begins the free trial
+  // (records when it started); once the trial's been used, a tap is treated as
+  // "subscribe" (paid). Real StoreKit intro-offer purchase is Slice 2.
+  const subscribeParentPro = useCallback(async () => {
+    setPurchasing(true);
+    try {
+      const next: ParentProData = parentPro.trialStartedAt
+        ? { subscribed: true, trialStartedAt: parentPro.trialStartedAt }
+        : { subscribed: false, trialStartedAt: new Date().toISOString() };
+      await applyParentPro(next);
+      return true;
+    } finally {
+      setPurchasing(false);
+    }
+  }, [parentPro, applyParentPro]);
+
+  const devSetParentPro = useCallback(
+    (value: boolean) => {
+      void applyParentPro(
+        value
+          ? { subscribed: true, trialStartedAt: parentPro.trialStartedAt }
+          : { subscribed: false, trialStartedAt: null },
+      );
+    },
+    [applyParentPro, parentPro.trialStartedAt],
+  );
+
   return {
     owned,
     clockOwned,
+    parentPro,
     loading,
     purchasing,
     setPurchasing,
@@ -184,6 +250,8 @@ function useEntitlementCore() {
     purchaseComplete,
     devSetOwned,
     devSetClockOwned,
+    subscribeParentPro,
+    devSetParentPro,
   };
 }
 
@@ -198,11 +266,13 @@ function usePurchasesValue(
     purchase: () => Promise<boolean>;
     purchaseClock: () => Promise<boolean>;
     restore: () => Promise<boolean>;
+    familyProActive: boolean;
   },
 ): PurchasesContextValue {
   const {
     owned,
     clockOwned,
+    parentPro,
     loading,
     purchasing,
     purchaseFailed,
@@ -210,13 +280,26 @@ function usePurchasesValue(
     purchaseComplete,
     devSetOwned,
     devSetClockOwned,
+    subscribeParentPro,
+    devSetParentPro,
   } = core;
-  const { price, clockPrice, purchase, purchaseClock, restore } = overrides;
+  const { price, clockPrice, purchase, purchaseClock, restore, familyProActive } =
+    overrides;
+
+  const trialDays = parentProTrialDays();
+  const now = Date.now();
+  const parentProActive = isParentProActive(parentPro, trialDays, now);
+  const parentProTrialDaysLeft = trialDaysLeft(parentPro, trialDays, now);
+  const parentProTrialUsed = parentPro.trialStartedAt != null;
+  // An active family subscription unlocks every module for the child.
+  const effectiveOwned = owned || familyProActive;
+  const effectiveClockOwned = clockOwned || familyProActive;
 
   return useMemo<PurchasesContextValue>(
     () => ({
-      owned,
-      clockOwned,
+      owned: effectiveOwned,
+      clockOwned: effectiveClockOwned,
+      familyProActive,
       price,
       completePrice: FALLBACK_COMPLETE_PRICE,
       clockPrice,
@@ -230,10 +313,18 @@ function usePurchasesValue(
       clearPurchaseError,
       devSetOwned,
       devSetClockOwned,
+      parentProActive,
+      parentProPrice: FALLBACK_PARENT_PRO_PRICE,
+      parentProTrialDays: trialDays,
+      parentProTrialDaysLeft,
+      parentProTrialUsed,
+      subscribeParentPro,
+      devSetParentPro,
     }),
     [
-      owned,
-      clockOwned,
+      effectiveOwned,
+      effectiveClockOwned,
+      familyProActive,
       price,
       clockPrice,
       loading,
@@ -246,6 +337,12 @@ function usePurchasesValue(
       clearPurchaseError,
       devSetOwned,
       devSetClockOwned,
+      parentProActive,
+      trialDays,
+      parentProTrialDaysLeft,
+      parentProTrialUsed,
+      subscribeParentPro,
+      devSetParentPro,
     ],
   );
 }
@@ -438,12 +535,14 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
     }
   }, [applyOps, applyClock]);
 
+  const familyProActive = useFamilyProActive();
   const value = usePurchasesValue(core, {
     price,
     clockPrice,
     purchase,
     purchaseClock,
     restore,
+    familyProActive,
   });
 
   return (
@@ -500,12 +599,14 @@ function StubPurchasesProvider({ children }: { children: ReactNode }) {
     return ops || clock;
   }, []);
 
+  const familyProActive = useFamilyProActive();
   const value = usePurchasesValue(core, {
     price: FALLBACK_PRICE,
     clockPrice: FALLBACK_CLOCK_PRICE,
     purchase,
     purchaseClock,
     restore,
+    familyProActive,
   });
 
   return (

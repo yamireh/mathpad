@@ -94,6 +94,8 @@
     "practiceAs": "Practice as",
     "exitPractice": "Back to parent",
     "addChild": "Add child",
+    "familyFull": "Family is full — up to {{max}} kids per family.",
+    "familyFullTitle": "Family is full",
     "addChildTitle": "Add a child",
     "childNamePlaceholder": "Child's name",
     "add": "Add",
@@ -380,6 +382,48 @@
   "purchase": {
     "errorTitle": "Purchase couldn't start",
     "errorBody": "We couldn't reach the App Store just now. Please check your connection and try again in a moment."
+  },
+  "parentPro": {
+    "title": "Parent Pro",
+    "heading": "Unlock the full family experience",
+    "subtitle": "Set goals, assign practice, and give your kids every module — one subscription for the whole family.",
+    "goPro": "Go Pro",
+    "goProBanner": "Unlock goals, exams & every module for your kids",
+    "storeRow": "Parent Pro subscription",
+    "features": {
+      "goals": "Set goals & reward stars",
+      "exams": "Assign practice sets & see the results",
+      "modules": "Every learning module unlocked for your kids",
+      "dashboard": "Track up to 5 kids in one dashboard"
+    },
+    "trialCta": "Start your {{days}}-day free trial",
+    "trialNote": "Then {{price}}/month. Cancel anytime.",
+    "subscribeCta": "Subscribe — {{price}}/month",
+    "subscribeNote": "Billed monthly. Cancel anytime.",
+    "seeIncluded": "See what's included",
+    "demo": {
+      "title": "What's included",
+      "progress": {
+        "title": "Progress",
+        "sub": "Track every child's sessions, questions and accuracy at a glance."
+      },
+      "goals": {
+        "title": "Goals",
+        "goal": "Weekly goal",
+        "sub": "Set goals your kids reach to earn stars — redeem them for real-world rewards."
+      },
+      "practice": {
+        "title": "Practice",
+        "exam": "Weekend maths",
+        "sub": "Send custom practice sets and see exactly how each child scored."
+      }
+    },
+    "restore": "Restore purchase",
+    "parentRequired": "Sign in as a parent to subscribe",
+    "parentRequiredNote": "Parent Pro is set up by a grown-up with their own account.",
+    "useAsRegular": "Continue without Parent Pro",
+    "activeBadge": "Pro",
+    "trialLeft": "Free trial — {{days}} day(s) left"
   },
   "unlock": {
     "title": "Unlock operations",

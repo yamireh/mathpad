@@ -14,6 +14,14 @@ export const OPERATIONS_PRODUCT_ID = 'com.mc.mathpad.operations';
 /** App Store Connect product id for the Clock module ($7.99). */
 export const CLOCK_PRODUCT_ID = 'com.mc.mathpad.clock';
 
+/**
+ * App Store Connect product id for the Parent Pro auto-renewable subscription.
+ * All-access: unlocks the parent tools + every module for the family's kids
+ * while active, with a configurable free-trial intro offer (see the `pricing`
+ * skill). Real StoreKit wiring is Slice 2.
+ */
+export const PARENT_PRO_PRODUCT_ID = 'com.mc.mathpad.parentpro';
+
 /** Whether the Clock module is playable — only once it's owned (or via the
  *  future Complete bundle). Pure mirror of {@link isOperationUnlocked}. */
 export function isClockUnlocked(owned: boolean): boolean {

@@ -21,6 +21,11 @@ export const DEFAULT_MAX_HISTORY = 50;
 /** Upper guard so a bad remote value can't trigger a huge read. */
 const MAX_HISTORY_CEILING = 500;
 
+/** Free-trial length (days) for the Parent Pro subscription. Remotely tunable. */
+export const DEFAULT_PARENT_PRO_TRIAL_DAYS = 1;
+/** Guard so a bad remote value can't grant an absurd trial. */
+const PARENT_PRO_TRIAL_CEILING = 90;
+
 /** The bits of the remote config the app understands today. */
 export interface AppConfig {
   /** Installed versions below this must update before using the app. */
@@ -29,6 +34,8 @@ export interface AppConfig {
   appStoreId: string | null;
   /** Recent sessions per child the dashboard loads (remotely tunable). */
   maxHistorySessionsPerChild: number;
+  /** Parent Pro free-trial length in days (0 = no trial). Fallback 1. */
+  parentProTrialDays: number;
 }
 
 /**
@@ -76,7 +83,18 @@ export function parseAppConfig(raw: unknown): AppConfig {
     typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1
       ? Math.min(MAX_HISTORY_CEILING, Math.floor(rawMax))
       : DEFAULT_MAX_HISTORY;
-  return { minVersion, appStoreId, maxHistorySessionsPerChild };
+  // Trial days: 0 disables the trial; anything invalid falls back to 1.
+  const rawTrial = top.parentProTrialDays;
+  const parentProTrialDays =
+    typeof rawTrial === 'number' && Number.isFinite(rawTrial) && rawTrial >= 0
+      ? Math.min(PARENT_PRO_TRIAL_CEILING, Math.floor(rawTrial))
+      : DEFAULT_PARENT_PRO_TRIAL_DAYS;
+  return {
+    minVersion,
+    appStoreId,
+    maxHistorySessionsPerChild,
+    parentProTrialDays,
+  };
 }
 
 // Runtime config cache — the launch fetch (useForceUpdate) applies the parsed
@@ -87,7 +105,13 @@ let runtimeConfig: AppConfig = {
   minVersion: DEFAULT_MIN_VERSION,
   appStoreId: null,
   maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+  parentProTrialDays: DEFAULT_PARENT_PRO_TRIAL_DAYS,
 };
+
+/** Parent Pro trial length (days) from the remote config, fallback 1. */
+export function parentProTrialDays(): number {
+  return runtimeConfig.parentProTrialDays;
+}
 
 /** Publish the freshly-fetched config for the rest of the app to read. */
 export function applyRuntimeConfig(config: AppConfig): void {

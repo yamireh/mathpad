@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   SectionList,
@@ -21,15 +22,24 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { Button, ConfirmDialog } from '../../ui';
-import { useActiveChild, useAuthUser, useDashboard } from '../../../hooks';
+import { Button, ConfirmDialog, Pill } from '../../ui';
+import {
+  useActiveChild,
+  useAuthUser,
+  useDashboard,
+  usePurchases,
+} from '../../../hooks';
 import { PARENT_PRO_ENABLED } from '../../../lib/featureFlags';
 import {
   type ChildProgress,
   removeChild,
   resetChild,
 } from '../../../lib/firebase/dashboard';
-import { createChildProfile } from '../../../lib/firebase/family';
+import {
+  createChildProfile,
+  FamilyFullError,
+  MAX_CHILDREN,
+} from '../../../lib/firebase/family';
 import { AddChildDialog } from './AddChildDialog';
 import { Avatar, childColor, StatBadge, TopicPill } from './kit';
 import { PracticeTab } from './PracticeTab';
@@ -348,6 +358,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const router = useRouter();
   const { user } = useAuthUser();
   const { setActiveChild } = useActiveChild();
+  const { devSetParentPro } = usePurchases();
   const { children, loading, error, reload } = useDashboard(familyId);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [goalsOpen, setGoalsOpen] = useState<Record<string, boolean>>({});
@@ -360,10 +371,20 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const [tab, setTab] = useState<DashTab>('progress');
   const [addingChild, setAddingChild] = useState(false);
 
+  const atCap = children.length >= MAX_CHILDREN;
   const addChild = async (name: string) => {
-    await createChildProfile(familyId, name).catch(() => {});
     setAddingChild(false);
-    reload();
+    try {
+      await createChildProfile(familyId, name);
+      reload();
+    } catch (e) {
+      if (e instanceof FamilyFullError) {
+        Alert.alert(
+          t('dashboard.familyFullTitle'),
+          t('dashboard.familyFull', { max: MAX_CHILDREN }),
+        );
+      }
+    }
   };
 
   const isRemove = pending?.action === 'remove';
@@ -496,14 +517,20 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
       }}
       renderSectionFooter={() => <View style={styles.sectionGap} />}
       ListFooterComponent={
-        <Pressable
-          onPress={() => setAddingChild(true)}
-          accessibilityRole="button"
-          style={styles.addChildRow}
-        >
-          <Ionicons name="add-circle-outline" size={18} color={colors.answerInk} />
-          <Text style={styles.addChildText}>{t('dashboard.addChild')}</Text>
-        </Pressable>
+        atCap ? (
+          <Text style={styles.familyFull}>
+            {t('dashboard.familyFull', { max: MAX_CHILDREN })}
+          </Text>
+        ) : (
+          <Pressable
+            onPress={() => setAddingChild(true)}
+            accessibilityRole="button"
+            style={styles.addChildRow}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.answerInk} />
+            <Text style={styles.addChildText}>{t('dashboard.addChild')}</Text>
+          </Pressable>
+        )
       }
       contentContainerStyle={styles.dashListContent}
       showsVerticalScrollIndicator={false}
@@ -603,6 +630,18 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         </Pressable>
       </View>
 
+      {/* Parent mode is subscription-gated, so a live dashboard means Pro is
+          active — this dev pill re-locks it to bring the paywall back. */}
+      {__DEV__ ? (
+        <View style={styles.devRow}>
+          <Pill
+            label="DEV: lock parent mode"
+            icon="bug-outline"
+            onPress={() => devSetParentPro(false)}
+          />
+        </View>
+      ) : null}
+
       {!PARENT_PRO_ENABLED || tab === 'progress'
         ? progressList
         : tab === 'goals'
@@ -678,6 +717,7 @@ const styles = StyleSheet.create({
   },
   tabTextActive: { color: operationColors.addition.accent },
   goalGroup: { marginBottom: spacing.md },
+  devRow: { alignItems: 'center' },
   dashListContent: { paddingBottom: spacing.xl },
   addChildRow: {
     flexDirection: 'row',
@@ -690,6 +730,12 @@ const styles = StyleSheet.create({
     fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
     color: colors.answerInk,
+  },
+  familyFull: {
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
   },
   // A styled card, opaque so the sticky header cleanly covers content beneath it.
   childHeader: {

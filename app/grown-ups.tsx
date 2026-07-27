@@ -88,6 +88,11 @@ export default function GrownUpsScreen() {
           />
         ) : null}
         <MenuRow
+          icon="ribbon-outline"
+          label={t('parentPro.storeRow')}
+          onPress={() => router.push('/parent-pro')}
+        />
+        <MenuRow
           icon={linked ? 'link' : 'link-outline'}
           label={t(linked ? 'grownUps.connected' : 'grownUps.connect')}
           onPress={() => router.push('/connect')}

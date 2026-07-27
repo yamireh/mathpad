@@ -1,6 +1,7 @@
 import {
   DEFAULT_MAX_HISTORY,
   DEFAULT_MIN_VERSION,
+  DEFAULT_PARENT_PRO_TRIAL_DAYS,
   appStoreUrl,
   compareVersions,
   isUpdateRequired,
@@ -31,6 +32,7 @@ describe('parseAppConfig', () => {
       minVersion: '1.2.0',
       appStoreId: '12345',
       maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+      parentProTrialDays: DEFAULT_PARENT_PRO_TRIAL_DAYS,
     });
   });
   it('falls back to safe defaults on missing/garbage', () => {
@@ -38,13 +40,24 @@ describe('parseAppConfig', () => {
       minVersion: DEFAULT_MIN_VERSION,
       appStoreId: null,
       maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+      parentProTrialDays: DEFAULT_PARENT_PRO_TRIAL_DAYS,
     });
     expect(parseAppConfig(null)).toEqual({
       minVersion: DEFAULT_MIN_VERSION,
       appStoreId: null,
       maxHistorySessionsPerChild: DEFAULT_MAX_HISTORY,
+      parentProTrialDays: DEFAULT_PARENT_PRO_TRIAL_DAYS,
     });
     expect(parseAppConfig({ ios: { appStoreId: 'not-numeric' } }).appStoreId).toBeNull();
+  });
+  it('reads and clamps the Parent Pro trial-days tunable (fallback 1)', () => {
+    expect(parseAppConfig({ parentProTrialDays: 7 }).parentProTrialDays).toBe(7);
+    expect(parseAppConfig({ parentProTrialDays: 0 }).parentProTrialDays).toBe(0);
+    expect(parseAppConfig({ parentProTrialDays: 9999 }).parentProTrialDays).toBe(90);
+    expect(parseAppConfig({ parentProTrialDays: 'x' }).parentProTrialDays).toBe(
+      DEFAULT_PARENT_PRO_TRIAL_DAYS,
+    );
+    expect(parseAppConfig({}).parentProTrialDays).toBe(1);
   });
   it('reads and clamps the history cap tunable', () => {
     expect(parseAppConfig({ maxHistorySessionsPerChild: 120 }).maxHistorySessionsPerChild).toBe(120);

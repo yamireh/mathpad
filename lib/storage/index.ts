@@ -31,6 +31,7 @@ const KEYS = {
   dev: 'mathpad:dev:v1',
   entitlement: 'mathpad:entitlement:v1',
   clockEntitlement: 'mathpad:entitlement-clock:v1',
+  parentPro: 'mathpad:entitlement-parentpro:v1',
   deviceRole: 'mathpad:device-role:v1',
   familyLink: 'mathpad:family-link:v1',
   pendingSync: 'mathpad:pending-sync:v1',
@@ -271,6 +272,28 @@ export const clockEntitlementStore = {
   },
   async set(clockOwned: boolean): Promise<void> {
     await writeJSON(KEYS.clockEntitlement, { clockOwned });
+  },
+};
+
+/**
+ * Parent Pro subscription state (local cache/dev-stub for Slice 1). `subscribed`
+ * = an active paid sub; `trialStartedAt` = ISO time the free trial began (null
+ * if never started). The real receipt-validated entitlement lands in Slice 2/3.
+ */
+export type ParentProData = {
+  subscribed: boolean;
+  trialStartedAt: string | null;
+};
+
+export const parentProStore = {
+  async get(): Promise<ParentProData> {
+    return readJSON<ParentProData>(KEYS.parentPro, {
+      subscribed: false,
+      trialStartedAt: null,
+    });
+  },
+  async set(data: ParentProData): Promise<void> {
+    await writeJSON(KEYS.parentPro, data);
   },
 };
 

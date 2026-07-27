@@ -14,16 +14,46 @@ MathPad now has **two distinct monetization surfaces**, and they use **different
 | Surface | Model | Rationale |
 |---|---|---|
 | **Kid learning modules** (Operations, Clock, …) | **One-time IAP** (§1) | Offline, owned forever. The no-backend/no-accounts/offline constraints (§5) apply here and rule out subscriptions. |
-| **Parent Pro** (targets/stars, assigned exams, richer dashboard) | **Subscription** | Parent Mode is already online + account-based (Firebase), so §5 does **not** apply to it. Inherently recurring/server-backed value → subscription is the right fit. |
+| **Parent Pro** (targets/stars, assigned exams, richer dashboard, **+ all modules for the family's kids**) | **Subscription (all-access)** | Parent Mode is already online + account-based (Firebase), so §5 does **not** apply to it. Inherently recurring/server-backed value → subscription is the right fit. The sub also unlocks every module for linked kids (household all-access, capped at 5 kids). |
 
-**Parent Pro subscription — decided 2026-07-25:**
-- Targets & stars (parent sets goals; kid earns stars, redeemable for real-world rewards) + parent-assigned exams (blind results — kid submits, parent sees the score) are **subscription-gated** under a `parentPro` entitlement.
-- **The basic dashboard stays free** (already shipped). Pro is purely additive: free = *see* progress, Pro = *direct* it.
-- Framing: we do **not** put kid learning behind a subscription (modules stay buy-once, offline). The subscription is for the **ongoing parent service** (assignments, tracking, cloud). All Pro/subscription surfaces are **parent-authenticated only**, never kid-facing (COPPA + Apple kids rules).
-- **Still open:** price + period (floated ~$3–5/mo or ~$20–30/yr, annual-forward; buyer compares to Kumon $100–150/mo). Enable Apple Family Sharing on the sub.
+**Parent Pro subscription — model LOCKED 2026-07-26:**
+- **What it unlocks:** (a) the Parent Pro tools — targets & stars, parent-assigned exams (blind results), richer dashboard — **AND** (b) **every learning module for every child linked to the family**, while the subscription is active. One all-access price for the whole household.
+- **One-time module IAPs stay** (§1): a parent who just wants their kid to practice can still buy modules à la carte — offline, no account, **owned forever**. This is the honest reason both coexist: **one-time = permanent ownership; subscription = all-access while active** (access lapses on cancel, unless the module was also bought once).
+- **Two lanes, pick one:** à la carte (buy the modules you want, one-time) **or** all-access (subscribe → parent tools + all modules for your kids).
+- **Family cap: 5 children per family — hard cap.** `MAX_CHILDREN = 5`, enforced in `lib/firebase/family.ts` on both add paths (`createChildProfile` and the kid-device `joinFamily`); throws `FamilyFullError`. Keeps an all-access subscription scoped to a real household, not shared with friends' kids. (Client-side today; server-side counter + rules enforcement is the abuse-hardening follow-up.)
+- **How kids inherit access:** a Cloud Function validates the parent's StoreKit receipt server-side and writes `subscription: { active, expiresAt }` onto the **family doc**. Each linked kid device reads that field → entitlement = **family subscription OR local one-time purchase**. Cached with `expiresAt` + a grace window so it works offline and re-checks on next sync (kids already sync sessions). A **standalone kid** (no family linked) → one-time IAPs only, fully offline — the pure-offline path survives.
+- **Abuse prevention (as agreed):** family-scoped entitlement + the 5-child cap + **server-validated receipt** (a client flag can't fake it) + **Apple Family Sharing ON** (the legit household path, up to 6). A parent equips their own kids, not 30 friends' kids.
+- **Parent-authenticated only**, never kid-facing; purchase sits behind the grown-ups gate (COPPA + Apple kids-category rules).
+- **Price: $7.99/month (set 2026-07-26), monthly-only for now.** A yearly (annual-forward) option is still open for App Store Connect setup (Slice 2). Buyer compares to Kumon $100–150/mo.
 - Full design: `docs/parent-pro.md`. Targets marketing version **2.0.0**.
 
 > Why this doesn't contradict §5: §5's "subscriptions conflict with offline + no-backend" is about the **kid app**. Parent Mode already has a backend and accounts — the subscription lives entirely on that already-online surface.
+
+## 0.1 Access & entitlement architecture (LOCKED 2026-07-26)
+
+The authoritative technical model for who can access what, and how it's verified.
+
+**Identities (unchanged by the subscription):**
+- **Parent** = a real Firebase **email/password** account. Creates and owns the family (`families/{id}.ownerUid`). Email/password is **parent-only** and stays even with the subscription — it's the stable identity the subscription is attached to (survives reinstalls/new devices, scopes entitlement, authorizes Firestore reads/writes, enables co-parents). Apple has no concept of the parent account or the family.
+- **Child** = no login of its own: either an anonymous **kid-device** (joins the family via a **pairing code** the parent shares → `joinFamily(code, deviceUid, name)` → `children/{deviceUid}`) or a **"practice-as"** family entity the parent runs on their own device.
+
+**All of parent mode is subscription-gated** (this *supersedes* the earlier "basic dashboard stays free" note in §0). Once signed in with a family, `subscription.active === false` → the parent sees the **paywall**, not the dashboard. Cancelling/expiry never signs them out, so they open straight to the paywall (signed-out → login first, then paywall). Their family/kids/history are never deleted, only gated. The paywall always offers an **escape hatch** — "just let my kid practice" — which switches the device to the regular **learner (child) role** (free tier + any one-time-IAP modules, no Pro).
+
+**Access formula:**
+- **Parent** can use parent mode ⟺ the family subscription is active (paid or trial).
+- **Child** can play a module ⟺ `familySubscriptionActive` **OR** `moduleOwnedViaOneTimeIAP` **OR** `moduleIsFree` (Addition). One-time IAP is **device/Apple-ID-scoped**; subscription access is **family-scoped**.
+
+**Who verifies what (critical):**
+- 🍎 **Apple = all payment truth** (per Apple ID, on the owning device): one-time IAPs (StoreKit local receipt) *and* the parent's subscription (on-device StoreKit + the App Store Server API queried by the Cloud Function + App Store Server Notifications). Apple can only answer for the Apple ID asking — it has **no** concept of "the family."
+- 🔥 **Firebase = identity + relationships + propagation** (never payment): parent identity, family ownership/membership, which kids are in the family, and the **mirror** `families/{id}.subscription = { active, expiresAt }`. Firestore **rules** authorize reads by account uid (family members may *read* the flag; **no client may *write* it** — only the Cloud Function via admin).
+- **The crux:** a kid tablet has a different/irrelevant Apple ID, so **Apple will never tell it the parent's sub is active** — the kid device learns its entitlement **only** by reading `family.subscription` from Firestore. The **Cloud Function** is the sole bridge: it validates the parent's receipt with Apple (binding the transaction to the Firebase uid via StoreKit `appAccountToken`) and writes the verdict onto the family doc.
+
+**Cancel vs. expire (propagation timing):**
+- **Cancel** (auto-renew off) → Apple `DID_CHANGE_RENEWAL_STATUS` → CF records `willRenew:false` but **keeps `active:true` until `expiresAt`** (they paid through the period). Nothing revoked yet.
+- **Expire / refund / grace-fail** → Apple `EXPIRED` / `REFUND` / `GRACE_PERIOD_EXPIRED` → CF flips `active:false`. This happens **server-to-server, no app open needed**. Backstops: parent-app StoreKit reconcile on launch + optional scheduled CF re-check near `expiresAt`.
+- **Kid device revokes:** live Firestore `onSnapshot` on the family doc → **instant** when the flag flips; else next launch/sync; **offline** → it self-enforces the cached `expiresAt` (early refund only seen on reconnect). Optional small offline **grace window** so a transient drop doesn't cut a kid off mid-session.
+
+**Abuse scope:** family-scoped entitlement + the **5-child hard cap** (`MAX_CHILDREN`, `lib/firebase/family.ts`) + server-validated receipts + **Apple Family Sharing ON** (the legit household path).
 
 ## 1. The model
 

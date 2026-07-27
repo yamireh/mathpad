@@ -5,6 +5,7 @@ export {
 } from './useForceUpdate';
 export { useDevPreferences } from './useDevPreferences';
 export { useHowToIntro } from './useHowToIntro';
+export { useFamilyProActive } from './useFamilyProActive';
 export {
   DeviceRoleProvider,
   useDeviceRole,

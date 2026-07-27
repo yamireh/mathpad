@@ -89,11 +89,17 @@ service cloud.firestore {
       // get()) for the owner, because get()/exists() on the queried doc make a
       // LIST query permission-denied — and getFamilyForOwner queries families by
       // ownerUid for any parent without a pointer yet (e.g. a brand-new account).
+      // Readable by any member OR a linked kid device — the kid reads the
+      // `subscription` mirror to learn whether the family unlocks all modules
+      // (§0.1). isChildOf is a path check (safe for the getFamilyForOwner LIST).
       allow read: if signedIn() && (
         resource.data.ownerUid == uid() ||
-        exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid()))
+        exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid())) ||
+        isChildOf(familyId)
       );
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
+      // Members may update the family (incl. the `subscription` mirror today;
+      // in production only the Cloud Function should write `subscription`).
       allow update: if isMember(familyId)
         && request.resource.data.ownerUid == resource.data.ownerUid;
       // The owner may delete their family (account deletion / teardown).
