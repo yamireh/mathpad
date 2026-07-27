@@ -1,0 +1,103 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "8F3A1C20",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "10000001",
+      "localizations" : [
+        {
+          "description" : "Unlock Subtraction, Multiplication, Division and Mix.",
+          "displayName" : "Operations bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.mc.mathpad.operations",
+      "referenceName" : "Operations bundle",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "7.99",
+      "familyShareable" : false,
+      "internalID" : "10000002",
+      "localizations" : [
+        {
+          "description" : "Unlock the Clock module.",
+          "displayName" : "Clock",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.mc.mathpad.clock",
+      "referenceName" : "Clock module",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0000000000",
+    "_developerTeamID" : "",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "20000001",
+      "localizations" : [
+
+      ],
+      "name" : "Parent Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "7.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "30000001",
+          "introductoryOffer" : {
+            "internalID" : "40000001",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "The full family experience: progress, goals, practice.",
+              "displayName" : "Parent Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.mc.mathpad.parentpro",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Parent Pro Monthly",
+          "subscriptionGroupID" : "20000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
