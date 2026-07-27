@@ -57,7 +57,7 @@ describe('parseAppConfig', () => {
     expect(parseAppConfig({ parentProTrialDays: 'x' }).parentProTrialDays).toBe(
       DEFAULT_PARENT_PRO_TRIAL_DAYS,
     );
-    expect(parseAppConfig({}).parentProTrialDays).toBe(1);
+    expect(parseAppConfig({}).parentProTrialDays).toBe(DEFAULT_PARENT_PRO_TRIAL_DAYS);
   });
   it('reads and clamps the history cap tunable', () => {
     expect(parseAppConfig({ maxHistorySessionsPerChild: 120 }).maxHistorySessionsPerChild).toBe(120);

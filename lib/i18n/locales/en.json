@@ -419,6 +419,9 @@
       }
     },
     "restore": "Restore purchase",
+    "autoRenew": "Payment is charged to your Apple ID at confirmation. Your subscription renews automatically unless canceled at least 24 hours before the end of the period. Manage or cancel anytime in your App Store settings.",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
     "parentRequired": "Sign in as a parent to subscribe",
     "parentRequiredNote": "Parent Pro is set up by a grown-up with their own account.",
     "useAsRegular": "Continue without Parent Pro",

@@ -21,8 +21,12 @@ export const DEFAULT_MAX_HISTORY = 50;
 /** Upper guard so a bad remote value can't trigger a huge read. */
 const MAX_HISTORY_CEILING = 500;
 
-/** Free-trial length (days) for the Parent Pro subscription. Remotely tunable. */
-export const DEFAULT_PARENT_PRO_TRIAL_DAYS = 1;
+/**
+ * Free-trial length (days) for the Parent Pro subscription. Remotely tunable.
+ * Default 3 — Apple's shortest supported free-trial intro offer (1 day isn't
+ * available in App Store Connect), so the displayed trial matches the product.
+ */
+export const DEFAULT_PARENT_PRO_TRIAL_DAYS = 3;
 /** Guard so a bad remote value can't grant an absurd trial. */
 const PARENT_PRO_TRIAL_CEILING = 90;
 
@@ -34,7 +38,7 @@ export interface AppConfig {
   appStoreId: string | null;
   /** Recent sessions per child the dashboard loads (remotely tunable). */
   maxHistorySessionsPerChild: number;
-  /** Parent Pro free-trial length in days (0 = no trial). Fallback 1. */
+  /** Parent Pro free-trial length in days (0 = no trial). Fallback 3. */
   parentProTrialDays: number;
 }
 
@@ -83,7 +87,7 @@ export function parseAppConfig(raw: unknown): AppConfig {
     typeof rawMax === 'number' && Number.isFinite(rawMax) && rawMax >= 1
       ? Math.min(MAX_HISTORY_CEILING, Math.floor(rawMax))
       : DEFAULT_MAX_HISTORY;
-  // Trial days: 0 disables the trial; anything invalid falls back to 1.
+  // Trial days: 0 disables the trial; anything invalid falls back to the default.
   const rawTrial = top.parentProTrialDays;
   const parentProTrialDays =
     typeof rawTrial === 'number' && Number.isFinite(rawTrial) && rawTrial >= 0

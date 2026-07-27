@@ -2,7 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { Button, Card, NoticeDialog, Pill } from '../../ui';
 import {
@@ -20,6 +27,10 @@ import {
 } from '../../../hooks';
 
 const ACCENT = operationColors.multiplication.accent; // Parent Pro purple
+/** Apple's standard EULA (Terms of Use) + the app's hosted privacy policy. */
+const TERMS_URL =
+  'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const PRIVACY_URL = 'https://www.microclouds.ca/mathpad-privacy';
 
 /** What Parent Pro includes, by i18n key. */
 const FEATURES = ['goals', 'exams', 'modules', 'dashboard'] as const;
@@ -157,6 +168,28 @@ export function ParentProPaywall() {
           </Pressable>
         </View>
 
+        {/* Apple-required subscription disclosure (Guideline 3.1.2). */}
+        <View style={styles.legal}>
+          <Text style={styles.legalText}>{t('parentPro.autoRenew')}</Text>
+          <View style={styles.legalLinks}>
+            <Pressable
+              onPress={() => void Linking.openURL(TERMS_URL)}
+              accessibilityRole="link"
+              hitSlop={8}
+            >
+              <Text style={styles.legalLink}>{t('parentPro.terms')}</Text>
+            </Pressable>
+            <View style={styles.footerDot} />
+            <Pressable
+              onPress={() => void Linking.openURL(PRIVACY_URL)}
+              accessibilityRole="link"
+              hitSlop={8}
+            >
+              <Text style={styles.legalLink}>{t('parentPro.privacy')}</Text>
+            </Pressable>
+          </View>
+        </View>
+
         {__DEV__ ? (
           <View style={styles.dev}>
             <Pill
@@ -246,6 +279,27 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: colors.border,
+  },
+  // Required subscription disclosure + Terms / Privacy.
+  legal: { gap: spacing.sm, marginTop: spacing.lg, alignItems: 'center' },
+  legalText: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: typography.lineHeight.caption,
+    paddingHorizontal: spacing.sm,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  legalLink: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
+    textDecorationLine: 'underline',
   },
   dev: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg },
 });
