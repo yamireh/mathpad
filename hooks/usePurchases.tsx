@@ -38,6 +38,7 @@ import {
 
 import { LogBox } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
+import { getApp } from 'firebase/app';
 import {
   getAvailablePurchases as queryAvailablePurchases,
   hasActiveSubscriptions as queryHasActiveSubscriptions,
@@ -77,6 +78,23 @@ const FALLBACK_PARENT_PRO_PRICE = '$7.99';
 
 /** Whether this binary actually bundles the expo-iap native module. */
 const STOREKIT_AVAILABLE = requireOptionalNativeModule('ExpoIap') != null;
+
+/**
+ * Ask the Cloud Function to validate the receipt and write the family's
+ * `subscription` (Slice 3c) — so kids/co-parents inherit authoritatively.
+ * Best-effort: if the function isn't deployed yet, the client mirror + launch
+ * reconcile still cover it, so a failure is silently ignored.
+ */
+async function syncParentProCloud(transactionId: string): Promise<void> {
+  try {
+    // Lazy import — keeps firebase/functions (ESM) out of the test graph.
+    const { getFunctions, httpsCallable } = await import('firebase/functions');
+    const call = httpsCallable(getFunctions(getApp()), 'syncParentProSubscription');
+    await call({ transactionId });
+  } catch {
+    // not deployed / offline — local mirror + reconcile own it for now
+  }
+}
 
 export interface PurchasesContextValue {
   /** Whether the paid operations are unlocked (one-time IAP OR family sub). */
@@ -402,6 +420,8 @@ function StoreKitPurchasesProvider({ children }: { children: ReactNode }) {
           trialStartedAt:
             parentProRef.current.trialStartedAt ?? new Date().toISOString(),
         });
+        // Authoritative server-side validation → writes the family doc.
+        if (purchase.transactionId) void syncParentProCloud(purchase.transactionId);
       }
       try {
         // Must be finished so StoreKit stops re-delivering it (subs included).

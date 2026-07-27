@@ -84,6 +84,13 @@ service cloud.firestore {
       allow read, write: if signedIn() && uid() == parentUid;
     }
 
+    // Apple originalTransactionId → familyId map for the subscription webhook.
+    // Written and read ONLY by the Cloud Function (admin bypasses these rules);
+    // no client ever touches it.
+    match /subscriptionOwners/{originalTransactionId} {
+      allow read, write: if false;
+    }
+
     match /families/{familyId} {
       // Readable by any member. Uses resource.data.ownerUid (NOT familyOwner()'s
       // get()) for the owner, because get()/exists() on the queried doc make a
