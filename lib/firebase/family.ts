@@ -351,12 +351,13 @@ export async function joinFamily(
   name: string,
 ): Promise<string> {
   const familyId = await resolveCode('pairingCodes', code);
-  // One kid device = one child, keyed by the device's uid. A device that's
-  // already linked can always re-join (merge); a NEW device is blocked once the
-  // family is at the cap.
-  const existing = await getDocs(collection(db, 'families', familyId, 'children'));
-  const alreadyLinked = existing.docs.some((d) => d.id === deviceUid);
-  if (!alreadyLinked && existing.size >= MAX_CHILDREN) throw new FamilyFullError();
+  // One kid device = one child, keyed by the device's uid; setDoc(merge) covers
+  // both a first join and a re-join. We canNOT count children here to enforce
+  // the cap: a joining kid isn't a family member yet, and the security rules
+  // forbid a non-member from LISTing the children collection (that list threw
+  // permission-denied and blocked every code-join). The 5-child cap is enforced
+  // parent-side in createChildProfile; a server-authoritative cap for code
+  // joins is a TODO (Cloud Function joinFamily).
   await setDoc(
     doc(db, 'families', familyId, 'children', deviceUid),
     { joinedAt: serverTimestamp(), name: name.trim() },
