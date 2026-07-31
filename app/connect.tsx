@@ -8,7 +8,12 @@ import { Button, Header, IconButton, ScreenContainer } from '../components/ui';
 import { colors, operationColors, radius, spacing, typography } from '../constants/design';
 import { useFamilyLink } from '../hooks';
 import { ensureSignedInUid } from '../lib/firebase/auth';
-import { InvalidCodeError, joinFamily, updateChildName } from '../lib/firebase/family';
+import {
+  InvalidCodeError,
+  joinFamily,
+  leaveFamily,
+  updateChildName,
+} from '../lib/firebase/family';
 import { backfillSessions } from '../lib/firebase/sync';
 import { historyStore } from '../lib/storage';
 
@@ -107,7 +112,18 @@ export default function ConnectScreen() {
               label={t('connect.disconnect')}
               icon="unlink-outline"
               variant="ghost"
-              onPress={() => setLink(null)}
+              disabled={busy}
+              onPress={async () => {
+                setBusy(true);
+                try {
+                  if (link) await leaveFamily(link.familyId, link.childId);
+                } catch {
+                  // Ignore — unlink locally regardless so the device leaves.
+                } finally {
+                  setBusy(false);
+                  setLink(null);
+                }
+              }}
               fullWidth
             />
           </View>

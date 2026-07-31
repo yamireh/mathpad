@@ -367,6 +367,33 @@ export async function joinFamily(
 }
 
 /**
+ * Leave a family from a kid device: remove this device's child record so the
+ * parent dashboard reflects only currently-linked kids. The security rules let
+ * a kid delete its OWN child doc and sessions (uid == childId); it can't touch
+ * parent-authoritative data (goals/stars), which is keyed under the same child
+ * path and never surfaces as a phantom child. Best-effort — a failed cleanup
+ * must not block the local unlink (the caller clears the link regardless).
+ */
+export async function leaveFamily(
+  familyId: string,
+  childId: string,
+): Promise<void> {
+  // Remove the device's own practice sessions first (keeps storage tidy), then
+  // delete the child doc itself — the doc is what the dashboard lists.
+  try {
+    const sessions = await getDocs(
+      collection(db, 'families', familyId, 'children', childId, 'sessions'),
+    );
+    await Promise.all(
+      sessions.docs.map((d) => deleteDoc(d.ref).catch(() => {})),
+    );
+  } catch {
+    // Ignore: the child-doc delete below is what matters for the dashboard.
+  }
+  await deleteDoc(doc(db, 'families', familyId, 'children', childId));
+}
+
+/**
  * Join an existing family as an equal co-parent via an invite code. Returns the
  * family id. The membership doc carries the code so the security rule can
  * verify possession. Throws {@link InvalidCodeError} for a bad/inactive code.

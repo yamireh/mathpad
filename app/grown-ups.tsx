@@ -87,11 +87,16 @@ export default function GrownUpsScreen() {
             onPress={becomeParent}
           />
         ) : null}
-        <MenuRow
-          icon="ribbon-outline"
-          label={t('parentPro.storeRow')}
-          onPress={() => router.push('/parent-pro')}
-        />
+        {/* Parent Pro is subscription setup for a parent's OWN family. A device
+            already linked as a child inherits access from its family and must
+            never reach the paywall — hide the entry once linked. */}
+        {!linked ? (
+          <MenuRow
+            icon="ribbon-outline"
+            label={t('parentPro.storeRow')}
+            onPress={() => router.push('/parent-pro')}
+          />
+        ) : null}
         <MenuRow
           icon={linked ? 'link' : 'link-outline'}
           label={t(linked ? 'grownUps.connected' : 'grownUps.connect')}
