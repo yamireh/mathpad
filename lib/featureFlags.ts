@@ -19,10 +19,10 @@ export const CLOCK_ENABLED = true;
 export const COMPLETE_BUNDLE_ENABLED = false;
 
 /**
- * Parent Pro — targets & stars (and, later, assigned exams). Built dark on the
- * `parent-pro` branch: visible while developing (`__DEV__`) but hidden in a
- * production build until the subscription wiring + design are ready. See
- * `docs/parent-pro.md`. Becomes the real `parentPro` subscription entitlement
- * once StoreKit / Play Billing is wired.
+ * Parent Pro — the subscription-gated parent experience (progress/goals/practice
+ * tabs, targets & stars, assigned exams) plus the paywall. Built dark on the
+ * `parent-pro` branch (`__DEV__`) while the StoreKit wiring + design came
+ * together; now LIVE (2.0.x) — the subscription is wired, the Cloud Function is
+ * deployed, and the flow is tested. See `docs/parent-pro.md`.
  */
-export const PARENT_PRO_ENABLED = __DEV__;
+export const PARENT_PRO_ENABLED = true;

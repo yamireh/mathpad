@@ -87,16 +87,9 @@ export default function GrownUpsScreen() {
             onPress={becomeParent}
           />
         ) : null}
-        {/* Parent Pro is subscription setup for a parent's OWN family. A device
-            already linked as a child inherits access from its family and must
-            never reach the paywall — hide the entry once linked. */}
-        {!linked ? (
-          <MenuRow
-            icon="ribbon-outline"
-            label={t('parentPro.storeRow')}
-            onPress={() => router.push('/parent-pro')}
-          />
-        ) : null}
+        {/* No separate "Parent Pro" row: "I'm a parent" already leads to the
+            subscription flow (parent mode → sign in → paywall), so a standalone
+            paywall shortcut here is redundant and confusing on a kid device. */}
         <MenuRow
           icon={linked ? 'link' : 'link-outline'}
           label={t(linked ? 'grownUps.connected' : 'grownUps.connect')}
