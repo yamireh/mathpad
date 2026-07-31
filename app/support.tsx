@@ -9,10 +9,12 @@ import { colors, spacing, typography } from '../constants/design';
 import { useParentalGate } from '../hooks';
 import { tapFeedback } from '../lib/feedback';
 
-/** External support site (FAQs + contact). */
-const SUPPORT_URL = 'https://www.microclouds.ca/mathpad-support';
+/** External support site (contact). */
+const SUPPORT_URL = 'https://microclouds-consulting.com/products/mathpen/support';
+/** Frequently asked questions. */
+const FAQ_URL = 'https://microclouds-consulting.com/products/mathpen/faqs';
 /** Hosted privacy policy. */
-const PRIVACY_URL = 'https://www.microclouds.ca/mathpad-privacy';
+const PRIVACY_URL = 'https://microclouds-consulting.com/products/mathpen/privacy';
 
 /** Support — points the user to the external help/support page. */
 export default function SupportScreen() {
@@ -44,6 +46,15 @@ export default function SupportScreen() {
           onPress={() => {
             tapFeedback();
             runGated(() => void Linking.openURL(SUPPORT_URL));
+          }}
+        />
+        <Button
+          label={t('support.faqs')}
+          variant="secondary"
+          icon="help-circle-outline"
+          onPress={() => {
+            tapFeedback();
+            runGated(() => void Linking.openURL(FAQ_URL));
           }}
         />
         <Button

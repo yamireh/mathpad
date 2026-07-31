@@ -30,7 +30,7 @@ const ACCENT = operationColors.multiplication.accent; // Parent Pro purple
 /** Apple's standard EULA (Terms of Use) + the app's hosted privacy policy. */
 const TERMS_URL =
   'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const PRIVACY_URL = 'https://www.microclouds.ca/mathpad-privacy';
+const PRIVACY_URL = 'https://microclouds-consulting.com/products/mathpen/privacy';
 
 /** What Parent Pro includes, by i18n key. */
 const FEATURES = ['goals', 'exams', 'modules', 'dashboard'] as const;
