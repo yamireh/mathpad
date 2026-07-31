@@ -114,6 +114,15 @@ export default function PracticeScreen() {
   const accent = operationColors[session.settings.operation].accent;
   const isLast = index === total - 1;
   const layout = question.layout;
+  // Division is uniquely interdependent — a quotient digit drives its product
+  // row, difference, and every later digit — so clearing an upstream answer box
+  // mid-solve must also clear the now-stale work below it. Other operations keep
+  // plain per-box clearing during practice (the full cascade is otherwise a
+  // fix-screen behavior).
+  const cascadeOnClear =
+    layout === 'divisionLong' ||
+    layout === 'divisionHorizontal' ||
+    layout === 'divisionDecimal';
 
   // Hint: animate the next single step (write the next digit / do its borrow),
   // and flag the question as hinted for the Results screen.
@@ -198,6 +207,7 @@ export default function PracticeScreen() {
         key={question.id}
         question={question}
         layout={layout}
+        cascadeClear={cascadeOnClear}
         answerInk={session.answerInk[question.id]}
         onAnswerInkChange={(ink) => updateAnswerInk(question.id, ink)}
         scratchInk={session.scratchInk[question.id]}
