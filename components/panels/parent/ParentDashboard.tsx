@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   SectionList,
@@ -30,17 +30,16 @@ import {
   usePurchases,
 } from '../../../hooks';
 import { PARENT_PRO_ENABLED } from '../../../lib/featureFlags';
+import { type ChildProgress, resetChild } from '../../../lib/firebase/dashboard';
 import {
-  type ChildProgress,
-  removeChild,
-  resetChild,
-} from '../../../lib/firebase/dashboard';
-import {
-  createChildProfile,
+  addChild as addChildSlot,
   FamilyFullError,
-  MAX_CHILDREN,
+  reissueChild,
+  removeChild,
+  SLOT_COUNT,
 } from '../../../lib/firebase/family';
 import { AddChildDialog } from './AddChildDialog';
+import { FamilyCode } from './FamilyCode';
 import { Avatar, childColor, StatBadge, TopicPill } from './kit';
 import { PracticeTab } from './PracticeTab';
 import { RewardsSection } from './RewardsSection';
@@ -208,21 +207,47 @@ function ChildHeader({
   );
 }
 
+/** The slot state banner: a join code + instructions while pending, or a small
+ * "active" line once a device has claimed it. */
+function SlotBanner({ child, name }: { child: ChildProgress; name: string }) {
+  const { t } = useTranslation();
+  if (child.status === 'pending' && child.code) {
+    return (
+      <View style={styles.slotPending}>
+        <Text style={styles.slotStatus}>{t('dashboard.statusPending')}</Text>
+        <FamilyCode code={child.code} label={t('dashboard.codeLabel')} hint="" />
+        <Text style={styles.slotHint}>{t('dashboard.shareCode', { name })}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.slotActive}>
+      <Ionicons name="checkmark-circle" size={15} color={colors.correct} />
+      <Text style={styles.slotActiveText}>{t('dashboard.statusLinked')}</Text>
+    </View>
+  );
+}
+
 function ChildBody({
   child,
+  name,
   onPractice,
   onReset,
   onRemove,
+  onReissue,
 }: {
   child: ChildProgress;
+  name: string;
   onPractice: () => void;
   onReset: () => void;
   onRemove: () => void;
+  onReissue: () => void;
 }) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
   return (
     <View style={styles.card}>
+      <SlotBanner child={child} name={name} />
       <View style={styles.stats}>
         <StatBadge
           icon="albums-outline"
@@ -323,6 +348,17 @@ function ChildBody({
             {t('dashboard.practiceAs')}
           </Text>
         </Pressable>
+        {child.status === 'linked' ? (
+          <Pressable
+            onPress={onReissue}
+            accessibilityRole="button"
+            hitSlop={8}
+            style={styles.childAction}
+          >
+            <Ionicons name="refresh-circle-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.childActionText}>{t('dashboard.reissue')}</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onReset}
           accessibilityRole="button"
@@ -355,7 +391,6 @@ function ChildBody({
  */
 export function ParentDashboard({ familyId }: { familyId: string }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { user } = useAuthUser();
   const { setActiveChild } = useActiveChild();
   const { devSetParentPro } = usePurchases();
@@ -363,36 +398,42 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [goalsOpen, setGoalsOpen] = useState<Record<string, boolean>>({});
   const [pending, setPending] = useState<{
-    action: 'reset' | 'remove';
+    action: 'reset' | 'remove' | 'reissue';
     childId: string;
     name: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<DashTab>('progress');
   const [addingChild, setAddingChild] = useState(false);
+  // After "Add child", the freshly-minted join code to reveal to the parent.
+  const [newChild, setNewChild] = useState<{ name: string; code: string } | null>(
+    null,
+  );
 
-  const atCap = children.length >= MAX_CHILDREN;
   const addChild = async (name: string) => {
     setAddingChild(false);
     try {
-      await createChildProfile(familyId, name);
+      const { code } = await addChildSlot(familyId, name);
+      setNewChild({ name, code });
       reload();
     } catch (e) {
       if (e instanceof FamilyFullError) {
         Alert.alert(
           t('dashboard.familyFullTitle'),
-          t('dashboard.familyFull', { max: MAX_CHILDREN }),
+          t('dashboard.familyFull', { max: SLOT_COUNT }),
         );
       }
     }
   };
 
-  const isRemove = pending?.action === 'remove';
+  const action = pending?.action;
   const confirmAction = async () => {
     if (!pending) return;
     setBusy(true);
     try {
       if (pending.action === 'remove') await removeChild(familyId, pending.childId);
+      else if (pending.action === 'reissue')
+        await reissueChild(familyId, pending.childId);
       else await resetChild(familyId, pending.childId);
       reload();
     } catch {
@@ -428,17 +469,12 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
           icon="add"
           onPress={() => setAddingChild(true)}
         />
-        <Button
-          label={t('coParent.addChildDevice')}
-          icon="phone-portrait-outline"
-          variant="secondary"
-          onPress={() => router.push('/family-settings')}
-        />
         <AddChildDialog
           visible={addingChild}
           onAdd={addChild}
           onCancel={() => setAddingChild(false)}
         />
+        <NewChildDialog child={newChild} onClose={() => setNewChild(null)} />
         {/* The dashboard doesn't live-update, so a parent who just shared the
             code needs a way to pull the newly-connected child in. */}
         <Pressable
@@ -483,7 +519,9 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
             expanded={expanded[section.child.childId] ?? false}
             onToggle={() => toggle(section.child.childId)}
             stat={
-              section.child.totalQuestions > 0 ? (
+              section.child.status === 'pending' ? (
+                <Text style={styles.pendingTag}>{t('dashboard.statusPending')}</Text>
+              ) : section.child.totalQuestions > 0 ? (
                 <Text
                   style={[
                     styles.childHeaderStat,
@@ -503,6 +541,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         return (
           <ChildBody
             child={item}
+            name={name}
             onPractice={() =>
               setActiveChild({ familyId, childId: item.childId, name })
             }
@@ -512,25 +551,22 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
             onRemove={() =>
               setPending({ action: 'remove', childId: item.childId, name })
             }
+            onReissue={() =>
+              setPending({ action: 'reissue', childId: item.childId, name })
+            }
           />
         );
       }}
       renderSectionFooter={() => <View style={styles.sectionGap} />}
       ListFooterComponent={
-        atCap ? (
-          <Text style={styles.familyFull}>
-            {t('dashboard.familyFull', { max: MAX_CHILDREN })}
-          </Text>
-        ) : (
-          <Pressable
-            onPress={() => setAddingChild(true)}
-            accessibilityRole="button"
-            style={styles.addChildRow}
-          >
-            <Ionicons name="add-circle-outline" size={18} color={colors.answerInk} />
-            <Text style={styles.addChildText}>{t('dashboard.addChild')}</Text>
-          </Pressable>
-        )
+        <Pressable
+          onPress={() => setAddingChild(true)}
+          accessibilityRole="button"
+          style={styles.addChildRow}
+        >
+          <Ionicons name="add-circle-outline" size={18} color={colors.answerInk} />
+          <Text style={styles.addChildText}>{t('dashboard.addChild')}</Text>
+        </Pressable>
       }
       contentContainerStyle={styles.dashListContent}
       showsVerticalScrollIndicator={false}
@@ -630,8 +666,14 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         </Pressable>
       </View>
 
-      {/* Parent mode is subscription-gated, so a live dashboard means Pro is
-          active — this dev pill re-locks it to bring the paywall back. */}
+      {!PARENT_PRO_ENABLED || tab === 'progress'
+        ? progressList
+        : tab === 'goals'
+          ? goalsList
+          : practiceTab}
+
+      {/* Dev-only: re-lock parent mode (brings the paywall back). Pinned to the
+          bottom so it stays out of the way of the real dashboard. */}
       {__DEV__ ? (
         <View style={styles.devRow}>
           <Pill
@@ -642,27 +684,43 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         </View>
       ) : null}
 
-      {!PARENT_PRO_ENABLED || tab === 'progress'
-        ? progressList
-        : tab === 'goals'
-          ? goalsList
-          : practiceTab}
-
       <ConfirmDialog
         visible={pending !== null}
-        title={t(isRemove ? 'dashboard.removeTitle' : 'dashboard.resetTitle', {
-          name: pending?.name ?? '',
-        })}
-        message={t(isRemove ? 'dashboard.removeMessage' : 'dashboard.resetMessage', {
-          name: pending?.name ?? '',
-        })}
+        title={t(
+          action === 'remove'
+            ? 'dashboard.removeTitle'
+            : action === 'reissue'
+              ? 'dashboard.reissueTitle'
+              : 'dashboard.resetTitle',
+          { name: pending?.name ?? '' },
+        )}
+        message={t(
+          action === 'remove'
+            ? 'dashboard.removeMessage'
+            : action === 'reissue'
+              ? 'dashboard.reissueMessage'
+              : 'dashboard.resetMessage',
+          { name: pending?.name ?? '' },
+        )}
         confirmLabel={
           busy
-            ? t(isRemove ? 'dashboard.removing' : 'dashboard.resetting')
-            : t(isRemove ? 'dashboard.remove' : 'dashboard.reset')
+            ? t(
+                action === 'remove'
+                  ? 'dashboard.removing'
+                  : action === 'reissue'
+                    ? 'dashboard.reissuing'
+                    : 'dashboard.resetting',
+              )
+            : t(
+                action === 'remove'
+                  ? 'dashboard.remove'
+                  : action === 'reissue'
+                    ? 'dashboard.reissue'
+                    : 'dashboard.reset',
+              )
         }
         cancelLabel={t('common.cancel')}
-        destructive
+        destructive={action !== 'reissue'}
         onConfirm={confirmAction}
         onCancel={() => setPending(null)}
       />
@@ -672,7 +730,48 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         onAdd={addChild}
         onCancel={() => setAddingChild(false)}
       />
+
+      <NewChildDialog child={newChild} onClose={() => setNewChild(null)} />
     </View>
+  );
+}
+
+/**
+ * Reveals a just-created child's join code + short instructions so the parent
+ * can enter it on the child's device. Shown right after "Add child".
+ */
+function NewChildDialog({
+  child,
+  onClose,
+}: {
+  child: { name: string; code: string } | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Modal
+      visible={child !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.newChildBackdrop}>
+        <View style={styles.newChildDialog} accessibilityViewIsModal>
+          <Text style={styles.newChildTitle}>
+            {t('dashboard.addedTitle', { name: child?.name ?? '' })}
+          </Text>
+          {child ? (
+            <FamilyCode code={child.code} label={t('dashboard.codeLabel')} hint="" />
+          ) : null}
+          <View style={styles.newChildSteps}>
+            <Text style={styles.newChildStep}>{t('dashboard.addStep1')}</Text>
+            <Text style={styles.newChildStep}>{t('dashboard.addStep2')}</Text>
+            <Text style={styles.newChildStep}>{t('dashboard.addStep3')}</Text>
+          </View>
+          <Button label={t('common.done')} variant="primary" onPress={onClose} />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -717,7 +816,7 @@ const styles = StyleSheet.create({
   },
   tabTextActive: { color: operationColors.addition.accent },
   goalGroup: { marginBottom: spacing.md },
-  devRow: { alignItems: 'center' },
+  devRow: { alignItems: 'center', marginTop: 'auto', paddingTop: spacing.sm },
   dashListContent: { paddingBottom: spacing.xl },
   addChildRow: {
     flexDirection: 'row',
@@ -735,6 +834,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.lg,
     fontSize: typography.size.caption,
+    color: colors.textMuted,
+  },
+  pendingTag: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: operationColors.addition.accent,
+    backgroundColor: operationColors.addition.tint,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+  },
+  slotPending: { gap: spacing.sm },
+  slotStatus: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    color: operationColors.addition.accent,
+  },
+  slotHint: {
+    fontSize: typography.size.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  slotActive: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  slotActiveText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.correct,
+  },
+  newChildBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(28, 28, 40, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  newChildDialog: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    gap: spacing.md,
+    ...shadows.lg,
+  },
+  newChildTitle: {
+    fontSize: typography.size.title,
+    fontWeight: typography.weight.medium,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  newChildSteps: { gap: spacing.xs },
+  newChildStep: {
+    fontSize: typography.size.body,
     color: colors.textMuted,
   },
   // A styled card, opaque so the sticky header cleanly covers content beneath it.

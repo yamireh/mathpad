@@ -102,6 +102,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: typography.size.bodyLarge,
+    fontWeight: typography.weight.regular,
+    letterSpacing: 0,
     color: colors.text,
   },
   actions: { gap: spacing.sm },

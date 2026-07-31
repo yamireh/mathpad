@@ -2,20 +2,22 @@ rules_version = '2';
 
 // Firestore security rules for MathPen Parent Mode.
 //
-// Model:
-//   families/{familyId}                         { ownerUid, pairingCode, createdAt }
+// Model (see docs/parent-pro-family-slots.md):
+//   families/{familyId}                         { ownerUid, parentCode, subscription?, createdAt }
 //   families/{familyId}/parents/{parentUid}     { joinedAt }   // members (equal)
-//   families/{familyId}/children/{childId}      { name, joinedAt, <rolling summary> }
+//   families/{familyId}/children/{childId}      { name, status, deviceUid, code, joinedAt }
 //   families/{familyId}/children/{childId}/sessions/{sessionId}
-//   pairingCodes/{code}                         { familyId, active }  // kid device join
-//   parentInvites/{code}                        { familyId, active }  // co-parent join
-//   parentIndex/{parentUid}                     { familyId }          // "my family" pointer
+//   pairingCodes/{code}                         { familyId, childId, status }  // kid slot codes
+//   parentInvites/{code}                        { familyId, active }           // co-parent join
+//   parentIndex/{parentUid}                     { familyId }                   // "my family" pointer
+//   childDevices/{deviceUid}                    { familyId, childId }          // kid reverse index
 //
 // Identities: parents sign in with email; a kid device signs in anonymously.
-// The child's uid IS the childId. A family has one creator (ownerUid) plus any
-// number of equal co-parents (a doc under parents/). Co-parents join only by
-// presenting a valid invite code, which the rules verify — knowing the familyId
-// alone is NOT enough to gain parent access.
+// A family owns a fixed pool of slot codes. A child is a slot (stable childId).
+// A kid device only ever CLAIMS a pre-made pending slot (pending -> linked,
+// stamping its own uid), writes its own reverse pointer, and its own sessions —
+// it never creates children/codes or edits family structure. The cap is
+// structural: only N codes exist, so a family can't exceed N children.
 //
 // Deploy: Firebase console → Firestore Database → Rules → paste → Publish.
 // (Anything not matched below is denied by default.)
@@ -41,13 +43,18 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid()))
       );
     }
-    // A child device joined to this family (its uid IS its childId). Used to let
-    // a kid LIST exams assigned to them: a per-document `resource.data` rule
-    // can't authorize a list query, so we gate on family-child membership (a
-    // path check) and let the client filter by `assignedTo`.
-    function isChildOf(familyId) {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/families/$(familyId)/children/$(uid()));
+    // A kid device linked to this family, via its own reverse pointer. Replaces
+    // the old isChildOf (which keyed the child by uid). Used to let the kid read
+    // the family doc (subscription mirror) and its assigned exams.
+    function linkedChild(familyId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/childDevices/$(uid()))
+        && get(/databases/$(database)/documents/childDevices/$(uid())).data.familyId == familyId;
+    }
+    // The device uid currently owning a child slot (the claimer). Used to
+    // authorize the kid's own sessions/results without keying the child by uid.
+    function childDeviceUid(familyId, childId) {
+      return get(/databases/$(database)/documents/families/$(familyId)/children/$(childId)).data.deviceUid;
     }
     // Proof a co-parent holds a real, active invite for THIS family.
     function validParentInvite(familyId, code) {
@@ -57,13 +64,15 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/parentInvites/$(code)).data.active == true;
     }
 
-    // Kid device → family. Readable only with the exact code (get), never listed.
+    // Kid slot codes. Resolved by exact code (get); a member may list their
+    // family's codes (to find a free slot / tear the family down). Codes are
+    // minted by the owner at family creation and assigned/freed by members.
     match /pairingCodes/{code} {
       allow get: if signedIn();
-      allow list: if false;
+      allow list: if isMember(resource.data.familyId);
       allow create: if signedIn()
         && familyOwner(request.resource.data.familyId) == uid();
-      allow update: if false;
+      allow update: if isMember(resource.data.familyId);
       // The family owner may delete it (account deletion / family teardown).
       allow delete: if signedIn()
         && familyOwner(resource.data.familyId) == uid();
@@ -84,6 +93,16 @@ service cloud.firestore {
       allow read, write: if signedIn() && uid() == parentUid;
     }
 
+    // Kid device → its claimed slot. Self-scoped: a device reads/writes only its
+    // own pointer, and may create it only if it actually claimed that child.
+    match /childDevices/{deviceUid} {
+      allow read: if uid() == deviceUid;
+      allow create: if uid() == deviceUid
+        && get(/databases/$(database)/documents/families/$(request.resource.data.familyId)/children/$(request.resource.data.childId)).data.deviceUid == uid();
+      allow update: if false;
+      allow delete: if uid() == deviceUid;
+    }
+
     // Apple originalTransactionId → familyId map for the subscription webhook.
     // Written and read ONLY by the Cloud Function (admin bypasses these rules);
     // no client ever touches it.
@@ -92,17 +111,16 @@ service cloud.firestore {
     }
 
     match /families/{familyId} {
-      // Readable by any member. Uses resource.data.ownerUid (NOT familyOwner()'s
-      // get()) for the owner, because get()/exists() on the queried doc make a
-      // LIST query permission-denied — and getFamilyForOwner queries families by
-      // ownerUid for any parent without a pointer yet (e.g. a brand-new account).
       // Readable by any member OR a linked kid device — the kid reads the
       // `subscription` mirror to learn whether the family unlocks all modules
-      // (§0.1). isChildOf is a path check (safe for the getFamilyForOwner LIST).
+      // (§0.1). Uses resource.data.ownerUid (NOT familyOwner()'s get()) for the
+      // owner, because get()/exists() on the queried doc make a LIST query
+      // permission-denied — and getFamilyForOwner queries families by ownerUid
+      // for any parent without a pointer yet.
       allow read: if signedIn() && (
         resource.data.ownerUid == uid() ||
         exists(/databases/$(database)/documents/families/$(familyId)/parents/$(uid())) ||
-        isChildOf(familyId)
+        linkedChild(familyId)
       );
       allow create: if signedIn() && request.resource.data.ownerUid == uid();
       // Members may update the family (incl. the `subscription` mirror today;
@@ -128,34 +146,51 @@ service cloud.firestore {
       }
 
       // Parent Pro — Assigned Exams (family-level). Parents (members) author
-      // them; a kid may read exams assigned to their device. Results live under
-      // the child doc (below). See docs/parent-pro-exams.md.
+      // them; a linked kid may read exams assigned to their device. Results live
+      // under the child doc (below). See docs/parent-pro-exams.md.
       match /exams/{examId} {
         // A kid can read their family's exams (the client filters by
         // assignedTo); a per-doc `uid() in resource.data.assignedTo` rule can't
-        // authorize the kid's LIST query, so gate on family-child membership.
-        allow read: if isMember(familyId) || isChildOf(familyId);
+        // authorize the kid's LIST query, so gate on linked-child membership.
+        allow read: if isMember(familyId) || linkedChild(familyId);
         allow write: if signedIn() && isMember(familyId);
       }
 
-      // Each child = one kid device. Writers: the kid's own device (uid ==
-      // childId) OR any family member (a parent — e.g. a shared phone, or the
-      // kid practising while a parent is signed in on the same device). Kids are
-      // never members, so a kid can still only write its OWN child doc. Any
-      // member reads everything for the dashboard.
+      // Each child = one slot (stable childId, NOT the device uid). The kid
+      // device only CLAIMS a pending slot (single-use, stamping its own uid);
+      // members create/reissue/rename/remove. A kid reads its own slot (by
+      // deviceUid), a joinable pending slot (found via the secret code), or a
+      // removed slot (resource == null, so it can detect removal). Members read
+      // everything for the dashboard.
       match /children/{childId} {
-        allow read: if uid() == childId || isMember(familyId);
-        allow write: if signedIn()
-          && (uid() == childId || isMember(familyId))
-          && familyExists(familyId);
+        allow get: if signedIn() && (
+          resource == null ||
+          resource.data.status == 'pending' ||
+          resource.data.deviceUid == uid() ||
+          isMember(familyId)
+        );
+        allow list: if isMember(familyId);
+        allow create: if isMember(familyId)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.deviceUid == null;
+        // CLAIM (kid, single-use): pending -> linked, stamping OWN uid, name
+        // unchanged — OR any member (rename / re-issue / edits).
+        allow update: if (
+          resource.data.status == 'pending'
+          && request.resource.data.status == 'linked'
+          && request.resource.data.deviceUid == uid()
+          && request.resource.data.name == resource.data.name
+        ) || isMember(familyId);
+        allow delete: if isMember(familyId);
 
         match /sessions/{sessionId} {
-          allow read: if uid() == childId || isMember(familyId);
-          allow create, update: if signedIn()
-            && (uid() == childId || isMember(familyId));
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
+          allow create, update: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           // Delete only for a reset — the kid's own device or a parent (member).
-          allow delete: if signedIn()
-            && (uid() == childId || isMember(familyId));
+          allow delete: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
         }
 
         // Parent Pro — Targets & Stars. The kid device may READ its own stars
@@ -163,28 +198,33 @@ service cloud.firestore {
         // and redemptions are parent-authoritative (family members only). See
         // docs/parent-pro-targets-stars.md.
         match /targets/{targetId} {
-          allow read: if uid() == childId || isMember(familyId);
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           allow write: if signedIn() && isMember(familyId);
         }
         match /rewards/{docId} {
-          allow read: if uid() == childId || isMember(familyId);
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           allow write: if signedIn() && isMember(familyId);
         }
         match /awards/{windowKey} {
-          allow read: if uid() == childId || isMember(familyId);
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           allow write: if signedIn() && isMember(familyId);
         }
         match /redemptions/{redemptionId} {
-          allow read: if uid() == childId || isMember(familyId);
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           allow write: if signedIn() && isMember(familyId);
         }
 
         // Assigned-exam submissions: the kid writes their own result; parents
         // (members) read it and may delete (cleanup). See docs/parent-pro-exams.md.
         match /examResults/{examId} {
-          allow read: if uid() == childId || isMember(familyId);
-          allow create, update: if signedIn()
-            && (uid() == childId || isMember(familyId));
+          allow read: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
+          allow create, update: if isMember(familyId)
+            || childDeviceUid(familyId, childId) == uid();
           allow delete: if signedIn() && isMember(familyId);
         }
       }

@@ -34,6 +34,7 @@ const KEYS = {
   parentPro: 'mathpad:entitlement-parentpro:v1',
   deviceRole: 'mathpad:device-role:v1',
   familyLink: 'mathpad:family-link:v1',
+  familyProCache: 'mathpad:family-pro-cache:v1',
   pendingSync: 'mathpad:pending-sync:v1',
   clockHistory: 'mathpad:clock-history:v1',
 } as const;
@@ -294,6 +295,27 @@ export const parentProStore = {
   },
   async set(data: ParentProData): Promise<void> {
     await writeJSON(KEYS.parentPro, data);
+  },
+};
+
+/**
+ * Last-known family Parent Pro state, cached per family so a kid device keeps its
+ * family-subscription unlock when offline (the live Firestore read can't reach
+ * the server). Grant-only: we honour a cached `active` + `expiresAt`, never
+ * fabricate one. Written whenever the live listener delivers a fresh value.
+ */
+export interface FamilyProCache {
+  familyId: string;
+  active: boolean;
+  expiresAt: string | null;
+}
+
+export const familyProCacheStore = {
+  async get(): Promise<FamilyProCache | null> {
+    return readJSON<FamilyProCache | null>(KEYS.familyProCache, null);
+  },
+  async set(data: FamilyProCache): Promise<void> {
+    await writeJSON(KEYS.familyProCache, data);
   },
 };
 

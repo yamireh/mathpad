@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 
-import { childLinkValid } from '../lib/firebase/family';
+import { childLinkValid, deleteChildDevice } from '../lib/firebase/family';
 import { useAuthUser } from './useAuthUser';
 import { useFamilyLink } from './useFamilyLink';
 
@@ -26,7 +26,10 @@ export function useVerifyLink(): void {
   const lastCheck = useRef(0);
 
   useEffect(() => {
-    if (initializing || !link || !user || user.uid !== link.childId) return;
+    // childId is now the SLOT id (not this device's uid), so we can't gate on
+    // uid === childId anymore. A familyLink only ever exists on a kid device, so
+    // its presence is the signal to run.
+    if (initializing || !link || !user) return;
     let cancelled = false;
 
     const check = async () => {
@@ -34,7 +37,11 @@ export function useVerifyLink(): void {
       if (now - lastCheck.current < CHECK_THROTTLE_MS) return; // throttled
       lastCheck.current = now;
       const valid = await childLinkValid(link.familyId, link.childId);
-      if (!cancelled && valid === false) setLink(null);
+      if (!cancelled && valid === false) {
+        setLink(null);
+        // Best-effort: drop the stale reverse pointer this device wrote at claim.
+        if (user.uid) void deleteChildDevice(user.uid);
+      }
     };
 
     void check(); // launch (lastCheck is 0, so this always runs)

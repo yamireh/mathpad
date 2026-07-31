@@ -1,63 +1,39 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { WelcomeTips, WELCOME_TIP_ID } from '../components/domain';
+import { ChildMenu, ParentMenu } from '../components/settings';
 import { Header, IconButton, ScreenContainer } from '../components/ui';
-import { colors, radius, shadows, spacing, typography } from '../constants/design';
-import { useDeviceRole, useFamilyLink, useTip } from '../hooks';
-import { tapFeedback } from '../lib/feedback';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
-/** A tappable row in the grown-ups menu. */
-function MenuRow({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: IoniconName;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={styles.row}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={() => {
-        tapFeedback();
-        onPress();
-      }}
-    >
-      <Ionicons name={icon} size={22} color={colors.text} />
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-    </Pressable>
-  );
-}
+import { useAuthUser, useDeviceRole, useFamilyLink, useTip } from '../hooks';
 
 /**
- * "Grown-ups" menu, reached from the home gear after the parental gate. Holds
- * the parent/settings entries that don't belong in a kid's face. Choosing
- * "Parents" switches the device to parent mode and returns to the (now parent)
- * home.
+ * "Grown-ups" menu, reached from the home gear after the parental gate. Picks the
+ * right menu for the device — a signed-in parent gets {@link ParentMenu} (→ their
+ * dashboard); a kid device gets {@link ChildMenu} (connect to a family, etc.).
+ * Each menu owns its own items, so they change independently of one another and
+ * of the shared renderer.
  */
 export default function GrownUpsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { setRole } = useDeviceRole();
   const { linked } = useFamilyLink();
+  const { user } = useAuthUser();
+  // A signed-in (non-anonymous) grown-up already IS a parent on this device.
+  const signedInParent = !!user && !user.isAnonymous;
   // Reopen the welcome tips on demand. Closing just hides it; "Don't show again"
   // also persists the opt-out so it stops appearing on launch.
   const [tipsOpen, setTipsOpen] = useState(false);
   const welcome = useTip(WELCOME_TIP_ID);
-  const becomeParent = () => {
+
+  const goToParent = () => {
     setRole('parent');
     router.dismissAll();
   };
+  const onTips = () => setTipsOpen(true);
+  const onSupport = () => router.push('/support');
+
   return (
     <ScreenContainer>
       <Header
@@ -70,42 +46,22 @@ export default function GrownUpsScreen() {
           />
         }
       />
-      <View style={styles.menu}>
-        {/* Becoming a parent is only offered while unlinked — once this device
-            has joined a family it's locked to child mode. In dev we still allow
-            it (keeping the link) so a single device can test both sides. */}
-        {!linked ? (
-          <MenuRow
-            icon="people-circle-outline"
-            label={t('grownUps.parents')}
-            onPress={becomeParent}
-          />
-        ) : __DEV__ ? (
-          <MenuRow
-            icon="construct-outline"
-            label={t('grownUps.devSwitchParent')}
-            onPress={becomeParent}
-          />
-        ) : null}
-        {/* No separate "Parent Pro" row: "I'm a parent" already leads to the
-            subscription flow (parent mode → sign in → paywall), so a standalone
-            paywall shortcut here is redundant and confusing on a kid device. */}
-        <MenuRow
-          icon={linked ? 'link' : 'link-outline'}
-          label={t(linked ? 'grownUps.connected' : 'grownUps.connect')}
-          onPress={() => router.push('/connect')}
+
+      {signedInParent ? (
+        <ParentMenu
+          onGoToDashboard={goToParent}
+          onTips={onTips}
+          onSupport={onSupport}
         />
-        <MenuRow
-          icon="bulb-outline"
-          label={t('grownUps.tips')}
-          onPress={() => setTipsOpen(true)}
+      ) : (
+        <ChildMenu
+          linked={linked}
+          onBecomeParent={goToParent}
+          onConnect={() => router.push('/connect')}
+          onTips={onTips}
+          onSupport={onSupport}
         />
-        <MenuRow
-          icon="help-buoy-outline"
-          label={t('home.support')}
-          onPress={() => router.push('/support')}
-        />
-      </View>
+      )}
 
       <WelcomeTips
         visible={tipsOpen}
@@ -118,23 +74,3 @@ export default function GrownUpsScreen() {
     </ScreenContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  menu: { padding: spacing.lg, gap: spacing.md },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    ...shadows.sm,
-  },
-  rowLabel: {
-    flex: 1,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    color: colors.text,
-  },
-});

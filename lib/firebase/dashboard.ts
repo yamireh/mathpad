@@ -17,8 +17,6 @@ import {
 
 import { getRuntimeConfig } from '../appConfig';
 import { db } from './index';
-import { purgeChildExamResults } from './exams';
-import { purgeChildRewards } from './rewards';
 
 export interface TopicStat {
   sessions: number;
@@ -44,6 +42,10 @@ export interface RecentSession {
 export interface ChildProgress {
   childId: string;
   name?: string;
+  /** Slot state: 'pending' = waiting for a device to join, 'linked' = active. */
+  status?: 'pending' | 'linked';
+  /** The join code the parent shares with this child's device. */
+  code?: string;
   totalSessions: number;
   totalQuestions: number;
   totalCorrect: number;
@@ -73,6 +75,8 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
     out.push({
       childId: child.id,
       name: s.name,
+      status: s.status,
+      code: s.code,
       totalSessions: s.totalSessions ?? 0,
       totalQuestions: s.totalQuestions ?? 0,
       totalCorrect: s.totalCorrect ?? 0,
@@ -111,29 +115,17 @@ export async function resetChild(
   await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
   // Full replace (not merge) so byTopic and lastActiveAt clear too; preserve id.
   const data = (await getDoc(childRef)).data() ?? {};
+  // Preserve slot identity: status/deviceUid/code stay as they are (reset only
+  // clears progress). We must not blow them away, so re-merge them.
   await setDoc(childRef, {
     name: data.name ?? '',
+    status: data.status ?? 'linked',
+    deviceUid: data.deviceUid ?? null,
+    code: data.code ?? null,
     joinedAt: data.joinedAt ?? null,
     totalSessions: 0,
     totalQuestions: 0,
     totalCorrect: 0,
     byTopic: {},
   });
-}
-
-/**
- * Remove a child from the family entirely: delete every session doc and the
- * child doc itself. Any family member may do this. (If that kid device is still
- * linked and keeps practising, it re-creates its child on the next sync.)
- */
-export async function removeChild(
-  familyId: string,
-  childId: string,
-): Promise<void> {
-  const childRef = doc(db, 'families', familyId, 'children', childId);
-  const sessions = await getDocs(collection(childRef, 'sessions'));
-  await Promise.all(sessions.docs.map((d) => deleteDoc(d.ref)));
-  await purgeChildRewards(childRef); // targets / stars / awards / redemptions
-  await purgeChildExamResults(childRef); // submitted exam results
-  await deleteDoc(childRef);
 }

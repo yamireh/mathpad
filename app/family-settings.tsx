@@ -296,21 +296,6 @@ export default function FamilySettingsScreen() {
         ) : family ? (
           <>
             <CollapsibleSection
-              title={t('coParent.addChildDevice')}
-              icon="phone-portrait-outline"
-            >
-              <Steps
-                steps={[
-                  t('coParent.child1'),
-                  t('coParent.child2'),
-                  t('coParent.child3'),
-                  t('coParent.child4'),
-                ]}
-              />
-              <FamilyCode code={family.pairingCode} hint="" />
-            </CollapsibleSection>
-
-            <CollapsibleSection
               title={t('coParent.invite')}
               icon="people-outline"
             >

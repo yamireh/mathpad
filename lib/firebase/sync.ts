@@ -7,9 +7,10 @@
  *   families/{id}/children/{childId}            (rolling aggregate lives here)
  *   families/{id}/children/{childId}/sessions/{sessionId}
  *
- * `childId` is the device's (anonymous) uid — one kid device = one child. The
- * core is topic-agnostic (`SessionSyncData`): the Operations module maps its
- * SessionResult here, and Clock (or any future module) builds the same shape.
+ * `childId` is the family SLOT the device claimed (stable across reinstall), read
+ * from the persisted family link; the device authorizes its writes as that slot's
+ * `deviceUid`. The core is topic-agnostic (`SessionSyncData`): the Operations
+ * module maps its SessionResult here, and Clock (or any future module) matches.
  */
 import { doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
 
