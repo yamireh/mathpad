@@ -1,12 +1,14 @@
 /**
  * usePendingExams — the parent-assigned exams a kid device still has to do.
  *
- * Loads exams assigned to this child that haven't been submitted yet. Inert
- * (empty) when the device isn't linked to a family.
+ * Subscribes in real time (assigned exams minus submitted ones) so the kid's
+ * home stays in sync live: a just-finished practice drops off instantly and a
+ * newly-assigned one appears without any reload. Inert when the device isn't
+ * linked to a family.
  */
 import { useCallback, useEffect, useState } from 'react';
 
-import { listPendingExamsForChild } from '../lib/firebase/exams';
+import { listenPendingExamsForChild } from '../lib/firebase/exams';
 import type { Exam } from '../lib/exams';
 
 export interface UsePendingExamsResult {
@@ -14,6 +16,7 @@ export interface UsePendingExamsResult {
   loading: boolean;
   /** Last load error message, or null. Surfaced for dev diagnostics. */
   error: string | null;
+  /** No-op: the live listener keeps the list current. Kept for callers. */
   reload: () => void;
 }
 
@@ -24,35 +27,32 @@ export function usePendingExams(
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!familyId || !childId) {
       setExams([]);
+      setLoading(false);
       return;
     }
-    let cancelled = false;
     setLoading(true);
     setError(null);
-    void (async () => {
-      try {
-        const list = await listPendingExamsForChild(familyId, childId);
-        if (cancelled) return;
+    const unsub = listenPendingExamsForChild(
+      familyId,
+      childId,
+      (list) => {
         setExams(list);
-      } catch (e) {
-        if (cancelled) return;
+        setLoading(false);
+      },
+      (e) => {
         setExams([]);
         setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [familyId, childId, nonce]);
+        setLoading(false);
+      },
+    );
+    return unsub;
+  }, [familyId, childId]);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {}, []);
 
   return { exams, loading, error, reload };
 }

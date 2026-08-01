@@ -324,9 +324,12 @@ function usePurchasesValue(
   const parentProActive = isParentProActive(parentPro, trialDays, now);
   const parentProTrialDaysLeft = trialDaysLeft(parentPro, trialDays, now);
   const parentProTrialUsed = parentPro.trialStartedAt != null;
-  // An active family subscription unlocks every module for the child.
-  const effectiveOwned = owned || familyProActive;
-  const effectiveClockOwned = clockOwned || familyProActive;
+  // Every module is unlocked when: bought outright (IAP), the family carries an
+  // active subscription, OR this device's own Parent Pro is active — so a
+  // subscribed parent previewing/practicing sees everything unlocked directly,
+  // without waiting on the family-doc mirror round-trip.
+  const effectiveOwned = owned || familyProActive || parentProActive;
+  const effectiveClockOwned = clockOwned || familyProActive || parentProActive;
 
   return useMemo<PurchasesContextValue>(
     () => ({

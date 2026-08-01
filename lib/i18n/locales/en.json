@@ -89,9 +89,9 @@
     "codeLabel": "Join code",
     "shareCode": "Enter this code on {{name}}'s device to connect it.",
     "addedTitle": "{{name}} is ready",
-    "addStep1": "On your child's device, open MathPen and choose \"My child's\".",
-    "addStep2": "Tap the ⚙️ settings, then \"Connect to family\".",
-    "addStep3": "Enter the code above — their progress shows up here.",
+    "addStep1": "On your child’s device, open MathPen.",
+    "addStep2": "Open Grown-ups (the ⚙️ in the corner) and tap “Connect to family”.",
+    "addStep3": "Enter this code and tap Connect — their progress shows up here.",
     "corrected_one": "{{count}} corrected",
     "corrected_other": "{{count}} corrected",
     "solvedWithHelp_one": "{{count}} solved with help",
@@ -112,7 +112,8 @@
     "addChildTitle": "Add a child",
     "childNamePlaceholder": "Child's name",
     "add": "Add",
-    "practiceComingSoon": "Create practice sets and assign them to your children — coming soon."
+    "practiceComingSoon": "Create practice sets and assign them to your children — coming soon.",
+    "more": "More"
   },
   "exams": {
     "heading": "Practice sets",
@@ -134,7 +135,7 @@
     "noChildren": "Connect a child device first to assign practice.",
     "doneTitle": "All done!",
     "doneBody": "Your practice is submitted. Nice work! 💪",
-    "kidHeading": "From your grown-up",
+    "kidHeading": "Pending assignment",
     "kidStart": "Start",
     "modeRandom": "Random",
     "modeCustom": "Custom",
@@ -352,7 +353,9 @@
     "helpTitle": "How to answer",
     "helpMessage": "Write each digit in its own box. Use the scratch area for your working out — it is just for you. Tap Finish when you are done.",
     "timeUpTitle": "Time's up!",
-    "timeUpMessage": "Let's see how you did."
+    "timeUpMessage": "Let's see how you did.",
+    "recognizerWarming": "Getting the writing pad ready…",
+    "recognizerError": "Handwriting isn’t ready — tap to try again."
   },
   "score": {
     "title": "Results",
@@ -475,8 +478,8 @@
       "clearMessage": "This permanently deletes every saved clock session on this device."
     },
     "readPrompt": "What time is it?",
-    "elapsedAfter": "What time will it be in {{dur}}?",
-    "elapsedBefore": "What time was it {{dur}} ago?",
+    "elapsedAfter": "What time will it be {{dir}} {{dur}}?",
+    "elapsedBefore": "What time was it {{dur}} {{dir}}?",
     "hour": "hour",
     "hoursUnit": "hours",
     "min": "min",
@@ -548,7 +551,9 @@
       "jumpFiveDesc": "5-minute jumps",
       "jumpAny": "Any",
       "jumpAnyDesc": "Any number of minutes"
-    }
+    },
+    "elapsedDirAfter": "in",
+    "elapsedDirBefore": "ago"
   },
   "parentalGate": {
     "title": "Ask a grown-up",

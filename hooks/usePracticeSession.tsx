@@ -721,21 +721,20 @@ export function PracticeSessionProvider({
       };
       commit(finished);
       const result = toSessionResult(finished);
-      // A parent-assigned exam is submitted blind by the practice screen (to the
-      // exam, not the practice history), so skip local history + normal sync.
-      if (!finished.examId) {
-        const id = identityRef.current;
-        // Local history is the DEVICE's own (a kid device) — never a parent's
-        // dabbling or a parent-as-child run (that lives in the cloud child).
-        if (!isSignedInParent()) void historyStore.upsert(result);
-        // Sync to the family cloud once, at finish. A parent practicing as a
-        // child writes directly to that child (member-authorized); a dedicated
-        // kid device uses the offline-queue path keyed to its own link.
-        if (id?.viaMembership) {
-          void syncSessionForChild(id.familyId, id.childId, result);
-        } else {
-          void maybeSyncSession(result);
-        }
+      const id = identityRef.current;
+      // Local history is the DEVICE's own log — skip a blind assigned exam (the
+      // kid never sees its score) and a parent's dabbling / parent-as-child run
+      // (that lives in the cloud child, not this device's history).
+      if (!finished.examId && !isSignedInParent()) void historyStore.upsert(result);
+      // Sync the session to the family cloud once, at finish — INCLUDING assigned
+      // exams, so the parent's progress reflects practice they assigned (the exam
+      // result is also submitted separately, blind, by the practice screen). A
+      // parent practicing as a child writes directly to that child (member-
+      // authorized); a dedicated kid device uses the offline-queue path.
+      if (id?.viaMembership) {
+        void syncSessionForChild(id.familyId, id.childId, result);
+      } else {
+        void maybeSyncSession(result);
       }
       return results;
     },

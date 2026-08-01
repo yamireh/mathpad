@@ -1,7 +1,14 @@
 import { Redirect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import {
   QuestionWorkspace,
@@ -47,7 +54,11 @@ export default function PracticeScreen() {
     markHinted,
     finish,
   } = usePracticeSession();
-  const { recognizeAnswer } = useRecognition();
+  const {
+    recognizeAnswer,
+    status: recognitionStatus,
+    retry: retryRecognition,
+  } = useRecognition();
   const identity = usePracticeIdentity();
 
   const [index, setIndex] = useState(0);
@@ -202,6 +213,32 @@ export default function PracticeScreen() {
         />
       </View>
 
+      {/* Handwriting model isn't ready yet — tell the kid why their writing may
+          not turn into clean digits, instead of leaving them confused. */}
+      {recognitionStatus !== 'ready' ? (
+        <Pressable
+          onPress={
+            recognitionStatus === 'error' ? retryRecognition : undefined
+          }
+          accessibilityRole={recognitionStatus === 'error' ? 'button' : 'text'}
+          style={styles.recogBanner}
+        >
+          {recognitionStatus === 'preparing' ? (
+            <>
+              <ActivityIndicator size="small" color={accent} />
+              <Text style={styles.recogText}>
+                {t('practice.recognizerWarming')}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.recogText}>
+              {t('practice.recognizerError')}
+            </Text>
+          )}
+        </Pressable>
+      ) : null}
+
+      <View style={styles.workspaceWrap}>
       <QuestionWorkspace
         ref={workspaceRef}
         key={question.id}
@@ -246,6 +283,12 @@ export default function PracticeScreen() {
         onSolved={() => markSolved(question.id)}
         tone={accent}
       />
+        {/* Block writing until the recognizer is ready (or on error), so a kid
+            can't scribble into a void — the banner above says why. */}
+        {recognitionStatus !== 'ready' ? (
+          <View style={styles.padBlocker} pointerEvents="auto" />
+        ) : null}
+      </View>
 
       <View style={styles.bottomBar}>
         <View style={styles.primaryButton}>
@@ -289,6 +332,29 @@ export default function PracticeScreen() {
 }
 
 const styles = StyleSheet.create({
+  recogBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: operationColors.addition.tint,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  recogText: {
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
+  },
+  workspaceWrap: { flex: 1 },
+  // A translucent scrim over the workspace that blocks writing while the
+  // recognizer isn't ready; dims the pad to signal it's inactive.
+  padBlocker: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

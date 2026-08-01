@@ -4,7 +4,7 @@
  * lets the parent create + assign a new one.
  */
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
@@ -81,11 +81,22 @@ export interface PracticeTabProps {
   createdBy: string;
   /** Assignable children (id + display name), for the create dialog + result labels. */
   children: { childId: string; name: string }[];
+  /** Bumped by the dashboard's Refresh so this tab re-fetches its exams too. */
+  refreshSignal?: number;
 }
 
-export function PracticeTab({ familyId, createdBy, children }: PracticeTabProps) {
+export function PracticeTab({
+  familyId,
+  createdBy,
+  children,
+  refreshSignal,
+}: PracticeTabProps) {
   const { t } = useTranslation();
-  const { exams, loading, create, remove } = useFamilyExams(familyId);
+  const { exams, loading, create, remove, reload } = useFamilyExams(familyId);
+  // Re-fetch when the parent taps Refresh (refreshSignal starts at 0 = no-op).
+  useEffect(() => {
+    if (refreshSignal) reload();
+  }, [refreshSignal, reload]);
   const [creating, setCreating] = useState(false);
   // The submitted result the parent is viewing (read-only), if any.
   const [viewing, setViewing] = useState<{

@@ -68,6 +68,10 @@ export function ClockPracticeView({
 
   const advance = async () => {
     setSubmitting(true);
+    // If the kid tapped Next before the convert pause, recognize the handwriting
+    // now and hold a short beat so they SEE the clean number before we move on.
+    const flushed = await qRef.current?.flush();
+    if (flushed) await new Promise((r) => setTimeout(r, 450));
     const { correct, given } = (await qRef.current?.judge()) ?? {
       correct: false,
       given: '—',

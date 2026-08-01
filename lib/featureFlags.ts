@@ -7,8 +7,13 @@
  * or `false` to hide it everywhere.
  */
 
-/** Clock module — live (V1.2, paid Clock IAP `com.mc.mathpad.clock`). */
-export const CLOCK_ENABLED = true;
+/**
+ * Clock module. Temporarily held back to "Coming Soon" in production
+ * (`__DEV__`) while its modes are still being designed — so Operations + Parent
+ * mode can ship polished first. Stays fully usable in dev builds. Flip back to
+ * `true` to re-ship it. (Paid Clock IAP `com.mc.mathpad.clock`.)
+ */
+export const CLOCK_ENABLED = __DEV__;
 
 /**
  * The "Unlock everything" Complete bundle ($24.99). Deferred until enough

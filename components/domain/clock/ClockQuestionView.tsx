@@ -25,7 +25,7 @@ import {
 import { fieldDigits, type ClockFieldValue } from './answerDigits';
 import { ClockFace } from './ClockFace';
 import { ClockLegend } from './ClockLegend';
-import { DigitalClockAnswer } from './DigitalClockAnswer';
+import { DigitalClockAnswer, type DigitalClockAnswerHandle } from './DigitalClockAnswer';
 import { ElapsedPrompt } from './ElapsedPrompt';
 import { PatternBuilder } from './PatternBuilder';
 import { SetClockPrompt } from './SetClockPrompt';
@@ -39,6 +39,9 @@ export interface ClockJudgement {
 
 export interface ClockQuestionHandle {
   judge: () => Promise<ClockJudgement>;
+  /** Convert pending handwriting now (digital answer) so the kid sees the clean
+   *  number before advancing; resolves true if anything was converted. */
+  flush: () => Promise<boolean>;
   /**
    * Whether the kid has entered anything for this question — used to confirm
    * before moving on with a blank answer. "Set the hands" is always considered
@@ -82,6 +85,7 @@ export const ClockQuestionView = forwardRef<
   const [selectedHand, setSelectedHand] = useState<'hour' | 'minute'>('hour');
   const hourRef = useRef<ClockFieldValue>({ strokes: [], digits: null });
   const minuteRef = useRef<ClockFieldValue>({ strokes: [], digits: null });
+  const digitalRef = useRef<DigitalClockAnswerHandle>(null);
 
   useEffect(() => {
     void prepareModel();
@@ -136,6 +140,8 @@ export const ClockQuestionView = forwardRef<
         v.digits !== null || v.strokes.length > 0;
       return filled(hourRef.current) || filled(minuteRef.current);
     },
+    flush: (): Promise<boolean> =>
+      digitalRef.current?.flush() ?? Promise.resolve(false),
   }));
 
   // The answer surface: set the hands, build words, or write the digits.
@@ -169,6 +175,7 @@ export const ClockQuestionView = forwardRef<
       />
     ) : (
       <DigitalClockAnswer
+        ref={digitalRef}
         onHourChange={(v) => {
           hourRef.current = v;
         }}
@@ -192,11 +199,15 @@ export const ClockQuestionView = forwardRef<
 
   return (
     <>
-      {/* Read & elapsed show the clock to read; pure "set the hands" doesn't. */}
+      {/* Read & elapsed show the clock to read; pure "set the hands" doesn't.
+          When the ANSWER is also a clock (set the hands), shrink this reference
+          one so both clocks fit on a phone instead of getting truncated. */}
       {question.skill !== 'set' ? (
         <ClockFace
           time={question.time}
-          size={clockSize}
+          size={
+            question.answerWith === 'set' ? Math.round(clockSize * 0.62) : clockSize
+          }
           showRing={showRing}
           help={help && question.skill === 'read'}
         />

@@ -17,6 +17,7 @@ import {
   getDoc,
   getDocFromServer,
   getDocs,
+  onSnapshot,
   query,
   serverTimestamp,
   setDoc,
@@ -121,6 +122,51 @@ export async function listPendingExamsForChild(
   return examsSnap.docs
     .filter((d) => !done.has(d.id))
     .map((d) => toExam(d.id, d.data()));
+}
+
+/**
+ * Live version of {@link listPendingExamsForChild}: keeps the kid's home in sync
+ * in real time. Two listeners (assigned exams + this child's submissions); the
+ * pending list = assigned minus submitted, recomputed on any change. Firestore
+ * latency-compensates the device's own write, so a just-finished exam drops off
+ * instantly (no navigate-away-and-back) and a newly-assigned one appears live.
+ * Returns an unsubscribe.
+ */
+export function listenPendingExamsForChild(
+  familyId: string,
+  childId: string,
+  onChange: (exams: Exam[]) => void,
+  onError?: (e: unknown) => void,
+): () => void {
+  let assigned: Exam[] | null = null;
+  let done: Set<string> | null = null;
+  const emit = () => {
+    if (assigned === null || done === null) return;
+    onChange(assigned.filter((e) => !done!.has(e.id)));
+  };
+  const unsubExams = onSnapshot(
+    query(
+      collection(famRef(familyId), 'exams'),
+      where('assignedTo', 'array-contains', childId),
+    ),
+    (snap) => {
+      assigned = snap.docs.map((d) => toExam(d.id, d.data()));
+      emit();
+    },
+    (e) => onError?.(e),
+  );
+  const unsubResults = onSnapshot(
+    collection(famRef(familyId), 'children', childId, 'examResults'),
+    (snap) => {
+      done = new Set(snap.docs.map((d) => d.id));
+      emit();
+    },
+    (e) => onError?.(e),
+  );
+  return () => {
+    unsubExams();
+    unsubResults();
+  };
 }
 
 /** Submit a child's result for an exam (doc id = examId, so it's one per exam). */

@@ -10,7 +10,7 @@ import {
   ScreenContainer,
 } from '../../ui';
 import { spacing } from '../../../constants/design';
-import { usePurchases } from '../../../hooks';
+import { useParentalGate, usePurchases } from '../../../hooks';
 import { isSignedInParent } from '../../../lib/firebase/auth';
 import { isOperationUnlocked } from '../../../lib/entitlement';
 import { tapFeedback } from '../../../lib/feedback';
@@ -35,6 +35,7 @@ export function OperationsPanel() {
   const router = useRouter();
   const { t } = useTranslation();
   const { owned, devSetOwned } = usePurchases();
+  const { runGated, gate } = useParentalGate();
 
   return (
     <ScreenContainer
@@ -50,6 +51,18 @@ export function OperationsPanel() {
               name="arrow-back"
               accessibilityLabel={t('common.back')}
               onPress={() => router.back()}
+            />
+          }
+          right={
+            <IconButton
+              name="settings-outline"
+              accessibilityLabel={t('home.grownUps')}
+              onPress={() => {
+                const open = () => router.push('/grown-ups');
+                // Gate only a kid; a signed-in grown-up (or dev) goes straight in.
+                if (isSignedInParent() || __DEV__) open();
+                else runGated(open);
+              }}
             />
           }
         />
@@ -99,6 +112,8 @@ export function OperationsPanel() {
           />
         ) : null}
       </View>
+
+      {gate}
     </ScreenContainer>
   );
 }

@@ -18,7 +18,9 @@ export interface FamilyState {
  */
 export function useFamily(uid: string | null): FamilyState {
   const [family, setFamily] = useState<Family | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Start TRUE so the first paint is the spinner, not a flash of "Set up your
+  // family" / the paywall before the family has loaded.
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [nonce, setNonce] = useState(0);
 

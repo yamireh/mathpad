@@ -22,7 +22,7 @@ import {
   spacing,
   typography,
 } from '../../../constants/design';
-import { Button, ConfirmDialog, Pill } from '../../ui';
+import { ActionSheet, type ActionSheetItem, Button, ConfirmDialog, Pill } from '../../ui';
 import {
   useActiveChild,
   useAuthUser,
@@ -245,6 +245,28 @@ function ChildBody({
 }) {
   const { t } = useTranslation();
   const topics = Object.entries(child.byTopic);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Management actions live in the "⋯" sheet so the row never crams/truncates —
+  // and new options can be added here freely. Re-issue only applies once linked.
+  const actions: ActionSheetItem[] = [];
+  if (child.status === 'linked') {
+    actions.push({
+      icon: 'refresh-circle-outline',
+      label: t('dashboard.reissue'),
+      onPress: onReissue,
+    });
+  }
+  actions.push({
+    icon: 'refresh-outline',
+    label: t('dashboard.reset'),
+    onPress: onReset,
+  });
+  actions.push({
+    icon: 'person-remove-outline',
+    label: t('dashboard.remove'),
+    onPress: onRemove,
+    destructive: true,
+  });
   return (
     <View style={styles.card}>
       <SlotBanner child={child} name={name} />
@@ -348,38 +370,24 @@ function ChildBody({
             {t('dashboard.practiceAs')}
           </Text>
         </Pressable>
-        {child.status === 'linked' ? (
-          <Pressable
-            onPress={onReissue}
-            accessibilityRole="button"
-            hitSlop={8}
-            style={styles.childAction}
-          >
-            <Ionicons name="refresh-circle-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.childActionText}>{t('dashboard.reissue')}</Text>
-          </Pressable>
-        ) : null}
         <Pressable
-          onPress={onReset}
+          onPress={() => setMenuOpen(true)}
           accessibilityRole="button"
+          accessibilityLabel={t('dashboard.more')}
           hitSlop={8}
           style={styles.childAction}
         >
-          <Ionicons name="refresh-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.childActionText}>{t('dashboard.reset')}</Text>
-        </Pressable>
-        <Pressable
-          onPress={onRemove}
-          accessibilityRole="button"
-          hitSlop={8}
-          style={styles.childAction}
-        >
-          <Ionicons name="person-remove-outline" size={14} color={colors.wrong} />
-          <Text style={[styles.childActionText, styles.removeText]}>
-            {t('dashboard.remove')}
-          </Text>
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textMuted} />
+          <Text style={styles.childActionText}>{t('dashboard.more')}</Text>
         </Pressable>
       </View>
+
+      <ActionSheet
+        visible={menuOpen}
+        title={name}
+        items={actions}
+        onClose={() => setMenuOpen(false)}
+      />
     </View>
   );
 }
@@ -409,6 +417,13 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   const [newChild, setNewChild] = useState<{ name: string; code: string } | null>(
     null,
   );
+  // Bumped by Refresh so the Practice tab (its own exam loader) also re-fetches —
+  // the dashboard reload alone only refreshed Progress.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshAll = () => {
+    reload();
+    setRefreshKey((k) => k + 1);
+  };
 
   const addChild = async (name: string) => {
     setAddingChild(false);
@@ -454,7 +469,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
   }
   if (error) {
     return (
-      <Pressable onPress={reload} style={styles.empty}>
+      <Pressable onPress={refreshAll} style={styles.empty}>
         <Text style={styles.emptyText}>{t('dashboard.error')}</Text>
       </Pressable>
     );
@@ -478,7 +493,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
         {/* The dashboard doesn't live-update, so a parent who just shared the
             code needs a way to pull the newly-connected child in. */}
         <Pressable
-          onPress={reload}
+          onPress={refreshAll}
           disabled={loading}
           style={styles.refresh}
           accessibilityRole="button"
@@ -613,6 +628,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
     <PracticeTab
       familyId={familyId}
       createdBy={user?.uid ?? ''}
+      refreshSignal={refreshKey}
       children={children.map((c, i) => ({
         childId: c.childId,
         name: c.name?.trim() || t('dashboard.child', { n: i + 1 }),
@@ -650,7 +666,7 @@ export function ParentDashboard({ familyId }: { familyId: string }) {
           <Text style={styles.dashBarTitle}>{t('dashboard.title')}</Text>
         )}
         <Pressable
-          onPress={reload}
+          onPress={refreshAll}
           disabled={loading}
           style={styles.refresh}
           accessibilityRole="button"

@@ -65,6 +65,10 @@ function numberToFieldInk(
 interface TimeFieldHandle {
   clear: () => void;
   undo: () => void;
+  /** Recognize any pending handwriting NOW (cancelling the convert pause) so the
+   *  clean number shows immediately. Resolves true if it actually converted
+   *  something, false if there was nothing pending. */
+  flush: () => Promise<boolean>;
 }
 
 interface TimeFieldProps {
@@ -109,6 +113,10 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
   // The recognized number, shown as a clean printed overlay (null = drawing).
   const [printed, setPrinted] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest raw strokes + whether a convert is still pending, so `flush` can
+  // recognize immediately when the kid taps Next before the convert pause.
+  const strokesRef = useRef<InkStroke[]>([]);
+  const pendingRef = useRef(false);
 
   const cancel = () => {
     if (timer.current) {
@@ -122,16 +130,17 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
 
   const reset = () => {
     cancel();
+    pendingRef.current = false;
+    strokesRef.current = [];
     setPrinted(null);
     clearField();
     onValue({ strokes: [], digits: null });
   };
 
-  useImperativeHandle(ref, () => ({ clear: reset, undo: reset }), []);
-
-  const recognize = (strokes: InkStroke[]) => {
-    void recognizeNumber(strokes)
+  const recognize = (strokes: InkStroke[]): Promise<void> =>
+    recognizeNumber(strokes)
       .then(({ integerDigits }) => {
+        pendingRef.current = false;
         if (integerDigits.length === 0) {
           reset();
           onUnreadable();
@@ -149,15 +158,36 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
         clearField();
       })
       .catch(() => {
+        pendingRef.current = false;
         // Model not ready yet — leave the raw handwriting; still judged fine.
       });
-  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      clear: reset,
+      undo: reset,
+      // Convert pending handwriting immediately (used when the kid taps Next
+      // before the convert pause) so they see the clean number first.
+      flush: () => {
+        cancel();
+        if (!pendingRef.current) return Promise.resolve(false);
+        pendingRef.current = false;
+        return recognize(strokesRef.current).then(() => true);
+      },
+    }),
+    [],
+  );
 
   // (Re)start the convert countdown from the last stroke.
   const schedule = (strokes: InkStroke[]) => {
     cancel();
-    if (strokes.length === 0) return;
-    timer.current = setTimeout(() => recognize(strokes), CONVERT_DELAY_MS);
+    if (strokes.length === 0) {
+      pendingRef.current = false;
+      return;
+    }
+    pendingRef.current = true;
+    timer.current = setTimeout(() => void recognize(strokes), CONVERT_DELAY_MS);
   };
 
   // Pen-down: cancel any pending convert (so it can't fire mid-stroke) and drop
@@ -169,6 +199,7 @@ const TimeField = forwardRef<TimeFieldHandle, TimeFieldProps>(function TimeField
   };
 
   const handleStrokes = (strokes: InkStroke[]) => {
+    strokesRef.current = strokes;
     if (strokes.length) onWrite();
     // Raw handwriting (not yet converted) — no known digits, so the consumer
     // recognizes these strokes if the kid submits before the convert pause.
@@ -211,17 +242,24 @@ export interface DigitalClockAnswerProps {
   onDrawEnd?: () => void;
 }
 
+export interface DigitalClockAnswerHandle {
+  /** Convert any pending handwriting in BOTH fields now. Resolves true if either
+   *  field had something pending to convert. */
+  flush: () => Promise<boolean>;
+}
+
 /**
  * "Write the time" answer surface: an hour field and a minute field separated
  * by a colon, each a live-recognizing {@link TimeField}, plus Undo + Clear-all.
  * The consumer still recognizes each field's reported strokes at judge time.
  */
-export function DigitalClockAnswer({
-  onHourChange,
-  onMinuteChange,
-  onDrawStart,
-  onDrawEnd,
-}: DigitalClockAnswerProps) {
+export const DigitalClockAnswer = forwardRef<
+  DigitalClockAnswerHandle,
+  DigitalClockAnswerProps
+>(function DigitalClockAnswer(
+  { onHourChange, onMinuteChange, onDrawStart, onDrawEnd },
+  ref,
+) {
   const { t } = useTranslation();
   // Wide, responsive write boxes — two fit a row with the colon, larger on iPad.
   const { width } = useWindowDimensions();
@@ -232,6 +270,20 @@ export function DigitalClockAnswer({
   const minuteField = useRef<TimeFieldHandle>(null);
   // Which field was written in last, so Undo targets the right one.
   const lastField = useRef<'hour' | 'minute' | null>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flush: async () => {
+        const [h, m] = await Promise.all([
+          hourField.current?.flush() ?? Promise.resolve(false),
+          minuteField.current?.flush() ?? Promise.resolve(false),
+        ]);
+        return h || m;
+      },
+    }),
+    [],
+  );
 
   const clearAll = () => {
     hourField.current?.clear();
@@ -307,7 +359,7 @@ export function DigitalClockAnswer({
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: spacing.md },

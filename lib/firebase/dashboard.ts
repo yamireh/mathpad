@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   limit,
   orderBy,
   query,
@@ -58,13 +59,16 @@ export async function loadDashboard(familyId: string): Promise<ChildProgress[]> 
   // How many recent sessions per child to load (then group by method) — a
   // remotely-tunable cap so it stays a cheap read; safe default until fetched.
   const recentLimit = getRuntimeConfig().maxHistorySessionsPerChild;
-  const children = await getDocs(
+  // Read from the SERVER (not the local cache) so a manual Refresh always shows
+  // the child's just-synced sessions — a plain get() can hand back a warm cache
+  // and look "stuck" until a full app relaunch.
+  const children = await getDocsFromServer(
     collection(db, 'families', familyId, 'children'),
   );
   const out: ChildProgress[] = [];
   for (const child of children.docs) {
     // The rolling aggregate lives on the child doc; sessions are a subcollection.
-    const sessionsSnap = await getDocs(
+    const sessionsSnap = await getDocsFromServer(
       query(
         collection(child.ref, 'sessions'),
         orderBy('completedAt', 'desc'),

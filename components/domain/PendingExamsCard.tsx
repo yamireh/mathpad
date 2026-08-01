@@ -10,6 +10,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AttentionPulse } from '../ui';
 import {
   colors,
   operationColors,
@@ -19,6 +20,11 @@ import {
   typography,
 } from '../../constants/design';
 import { PARENT_PRO_ENABLED } from '../../lib/featureFlags';
+
+// Themed in the Parent Pro purple so an assignment stands apart from the kid's
+// own module cards — it's a special "from your grown-up" thing.
+const ACCENT = operationColors.multiplication.accent;
+const ACCENT_TINT = operationColors.multiplication.tint;
 import { usePendingExams, usePracticeIdentity, usePracticeSession } from '../../hooks';
 import { tapFeedback } from '../../lib/feedback';
 
@@ -55,7 +61,10 @@ export function PendingExamsCard() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.heading}>{t('exams.kidHeading')}</Text>
+      <View style={styles.headingRow}>
+        <Ionicons name="sparkles" size={13} color={ACCENT} />
+        <Text style={styles.heading}>{t('exams.kidHeading')}</Text>
+      </View>
       {exams.map((exam) => (
         <Pressable
           key={exam.id}
@@ -65,11 +74,11 @@ export function PendingExamsCard() {
           style={styles.card}
         >
           <View style={styles.iconWrap}>
-            <Ionicons
-              name="reader-outline"
-              size={22}
-              color={operationColors.addition.accent}
-            />
+            <Ionicons name="gift" size={22} color="#FFFFFF" />
+            {/* A gently pulsing "new" dot to draw the kid's eye. */}
+            <AttentionPulse active style={styles.badge}>
+              <View style={styles.badgeDot} />
+            </AttentionPulse>
           </View>
           <View style={styles.text}>
             <Text style={styles.title} numberOfLines={1}>
@@ -91,19 +100,23 @@ export function PendingExamsCard() {
 
 const styles = StyleSheet.create({
   wrap: { gap: spacing.sm, marginBottom: spacing.lg },
+  headingRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   heading: {
     fontSize: typography.size.caption,
     fontWeight: typography.weight.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-    color: colors.textMuted,
+    color: ACCENT,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
+    // Tinted fill + a bold accent border so it clearly isn't a plain module card.
+    backgroundColor: ACCENT_TINT,
     borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: ACCENT,
     padding: spacing.md,
     ...shadows.sm,
   },
@@ -111,9 +124,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radius.md,
-    backgroundColor: operationColors.addition.tint,
+    backgroundColor: ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badge: { position: 'absolute', top: -4, right: -4 },
+  badgeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.amber,
+    borderWidth: 2,
+    borderColor: ACCENT_TINT,
   },
   text: { flex: 1, gap: 2 },
   title: {
@@ -126,7 +148,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: operationColors.addition.accent,
+    backgroundColor: ACCENT,
     borderRadius: radius.pill,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,

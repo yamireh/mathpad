@@ -2,9 +2,17 @@
  * AddChildDialog — create a child profile in the family (Parent Pro Phase 1).
  * A child is a family entity the parent can practice as / assign practice to.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Button } from '../../ui';
 import {
@@ -25,6 +33,7 @@ export function AddChildDialog({ visible, onAdd, onCancel }: AddChildDialogProps
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const add = async () => {
     if (!name.trim()) return;
@@ -38,18 +47,30 @@ export function AddChildDialog({ visible, onAdd, onCancel }: AddChildDialogProps
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      // Focus AFTER the modal is on screen (not mid-animation) so the keyboard
+      // rises smoothly instead of stuttering while the dialog is still fading in.
+      onShow={() => requestAnimationFrame(() => inputRef.current?.focus())}
+    >
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={styles.dialog} accessibilityViewIsModal>
           <Text style={styles.title}>{t('dashboard.addChildTitle')}</Text>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             placeholder={t('dashboard.childNamePlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={name}
             onChangeText={setName}
-            autoFocus
             autoCapitalize="words"
+            keyboardType="default"
           />
           <View style={styles.actions}>
             <Button
@@ -67,7 +88,7 @@ export function AddChildDialog({ visible, onAdd, onCancel }: AddChildDialogProps
             />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -104,6 +125,10 @@ const styles = StyleSheet.create({
     fontSize: typography.size.bodyLarge,
     fontWeight: typography.weight.regular,
     letterSpacing: 0,
+    // Force left-to-right so the name field stays left-aligned even on a device
+    // set to an RTL language.
+    textAlign: 'left',
+    writingDirection: 'ltr',
     color: colors.text,
   },
   actions: { gap: spacing.sm },

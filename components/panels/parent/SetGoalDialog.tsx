@@ -19,7 +19,13 @@ import type { RewardPeriod, RewardTarget } from '../../../lib/rewards';
 import { DEFAULT_WEEK_START } from '../../../lib/rewards';
 
 /** Topics a per-topic breakdown can target. */
-const TOPICS = ['addition', 'subtraction', 'multiplication', 'division'] as const;
+const TOPICS = [
+  'addition',
+  'subtraction',
+  'multiplication',
+  'division',
+  'clock',
+] as const;
 
 const PERIODS: RewardPeriod[] = ['daily', 'weekly', 'monthly'];
 
@@ -89,7 +95,7 @@ export function SetGoalDialog({
   topicLabel,
 }: SetGoalDialogProps) {
   const { t } = useTranslation();
-  const [period, setPeriod] = useState<RewardPeriod>(initial?.period ?? 'weekly');
+  const [period, setPeriod] = useState<RewardPeriod>(initial?.period ?? 'daily');
   const [byTopic, setByTopic] = useState<Record<string, number>>(
     initial?.goal.byTopic ?? {},
   );

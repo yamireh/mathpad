@@ -643,6 +643,29 @@ function isDegenerate(core: QuestionCore): boolean {
 }
 
 /**
+ * The salient operand(s) that make a question "look the same" as its
+ * neighbour to a child. For division that's the DIVISOR alone: the dividend
+ * always varies, so a run of `… ÷ 12`, `… ÷ 12` reads as repetitive even
+ * though each whole problem is distinct — this is the reported "duplicate
+ * divisors". For the other operations both operands are salient. Used only to
+ * discourage back-to-back / three-in-a-row repeats; it never blocks a
+ * question outright.
+ */
+function streakKeys(core: QuestionCore): number[] {
+  return core.operation === 'division' ? [core.operands[1]] : core.operands;
+}
+
+/**
+ * True if `core` shares a salient operand with the immediately previous
+ * question (`prev`) — i.e. accepting it would repeat that operand back-to-back.
+ */
+function repeatsRecent(core: QuestionCore, prev: readonly number[]): boolean {
+  if (prev.length === 0) return false;
+  const keys = streakKeys(core);
+  return keys.some((k) => prev.includes(k));
+}
+
+/**
  * Generate a full session of questions for the given settings.
  *
  * @param settings  Validated session settings.
@@ -657,20 +680,34 @@ export function generateSession(
   // No two questions in a session are the same problem (order-normalized), and
   // no trivially-degenerate ones — so a session reads as varied and random.
   const seen = new Set<string>();
+  // Salient operands of the previous question, to steer the next one away from
+  // repeating them back-to-back (chiefly the divisor — see `streakKeys`).
+  let prevKeys: readonly number[] = [];
   const nextOperation = (): ConcreteOperation =>
     settings.operation === 'mix' ? pick(MIX_OPERATIONS, rng) : settings.operation;
 
   for (let i = 0; i < count; i++) {
     let chosen: QuestionCore | null = null;
+    let unseenFallback: QuestionCore | null = null;
+    let anyValid: QuestionCore | null = null;
     for (let attempt = 0; attempt < DEDUP_ATTEMPTS; attempt++) {
       const core = generateForOperation(nextOperation(), settings, rng);
       if (isDegenerate(core)) continue;
-      chosen = core; // newest valid candidate — kept as the fallback
-      if (!seen.has(questionSignature(core))) break;
+      anyValid = core; // newest valid candidate — last-ditch fallback
+      const fresh = !seen.has(questionSignature(core));
+      if (fresh) unseenFallback ??= core; // best fallback: unique, maybe a repeat operand
+      // Ideal: a brand-new problem that ALSO doesn't repeat the previous
+      // question's salient operand (no `… ÷ 12`, `… ÷ 12` streaks).
+      if (fresh && !repeatsRecent(core, prevKeys)) {
+        chosen = core;
+        break;
+      }
     }
-    // Only null if every attempt was degenerate (near-impossible); take one more.
-    chosen ??= generateForOperation(nextOperation(), settings, rng);
+    // Degrade gracefully: prefer a unique problem, else any valid one, else one
+    // more attempt (only if every attempt was degenerate — near-impossible).
+    chosen ??= unseenFallback ?? anyValid ?? generateForOperation(nextOperation(), settings, rng);
     seen.add(questionSignature(chosen));
+    prevKeys = streakKeys(chosen);
     questions.push({ id: `q-${i + 1}`, ...chosen });
   }
   return questions;

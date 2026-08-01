@@ -202,13 +202,32 @@ export function generateClockQuestions(opts: {
   // Every question in a session shows a distinct time, so it reads as random
   // rather than repeating the same clock.
   const seen = new Set<string>();
+  // The minute hand is the most visible feature, and each step exposes only a
+  // few minute values (quarter → 4, five → 12). Dedup on the whole time alone
+  // still lets the SAME minute land on question after question (3:45, 9:45,
+  // 6:45 …), which reads as "stuck". So we also steer the minute away from the
+  // previous question's when the step offers an alternative — a soft rule that
+  // yields to the hard "distinct time" one and to a tight space.
+  let prevMinute: number | null = null;
   return Array.from({ length: opts.count }, (_, i) => {
     const step = resolveStep(opts.step, rng);
     let time = generateClockTime(step, rng);
-    for (let a = 0; a < TIME_DEDUP_ATTEMPTS && seen.has(timeKey(time)); a++) {
+    // Prefer a candidate that is both an unseen time AND (when possible) a
+    // fresh minute value; keep the first unseen time as a fallback so a tight
+    // space never loses the distinct-time guarantee or spins forever.
+    let unseenFallback = seen.has(timeKey(time)) ? null : time;
+    for (
+      let a = 0;
+      a < TIME_DEDUP_ATTEMPTS &&
+      (seen.has(timeKey(time)) || time.minute === prevMinute);
+      a++
+    ) {
       time = generateClockTime(step, rng);
+      if (!seen.has(timeKey(time))) unseenFallback ??= time;
     }
+    if (seen.has(timeKey(time))) time = unseenFallback ?? time;
     seen.add(timeKey(time));
+    prevMinute = time.minute;
 
     // Elapsed questions ask for a time a duration away from the one shown.
     let target = time;
